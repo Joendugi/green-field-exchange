@@ -89,6 +89,30 @@ export type Database = {
           },
         ]
       }
+      login_attempts: {
+        Row: {
+          attempted_at: string
+          email: string
+          id: string
+          ip_address: string | null
+          success: boolean
+        }
+        Insert: {
+          attempted_at?: string
+          email: string
+          id?: string
+          ip_address?: string | null
+          success?: boolean
+        }
+        Update: {
+          attempted_at?: string
+          email?: string
+          id?: string
+          ip_address?: string | null
+          success?: boolean
+        }
+        Relationships: []
+      }
       messages: {
         Row: {
           content: string
@@ -348,6 +372,41 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      price_history: {
+        Row: {
+          category: Database["public"]["Enums"]["product_category"]
+          id: string
+          location: string
+          price: number
+          product_id: string | null
+          recorded_at: string
+        }
+        Insert: {
+          category: Database["public"]["Enums"]["product_category"]
+          id?: string
+          location: string
+          price: number
+          product_id?: string | null
+          recorded_at?: string
+        }
+        Update: {
+          category?: Database["public"]["Enums"]["product_category"]
+          id?: string
+          location?: string
+          price?: number
+          product_id?: string | null
+          recorded_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "price_history_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
             referencedColumns: ["id"]
           },
         ]

@@ -5,25 +5,41 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { ShoppingCart, MapPin, Search } from "lucide-react";
+import { ShoppingCart, MapPin, Search, Sparkles } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
+import { cache, CACHE_KEYS } from "@/lib/cache";
 
 const Marketplace = () => {
   const [products, setProducts] = useState<any[]>([]);
+  const [recommendations, setRecommendations] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [selectedProduct, setSelectedProduct] = useState<any>(null);
   const [orderQuantity, setOrderQuantity] = useState("");
   const [deliveryAddress, setDeliveryAddress] = useState("");
+  const [isLoadingRecommendations, setIsLoadingRecommendations] = useState(false);
 
   useEffect(() => {
     fetchProducts();
+    fetchRecommendations();
   }, [categoryFilter]);
 
   const fetchProducts = async () => {
+    // Try to get from cache first
+    const cacheKey = categoryFilter === "all" 
+      ? CACHE_KEYS.PRODUCTS 
+      : CACHE_KEYS.PRODUCT_CATEGORY(categoryFilter);
+    
+    const cached = cache.get<any[]>(cacheKey);
+    if (cached) {
+      setProducts(cached);
+      return;
+    }
+
+    // Fetch from database
     let query = supabase
       .from("products")
       .select(`
@@ -37,7 +53,41 @@ const Marketplace = () => {
     }
 
     const { data } = await query;
-    setProducts(data || []);
+    const products = data || [];
+    
+    // Store in cache
+    cache.set(cacheKey, products);
+    setProducts(products);
+  };
+
+  const fetchRecommendations = async () => {
+    try {
+      setIsLoadingRecommendations(true);
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+
+      // Check cache first
+      const cacheKey = CACHE_KEYS.RECOMMENDATIONS(session.user.id);
+      const cached = cache.get<any[]>(cacheKey);
+      if (cached) {
+        setRecommendations(cached);
+        return;
+      }
+
+      const { data, error } = await supabase.functions.invoke('product-recommendations', {
+        body: { userId: session.user.id }
+      });
+
+      if (error) throw error;
+
+      const recs = data?.recommendations || [];
+      cache.set(cacheKey, recs, 10 * 60 * 1000); // Cache for 10 minutes
+      setRecommendations(recs);
+    } catch (error) {
+      console.error('Failed to fetch recommendations:', error);
+    } finally {
+      setIsLoadingRecommendations(false);
+    }
   };
 
   const filteredProducts = products.filter(product =>
@@ -47,15 +97,15 @@ const Marketplace = () => {
 
   const handlePlaceOrder = async () => {
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) return;
+      const { data: { session: userSession } } = await supabase.auth.getSession();
+      if (!userSession) return;
 
       const quantity = parseFloat(orderQuantity);
       const totalPrice = quantity * selectedProduct.price;
 
       const { error } = await supabase.from("orders").insert({
         product_id: selectedProduct.id,
-        buyer_id: session.user.id,
+        buyer_id: userSession.user.id,
         farmer_id: selectedProduct.farmer_id,
         quantity,
         total_price: totalPrice,
@@ -78,6 +128,10 @@ const Marketplace = () => {
       setSelectedProduct(null);
       setOrderQuantity("");
       setDeliveryAddress("");
+      
+      // Invalidate cache to refresh recommendations
+      cache.invalidate(CACHE_KEYS.RECOMMENDATIONS(userSession.user.id));
+      fetchRecommendations();
     } catch (error: any) {
       toast.error(error.message);
     }
@@ -85,6 +139,34 @@ const Marketplace = () => {
 
   return (
     <div className="space-y-6">
+      {/* Recommendations Section */}
+      {recommendations.length > 0 && (
+        <Card className="bg-gradient-to-r from-primary/5 to-secondary/5 border-primary/20">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-primary" />
+              Recommended For You
+            </CardTitle>
+            <CardDescription>Based on your purchase history</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex gap-4 overflow-x-auto pb-2">
+              {recommendations.map((product) => (
+                <Card key={product.id} className="min-w-[250px] hover:shadow-md transition-shadow">
+                  <CardHeader className="p-4">
+                    <CardTitle className="text-sm">{product.name}</CardTitle>
+                    <Badge variant="secondary" className="w-fit">{product.category}</Badge>
+                  </CardHeader>
+                  <CardContent className="p-4 pt-0">
+                    <p className="text-lg font-bold text-primary">${product.price}</p>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <div className="flex flex-col md:flex-row gap-4">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />

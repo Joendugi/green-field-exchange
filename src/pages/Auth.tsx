@@ -8,7 +8,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { toast } from "sonner";
-import { Loader2, Sprout } from "lucide-react";
+import { Loader2, Sprout, AlertCircle } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 const Auth = () => {
   const navigate = useNavigate();
@@ -17,9 +18,50 @@ const Auth = () => {
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
   const [role, setRole] = useState<"farmer" | "buyer">("buyer");
+  const [passwordError, setPasswordError] = useState("");
+  const [loginAttempts, setLoginAttempts] = useState(0);
+  const [isLocked, setIsLocked] = useState(false);
+
+  const validatePassword = (pwd: string): boolean => {
+    const minLength = 8;
+    const hasUppercase = /[A-Z]/.test(pwd);
+    const hasLowercase = /[a-z]/.test(pwd);
+    const hasDigit = /\d/.test(pwd);
+    const hasSpecialChar = /[-_]/.test(pwd);
+
+    if (pwd.length < minLength) {
+      setPasswordError("Password must be at least 8 characters long");
+      return false;
+    }
+    if (!hasUppercase) {
+      setPasswordError("Password must contain at least one uppercase letter");
+      return false;
+    }
+    if (!hasLowercase) {
+      setPasswordError("Password must contain at least one lowercase letter");
+      return false;
+    }
+    if (!hasDigit) {
+      setPasswordError("Password must contain at least one digit");
+      return false;
+    }
+    if (!hasSpecialChar) {
+      setPasswordError("Password must contain at least one special character (- or _)");
+      return false;
+    }
+
+    setPasswordError("");
+    return true;
+  };
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validate password strength
+    if (!validatePassword(password)) {
+      return;
+    }
+
     setIsLoading(true);
 
     try {
@@ -56,6 +98,13 @@ const Auth = () => {
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Check if account is temporarily locked
+    if (isLocked) {
+      toast.error("Too many failed attempts. Please try again in 15 minutes.");
+      return;
+    }
+
     setIsLoading(true);
 
     try {
@@ -64,12 +113,31 @@ const Auth = () => {
         password,
       });
 
-      if (error) throw error;
+      if (error) {
+        // Track failed login attempt
+        const newAttempts = loginAttempts + 1;
+        setLoginAttempts(newAttempts);
 
+        if (newAttempts >= 5) {
+          setIsLocked(true);
+          setTimeout(() => {
+            setIsLocked(false);
+            setLoginAttempts(0);
+          }, 15 * 60 * 1000); // 15 minutes lockout
+          toast.error("Account temporarily locked due to multiple failed attempts.");
+        } else {
+          toast.error(`Invalid credentials. ${5 - newAttempts} attempts remaining.`);
+        }
+        
+        throw error;
+      }
+
+      // Reset on successful login
+      setLoginAttempts(0);
       toast.success("Welcome back!");
       navigate("/dashboard");
     } catch (error: any) {
-      toast.error(error.message);
+      // Error already handled above
     } finally {
       setIsLoading(false);
     }
@@ -154,10 +222,22 @@ const Auth = () => {
                     id="signup-password"
                     type="password"
                     value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    onChange={(e) => {
+                      setPassword(e.target.value);
+                      if (e.target.value) validatePassword(e.target.value);
+                    }}
                     required
-                    minLength={6}
+                    minLength={8}
                   />
+                  {passwordError && (
+                    <Alert variant="destructive" className="mt-2">
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertDescription>{passwordError}</AlertDescription>
+                    </Alert>
+                  )}
+                  <p className="text-xs text-muted-foreground">
+                    Must contain uppercase, lowercase, digit, and special character (- or _)
+                  </p>
                 </div>
                 <div className="space-y-2">
                   <Label>I am a</Label>

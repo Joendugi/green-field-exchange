@@ -7,15 +7,19 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Plus, Edit, Trash2, Package } from "lucide-react";
+import { Plus, Edit, Trash2, Package, Lightbulb } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { Switch } from "@/components/ui/switch";
+import { cache, CACHE_KEYS } from "@/lib/cache";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 const MyProducts = () => {
   const [products, setProducts] = useState<any[]>([]);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<any>(null);
+  const [pricePrediction, setPricePrediction] = useState<any>(null);
+  const [isLoadingPrediction, setIsLoadingPrediction] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     description: "",
@@ -76,8 +80,12 @@ const MyProducts = () => {
         toast.success("Product added successfully!");
       }
 
+      // Invalidate product cache
+      cache.invalidatePattern('products');
+
       setIsAddDialogOpen(false);
       setEditingProduct(null);
+      setPricePrediction(null);
       setFormData({
         name: "",
         description: "",
@@ -91,6 +99,43 @@ const MyProducts = () => {
       fetchMyProducts();
     } catch (error: any) {
       toast.error(error.message);
+    }
+  };
+
+  const getPricePrediction = async () => {
+    if (!formData.category || !formData.location) {
+      toast.error("Please select category and location first");
+      return;
+    }
+
+    try {
+      setIsLoadingPrediction(true);
+
+      // Check cache first
+      const cacheKey = CACHE_KEYS.PRICE_PREDICTION(formData.category, formData.location);
+      const cached = cache.get<any>(cacheKey);
+      if (cached) {
+        setPricePrediction(cached);
+        return;
+      }
+
+      const { data, error } = await supabase.functions.invoke('price-prediction', {
+        body: { 
+          category: formData.category, 
+          location: formData.location 
+        }
+      });
+
+      if (error) throw error;
+
+      // Cache the prediction
+      cache.set(cacheKey, data, 30 * 60 * 1000); // 30 minutes
+      setPricePrediction(data);
+    } catch (error: any) {
+      toast.error("Failed to get price prediction");
+      console.error(error);
+    } finally {
+      setIsLoadingPrediction(false);
     }
   };
 
@@ -219,6 +264,54 @@ const MyProducts = () => {
                   onChange={(e) => setFormData({ ...formData, location: e.target.value })}
                   required
                 />
+              </div>
+
+              {/* AI Price Prediction */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label>AI Price Suggestion</Label>
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    size="sm"
+                    onClick={getPricePrediction}
+                    disabled={isLoadingPrediction || !formData.category || !formData.location}
+                  >
+                    <Lightbulb className="mr-2 h-4 w-4" />
+                    {isLoadingPrediction ? "Analyzing..." : "Get Suggestion"}
+                  </Button>
+                </div>
+                {pricePrediction && (
+                  <Alert className="bg-primary/5 border-primary/20">
+                    <Lightbulb className="h-4 w-4" />
+                    <AlertDescription>
+                      <div className="space-y-1">
+                        <p className="font-semibold">
+                          Suggested Price: ${pricePrediction.suggested_price?.toFixed(2) || "N/A"}
+                        </p>
+                        <p className="text-sm">
+                          Confidence: <Badge variant="outline">{pricePrediction.confidence}</Badge>
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          {pricePrediction.reasoning}
+                        </p>
+                        <Button
+                          type="button"
+                          variant="link"
+                          size="sm"
+                          className="p-0 h-auto"
+                          onClick={() => {
+                            if (pricePrediction.suggested_price) {
+                              setFormData({ ...formData, price: pricePrediction.suggested_price.toFixed(2) });
+                            }
+                          }}
+                        >
+                          Use this price
+                        </Button>
+                      </div>
+                    </AlertDescription>
+                  </Alert>
+                )}
               </div>
 
               <div>

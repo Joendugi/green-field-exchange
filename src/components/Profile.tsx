@@ -7,9 +7,10 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Bell, User, Save } from "lucide-react";
+import { Bell, User, Save, Download } from "lucide-react";
 import { toast } from "sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { exportUserData } from "@/lib/dataExport";
 
 const Profile = () => {
   const [profile, setProfile] = useState<any>(null);
@@ -123,6 +124,24 @@ const Profile = () => {
     }
   };
 
+  const handleExportData = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+
+      toast.info("Preparing your data export...");
+      const result = await exportUserData(supabase, session.user.id);
+
+      if (result.success) {
+        toast.success("Data exported successfully! Check your downloads folder.");
+      } else {
+        toast.error("Failed to export data. Please try again.");
+      }
+    } catch (error: any) {
+      toast.error(error.message);
+    }
+  };
+
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       <Tabs defaultValue="profile">
@@ -185,10 +204,16 @@ const Profile = () => {
                   placeholder="Tell us about yourself..."
                 />
               </div>
-              <Button onClick={handleUpdateProfile} className="w-full">
-                <Save className="mr-2 h-4 w-4" />
-                Save Changes
-              </Button>
+              <div className="flex gap-2">
+                <Button onClick={handleUpdateProfile} className="flex-1">
+                  <Save className="mr-2 h-4 w-4" />
+                  Save Changes
+                </Button>
+                <Button onClick={handleExportData} variant="outline" className="flex-1">
+                  <Download className="mr-2 h-4 w-4" />
+                  Export My Data
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>

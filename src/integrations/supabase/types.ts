@@ -341,32 +341,77 @@ export type Database = {
           },
         ]
       }
+      post_reposts: {
+        Row: {
+          created_at: string
+          id: string
+          post_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          post_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          post_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "post_reposts_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       posts: {
         Row: {
           content: string
           created_at: string
           id: string
           image_url: string | null
+          is_repost: boolean | null
+          original_post_id: string | null
           updated_at: string
           user_id: string
+          video_url: string | null
         }
         Insert: {
           content: string
           created_at?: string
           id?: string
           image_url?: string | null
+          is_repost?: boolean | null
+          original_post_id?: string | null
           updated_at?: string
           user_id: string
+          video_url?: string | null
         }
         Update: {
           content?: string
           created_at?: string
           id?: string
           image_url?: string | null
+          is_repost?: boolean | null
+          original_post_id?: string | null
           updated_at?: string
           user_id?: string
+          video_url?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "posts_original_post_id_fkey"
+            columns: ["original_post_id"]
+            isOneToOne: false
+            referencedRelation: "posts"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "posts_user_id_fkey"
             columns: ["user_id"]
@@ -475,6 +520,7 @@ export type Database = {
           full_name: string
           id: string
           location: string | null
+          onboarding_completed: boolean | null
           phone: string | null
           updated_at: string
         }
@@ -485,6 +531,7 @@ export type Database = {
           full_name: string
           id: string
           location?: string | null
+          onboarding_completed?: boolean | null
           phone?: string | null
           updated_at?: string
         }
@@ -495,6 +542,7 @@ export type Database = {
           full_name?: string
           id?: string
           location?: string | null
+          onboarding_completed?: boolean | null
           phone?: string | null
           updated_at?: string
         }
@@ -531,6 +579,36 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      user_settings: {
+        Row: {
+          ai_assistant_enabled: boolean | null
+          created_at: string
+          dark_mode: boolean | null
+          id: string
+          notifications_enabled: boolean | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          ai_assistant_enabled?: boolean | null
+          created_at?: string
+          dark_mode?: boolean | null
+          id?: string
+          notifications_enabled?: boolean | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          ai_assistant_enabled?: boolean | null
+          created_at?: string
+          dark_mode?: boolean | null
+          id?: string
+          notifications_enabled?: boolean | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       verification_requests: {
         Row: {
@@ -625,6 +703,7 @@ export type Database = {
         | "livestock"
         | "poultry"
         | "other"
+        | "machinery"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -763,6 +842,7 @@ export const Constants = {
         "livestock",
         "poultry",
         "other",
+        "machinery",
       ],
     },
   },

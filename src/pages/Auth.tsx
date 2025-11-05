@@ -87,7 +87,7 @@ const Auth = () => {
         if (roleError) throw roleError;
 
         toast.success("Account created successfully!");
-        navigate("/dashboard");
+        navigate("/");
       }
     } catch (error: any) {
       toast.error(error.message);
@@ -135,7 +135,7 @@ const Auth = () => {
       // Reset on successful login
       setLoginAttempts(0);
       toast.success("Welcome back!");
-      navigate("/dashboard");
+      navigate("/");
     } catch (error: any) {
       // Error already handled above
     } finally {

@@ -98,7 +98,10 @@ const Marketplace = () => {
   const handlePlaceOrder = async () => {
     try {
       const { data: { session: userSession } } = await supabase.auth.getSession();
-      if (!userSession) return;
+      if (!userSession) {
+        toast.error("Please sign in to place an order");
+        return;
+      }
 
       const quantity = parseFloat(orderQuantity);
       const totalPrice = quantity * selectedProduct.price;

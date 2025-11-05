@@ -1,13 +1,49 @@
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Sprout, ShoppingCart, Users, TrendingUp } from "lucide-react";
 import heroBanner from "@/assets/hero-banner.jpg";
+import Navbar from "@/components/Navbar";
+import Marketplace from "@/components/Marketplace";
+import ThemeToggle from "@/components/ThemeToggle";
 
 const Index = () => {
   const navigate = useNavigate();
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      setIsLoggedIn(!!session);
+    };
+
+    checkAuth();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => {
+      setIsLoggedIn(!!session);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  if (isLoggedIn) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Navbar />
+        <div className="container mx-auto px-4 py-6">
+          <Marketplace />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
+      <div className="absolute top-4 right-4">
+        <ThemeToggle />
+      </div>
+      
       {/* Hero Section */}
       <div className="relative h-[600px] overflow-hidden">
         <img src={heroBanner} alt="Farm produce" className="w-full h-full object-cover" />
@@ -28,9 +64,6 @@ const Index = () => {
               <div className="flex gap-4">
                 <Button size="lg" onClick={() => navigate("/auth")}>
                   Get Started
-                </Button>
-                <Button size="lg" variant="outline" onClick={() => navigate("/dashboard")}>
-                  Browse Marketplace
                 </Button>
               </div>
             </div>

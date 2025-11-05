@@ -55,6 +55,21 @@ const MyProducts = () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
 
+      // Check if user needs verification for more than 5 products
+      if (!editingProduct && products.length >= 5) {
+        const { data: roleData } = await supabase
+          .from("user_roles")
+          .select("is_verified")
+          .eq("user_id", session.user.id)
+          .eq("role", "farmer")
+          .single();
+
+        if (!roleData?.is_verified) {
+          toast.error("You need to be verified to add more than 5 products. Please submit a verification request.");
+          return;
+        }
+      }
+
       const productData = {
         ...formData,
         price: parseFloat(formData.price),
@@ -210,6 +225,7 @@ const MyProducts = () => {
                       <SelectItem value="dairy">Dairy</SelectItem>
                       <SelectItem value="livestock">Livestock</SelectItem>
                       <SelectItem value="poultry">Poultry</SelectItem>
+                      <SelectItem value="machinery">Machinery</SelectItem>
                       <SelectItem value="other">Other</SelectItem>
                     </SelectContent>
                   </Select>

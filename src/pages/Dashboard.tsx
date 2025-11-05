@@ -7,16 +7,19 @@ import Navbar from "@/components/Navbar";
 import Marketplace from "@/components/Marketplace";
 import MyProducts from "@/components/MyProducts";
 import MyOrders from "@/components/MyOrders";
-import SocialFeed from "@/components/SocialFeed";
+import SocialFeedEnhanced from "@/components/SocialFeedEnhanced";
 import Messages from "@/components/Messages";
 import AIAssistant from "@/components/AIAssistant";
 import Profile from "@/components/Profile";
 import AdminDashboard from "@/components/AdminDashboard";
+import Settings from "@/components/Settings";
+import Onboarding from "@/components/Onboarding";
 
 const Dashboard = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [userRole, setUserRole] = useState<string | null>(null);
+  const [showOnboarding, setShowOnboarding] = useState(false);
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -35,6 +38,18 @@ const Dashboard = () => {
         .single();
 
       setUserRole(roleData?.role || null);
+
+      // Check if onboarding is needed
+      const { data: profileData } = await supabase
+        .from("profiles")
+        .select("onboarding_completed")
+        .eq("id", session.user.id)
+        .single();
+
+      if (!profileData?.onboarding_completed) {
+        setShowOnboarding(true);
+      }
+
       setLoading(false);
     };
 
@@ -60,9 +75,10 @@ const Dashboard = () => {
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
+      <Onboarding open={showOnboarding} onComplete={() => setShowOnboarding(false)} />
       <div className="container mx-auto px-4 py-6">
         <Tabs defaultValue="marketplace" className="w-full">
-          <TabsList className="grid w-full grid-cols-4 lg:grid-cols-8 mb-6">
+          <TabsList className="grid w-full grid-cols-4 lg:grid-cols-9 mb-6">
             <TabsTrigger value="marketplace">Marketplace</TabsTrigger>
             {userRole === "farmer" && <TabsTrigger value="products">My Products</TabsTrigger>}
             <TabsTrigger value="orders">Orders</TabsTrigger>
@@ -70,6 +86,7 @@ const Dashboard = () => {
             <TabsTrigger value="messages">Messages</TabsTrigger>
             <TabsTrigger value="ai">AI Assistant</TabsTrigger>
             <TabsTrigger value="profile">Profile</TabsTrigger>
+            <TabsTrigger value="settings">Settings</TabsTrigger>
             {userRole === "admin" && <TabsTrigger value="admin">Admin</TabsTrigger>}
           </TabsList>
 
@@ -88,7 +105,7 @@ const Dashboard = () => {
           </TabsContent>
 
           <TabsContent value="social">
-            <SocialFeed />
+            <SocialFeedEnhanced />
           </TabsContent>
 
           <TabsContent value="messages">
@@ -101,6 +118,10 @@ const Dashboard = () => {
 
           <TabsContent value="profile">
             <Profile />
+          </TabsContent>
+
+          <TabsContent value="settings">
+            <Settings />
           </TabsContent>
 
           {userRole === "admin" && (

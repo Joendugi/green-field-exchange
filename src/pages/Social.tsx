@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import SocialFeedEnhanced from "@/components/SocialFeedEnhanced";
+import ThemeToggle from "@/components/ThemeToggle";
 
 const Social = () => {
   const navigate = useNavigate();
@@ -43,6 +44,9 @@ const Social = () => {
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
+      <div className="fixed bottom-4 right-4 z-50">
+        <ThemeToggle />
+      </div>
       <div className="container mx-auto px-4 py-6">
         <SocialFeedEnhanced />
       </div>

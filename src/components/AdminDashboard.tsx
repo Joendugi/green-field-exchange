@@ -67,7 +67,7 @@ const AdminDashboard = () => {
       .from("verification_requests")
       .select(`
         *,
-        profiles:farmer_id (full_name)
+        profiles:user_id (full_name)
       `)
       .eq("status", "pending")
       .order("created_at", { ascending: false });
@@ -75,41 +75,40 @@ const AdminDashboard = () => {
     setVerificationRequests(data || []);
   };
 
-  const handleVerifyFarmer = async (requestId: string, farmerId: string, approve: boolean) => {
+  const handleVerifyUser = async (requestId: string, userId: string, approve: boolean) => {
     try {
       // Update verification request
       const { error: requestError } = await supabase
         .from("verification_requests")
         .update({
           status: approve ? "approved" : "rejected",
-          admin_notes: approve ? "Farmer verified" : "Verification rejected",
+          admin_notes: approve ? "User verified" : "Verification rejected",
         })
         .eq("id", requestId);
 
       if (requestError) throw requestError;
 
       if (approve) {
-        // Update farmer's verification status
+        // Update user's verification status
         const { error: roleError } = await supabase
           .from("user_roles")
           .update({ is_verified: true })
-          .eq("user_id", farmerId)
-          .eq("role", "farmer");
+          .eq("user_id", userId);
 
         if (roleError) throw roleError;
       }
 
       // Send notification
       await supabase.from("notifications").insert({
-        user_id: farmerId,
+        user_id: userId,
         type: "verification",
         title: approve ? "Verification Approved" : "Verification Rejected",
         message: approve
-          ? "Congratulations! Your farmer account has been verified."
+          ? "Congratulations! Your account has been verified."
           : "Your verification request has been rejected. Please contact support.",
       });
 
-      toast.success(approve ? "Farmer verified successfully!" : "Request rejected");
+      toast.success(approve ? "User verified successfully!" : "Request rejected");
       fetchVerificationRequests();
       fetchUsers();
     } catch (error: any) {
@@ -214,7 +213,7 @@ const AdminDashboard = () => {
           <Card>
             <CardHeader>
               <CardTitle>Verification Requests</CardTitle>
-              <CardDescription>Review and approve farmer verifications</CardDescription>
+              <CardDescription>Review and approve user verifications</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
@@ -232,7 +231,7 @@ const AdminDashboard = () => {
                     <div className="flex gap-2">
                       <Button
                         size="sm"
-                        onClick={() => handleVerifyFarmer(request.id, request.farmer_id, true)}
+                        onClick={() => handleVerifyUser(request.id, request.user_id, true)}
                       >
                         <CheckCircle className="mr-2 h-4 w-4" />
                         Approve
@@ -240,7 +239,7 @@ const AdminDashboard = () => {
                       <Button
                         size="sm"
                         variant="destructive"
-                        onClick={() => handleVerifyFarmer(request.id, request.farmer_id, false)}
+                        onClick={() => handleVerifyUser(request.id, request.user_id, false)}
                       >
                         <XCircle className="mr-2 h-4 w-4" />
                         Reject

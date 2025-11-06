@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Plus, Edit, Trash2, Package, Lightbulb } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
@@ -20,6 +21,8 @@ const MyProducts = () => {
   const [editingProduct, setEditingProduct] = useState<any>(null);
   const [pricePrediction, setPricePrediction] = useState<any>(null);
   const [isLoadingPrediction, setIsLoadingPrediction] = useState(false);
+  const [isVerified, setIsVerified] = useState(false);
+  const [verificationDialogOpen, setVerificationDialogOpen] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     description: "",
@@ -33,7 +36,21 @@ const MyProducts = () => {
 
   useEffect(() => {
     fetchMyProducts();
+    checkVerification();
   }, []);
+
+  const checkVerification = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return;
+
+    const { data } = await supabase
+      .from("user_roles")
+      .select("is_verified")
+      .eq("user_id", session.user.id)
+      .single();
+
+    setIsVerified(data?.is_verified || false);
+  };
 
   const fetchMyProducts = async () => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -55,19 +72,10 @@ const MyProducts = () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
 
-      // Check if user needs verification for more than 5 products
-      if (!editingProduct && products.length >= 5) {
-        const { data: roleData } = await supabase
-          .from("user_roles")
-          .select("is_verified")
-          .eq("user_id", session.user.id)
-          .eq("role", "farmer")
-          .single();
-
-        if (!roleData?.is_verified) {
-          toast.error("You need to be verified to add more than 5 products. Please submit a verification request.");
-          return;
-        }
+      // Check product limit for unverified users
+      if (!editingProduct && !isVerified && products.length >= 5) {
+        setVerificationDialogOpen(true);
+        return;
       }
 
       const productData = {
@@ -184,10 +192,37 @@ const MyProducts = () => {
     }
   };
 
+  const handleRequestVerification = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+
+      const { error } = await supabase
+        .from("verification_requests")
+        .insert({
+          user_id: session.user.id,
+        });
+
+      if (error) throw error;
+
+      toast.success("Verification request submitted!");
+      setVerificationDialogOpen(false);
+    } catch (error: any) {
+      toast.error(error.message);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h2 className="text-3xl font-bold">My Products</h2>
+        <div>
+          <h2 className="text-3xl font-bold">My Products</h2>
+          {!isVerified && (
+            <p className="text-sm text-muted-foreground mt-1">
+              Unverified users can add up to 5 products. {products.length}/5 products added.
+            </p>
+          )}
+        </div>
         <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
           <DialogTrigger asChild>
             <Button onClick={() => setEditingProduct(null)}>
@@ -432,6 +467,24 @@ const MyProducts = () => {
           <p className="text-lg text-muted-foreground">No products yet. Add your first product!</p>
         </div>
       )}
+
+      <AlertDialog open={verificationDialogOpen} onOpenChange={setVerificationDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Product Limit Reached</AlertDialogTitle>
+            <AlertDialogDescription>
+              You've reached the limit of 5 products for unverified users. 
+              Request verification to add unlimited products.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleRequestVerification}>
+              Request Verification
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

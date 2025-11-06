@@ -18,10 +18,12 @@ const Profile = () => {
   const [notifications, setNotifications] = useState<any[]>([]);
   const [formData, setFormData] = useState({
     full_name: "",
+    username: "",
     location: "",
     phone: "",
     bio: "",
   });
+  const [followerCount, setFollowerCount] = useState(0);
 
   useEffect(() => {
     fetchProfile();
@@ -48,6 +50,7 @@ const Profile = () => {
       setProfile(profileData);
       setFormData({
         full_name: profileData.full_name || "",
+        username: profileData.username || "",
         location: profileData.location || "",
         phone: profileData.phone || "",
         bio: profileData.bio || "",
@@ -57,6 +60,14 @@ const Profile = () => {
     if (roleData) {
       setUserRole(roleData);
     }
+
+    // Fetch follower count
+    const { count } = await supabase
+      .from("follows")
+      .select("*", { count: "exact", head: true })
+      .eq("following_id", session.user.id);
+    
+    setFollowerCount(count || 0);
   };
 
   const fetchNotifications = async () => {
@@ -162,6 +173,8 @@ const Profile = () => {
                 <div>
                   <CardTitle>{formData.full_name}</CardTitle>
                   <CardDescription>
+                    {formData.username && <p className="text-sm">@{formData.username}</p>}
+                    <p className="text-sm mt-1">{followerCount} followers</p>
                     {userRole && (
                       <Badge className="mt-2">
                         {userRole.role} {userRole.is_verified && "(Verified)"}
@@ -177,6 +190,14 @@ const Profile = () => {
                 <Input
                   value={formData.full_name}
                   onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
+                />
+              </div>
+              <div>
+                <Label>Username</Label>
+                <Input
+                  value={formData.username}
+                  onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+                  placeholder="@username"
                 />
               </div>
               <div>

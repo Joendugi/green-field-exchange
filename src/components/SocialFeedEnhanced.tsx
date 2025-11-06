@@ -18,6 +18,7 @@ const SocialFeedEnhanced = () => {
   const [mediaFile, setMediaFile] = useState<File | null>(null);
   const [mediaPreview, setMediaPreview] = useState<string>("");
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     fetchPosts();
@@ -47,25 +48,35 @@ const SocialFeedEnhanced = () => {
       .from("posts")
       .select(`
         *,
-        profiles:user_id (id, full_name, avatar_url),
+        profiles:user_id (id, full_name, username, avatar_url),
         post_likes (user_id),
         post_reposts (user_id),
         post_comments (
           id,
           content,
           created_at,
-          profiles:user_id (full_name)
+          profiles:user_id (full_name, username)
         ),
         original_post:original_post_id (
           id,
           content,
-          profiles:user_id (full_name)
+          profiles:user_id (full_name, username)
         )
       `)
       .order("created_at", { ascending: false });
 
     setPosts(data || []);
   };
+
+  const filteredPosts = posts.filter(post => {
+    if (!searchQuery) return true;
+    const query = searchQuery.toLowerCase();
+    return (
+      post.content?.toLowerCase().includes(query) ||
+      post.profiles?.full_name?.toLowerCase().includes(query) ||
+      post.profiles?.username?.toLowerCase().includes(query)
+    );
+  });
 
   const handleMediaChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -259,6 +270,17 @@ const SocialFeedEnhanced = () => {
   return (
     <div className="space-y-6 max-w-2xl mx-auto">
       <Card>
+        <CardContent className="pt-6">
+          <Input
+            placeholder="Search posts or users..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full"
+          />
+        </CardContent>
+      </Card>
+
+      <Card>
         <CardHeader>
           <CardTitle>Create a Post</CardTitle>
         </CardHeader>
@@ -326,7 +348,7 @@ const SocialFeedEnhanced = () => {
         </CardFooter>
       </Card>
 
-      {posts.map((post) => (
+      {filteredPosts.map((post) => (
         <Card key={post.id}>
           <CardHeader>
             <div className="flex items-center justify-between">
@@ -338,7 +360,15 @@ const SocialFeedEnhanced = () => {
                   </AvatarFallback>
                 </Avatar>
                 <div>
-                  <CardTitle className="text-base">{post.profiles?.full_name}</CardTitle>
+                  <a 
+                    href={`/profile/${post.profiles?.id}`}
+                    className="hover:underline"
+                  >
+                    <CardTitle className="text-base">{post.profiles?.full_name}</CardTitle>
+                    {post.profiles?.username && (
+                      <p className="text-sm text-muted-foreground">@{post.profiles.username}</p>
+                    )}
+                  </a>
                   <CardDescription>
                     {new Date(post.created_at).toLocaleDateString()}
                   </CardDescription>

@@ -523,6 +523,7 @@ export type Database = {
           onboarding_completed: boolean | null
           phone: string | null
           updated_at: string
+          username: string | null
         }
         Insert: {
           avatar_url?: string | null
@@ -534,6 +535,7 @@ export type Database = {
           onboarding_completed?: boolean | null
           phone?: string | null
           updated_at?: string
+          username?: string | null
         }
         Update: {
           avatar_url?: string | null
@@ -545,6 +547,7 @@ export type Database = {
           onboarding_completed?: boolean | null
           phone?: string | null
           updated_at?: string
+          username?: string | null
         }
         Relationships: []
       }
@@ -560,7 +563,7 @@ export type Database = {
           created_at?: string
           id?: string
           is_verified?: boolean | null
-          role: Database["public"]["Enums"]["app_role"]
+          role?: Database["public"]["Enums"]["app_role"]
           user_id: string
         }
         Update: {
@@ -615,38 +618,30 @@ export type Database = {
           admin_notes: string | null
           created_at: string
           documents_url: string | null
-          farmer_id: string
           id: string
           status: string
           updated_at: string
+          user_id: string
         }
         Insert: {
           admin_notes?: string | null
           created_at?: string
           documents_url?: string | null
-          farmer_id: string
           id?: string
           status?: string
           updated_at?: string
+          user_id: string
         }
         Update: {
           admin_notes?: string | null
           created_at?: string
           documents_url?: string | null
-          farmer_id?: string
           id?: string
           status?: string
           updated_at?: string
+          user_id?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "verification_requests_farmer_id_fkey"
-            columns: ["farmer_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       wallet_addresses: {
         Row: {
@@ -689,6 +684,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_user_verified: { Args: { _user_id: string }; Returns: boolean }
       is_verified_farmer: { Args: { _user_id: string }; Returns: boolean }
     }
     Enums: {

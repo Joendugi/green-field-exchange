@@ -76,10 +76,10 @@ const Dashboard = () => {
       <Onboarding open={showOnboarding} onComplete={() => setShowOnboarding(false)} />
       <div className="container mx-auto px-4 py-6">
         <Tabs defaultValue={defaultTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-3 lg:grid-cols-5 mb-6">
+          <TabsList className="grid w-full grid-cols-4 lg:grid-cols-5 mb-6">
             <TabsTrigger value="profile">Profile</TabsTrigger>
             <TabsTrigger value="orders">Orders</TabsTrigger>
-            {userRole === "farmer" && <TabsTrigger value="products">My Products</TabsTrigger>}
+            <TabsTrigger value="products">My Products</TabsTrigger>
             <TabsTrigger value="settings">Settings</TabsTrigger>
             {userRole === "admin" && <TabsTrigger value="admin">Admin</TabsTrigger>}
           </TabsList>
@@ -92,11 +92,9 @@ const Dashboard = () => {
             <MyOrders userRole={userRole} />
           </TabsContent>
 
-          {userRole === "farmer" && (
-            <TabsContent value="products">
-              <MyProducts />
-            </TabsContent>
-          )}
+          <TabsContent value="products">
+            <MyProducts />
+          </TabsContent>
 
           <TabsContent value="settings">
             <Settings />

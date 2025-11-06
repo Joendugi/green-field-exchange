@@ -28,14 +28,17 @@ const Index = () => {
   }, []);
 
   if (isLoggedIn) {
-    return (
-      <div className="min-h-screen bg-background">
-        <Navbar />
-        <div className="container mx-auto px-4 py-6">
-          <Marketplace />
-        </div>
+  return (
+    <div className="min-h-screen bg-background">
+      <Navbar />
+      <div className="fixed bottom-4 right-4 z-50">
+        <ThemeToggle />
       </div>
-    );
+      <div className="container mx-auto px-4 py-6">
+        <Marketplace />
+      </div>
+    </div>
+  );
   }
 
   return (

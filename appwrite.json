@@ -1,0 +1,51 @@
+{
+    "projectId": "696bbd4b000e6aeb9cea",
+    "projectName": "green-field-exchange",
+    "functions": [
+        {
+            "$id": "ai-chat",
+            "name": "ai-chat",
+            "runtime": "node-18.0",
+            "path": "functions/ai-chat",
+            "entrypoint": "src/main.js",
+            "execute": [
+                "any"
+            ],
+            "events": [],
+            "schedule": "",
+            "timeout": 15,
+            "enabled": true,
+            "logging": true
+        },
+        {
+            "$id": "product-recommendations",
+            "name": "product-recommendations",
+            "runtime": "node-18.0",
+            "path": "functions/product-recommendations",
+            "entrypoint": "src/main.js",
+            "execute": [
+                "any"
+            ],
+            "events": [],
+            "schedule": "",
+            "timeout": 15,
+            "enabled": true,
+            "logging": true
+        },
+        {
+            "$id": "price-prediction",
+            "name": "price-prediction",
+            "runtime": "node-18.0",
+            "path": "functions/price-prediction",
+            "entrypoint": "src/main.js",
+            "execute": [
+                "any"
+            ],
+            "events": [],
+            "schedule": "",
+            "timeout": 15,
+            "enabled": true,
+            "logging": true
+        }
+    ]
+}

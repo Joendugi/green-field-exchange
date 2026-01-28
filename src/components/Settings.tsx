@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { account, databases } from "@/lib/appwrite";
+import { ID, Query } from "appwrite";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -29,18 +30,18 @@ const Settings = () => {
 
   const fetchSettings = async () => {
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) return;
+      const user = await account.get().catch(() => null);
+      if (!user) return;
 
-      const { data, error } = await supabase
-        .from("user_settings")
-        .select("*")
-        .eq("user_id", session.user.id)
-        .single();
+      const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+      const { documents } = await databases.listDocuments(
+        dbId,
+        "user_settings",
+        [Query.equal("user_id", user.$id), Query.limit(1)]
+      );
 
-      if (error && error.code !== "PGRST116") throw error;
-
-      if (data) {
+      if (documents.length > 0) {
+        const data = documents[0];
         setSettings({
           notifications_enabled: data.notifications_enabled,
           ai_assistant_enabled: data.ai_assistant_enabled,
@@ -48,12 +49,17 @@ const Settings = () => {
         });
       } else {
         // Create default settings
-        await supabase.from("user_settings").insert({
-          user_id: session.user.id,
-          notifications_enabled: true,
-          ai_assistant_enabled: true,
-          dark_mode: false,
-        });
+        await databases.createDocument(
+          dbId,
+          "user_settings",
+          ID.unique(),
+          {
+            user_id: user.$id,
+            notifications_enabled: true,
+            ai_assistant_enabled: true,
+            dark_mode: false,
+          }
+        );
       }
     } catch (error: any) {
       console.error("Error fetching settings:", error);
@@ -64,19 +70,41 @@ const Settings = () => {
 
   const updateSetting = async (key: keyof typeof settings, value: boolean) => {
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) return;
+      const user = await account.get().catch(() => null);
+      if (!user) return;
 
       setSettings({ ...settings, [key]: value });
 
-      const { error } = await supabase
-        .from("user_settings")
-        .upsert({
-          user_id: session.user.id,
-          [key]: value,
-        });
+      const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
 
-      if (error) throw error;
+      const { documents } = await databases.listDocuments(
+        dbId,
+        "user_settings",
+        [Query.equal("user_id", user.$id), Query.limit(1)]
+      );
+
+      if (documents.length > 0) {
+        await databases.updateDocument(
+          dbId,
+          "user_settings",
+          documents[0].$id,
+          { [key]: value }
+        );
+      } else {
+        await databases.createDocument(
+          dbId,
+          "user_settings",
+          ID.unique(),
+          {
+            user_id: user.$id,
+            notifications_enabled: true,
+            ai_assistant_enabled: true,
+            dark_mode: false,
+            [key]: value // Override default just in case
+          }
+        );
+      }
+
       toast.success("Setting updated!");
     } catch (error: any) {
       toast.error("Failed to update setting");

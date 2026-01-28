@@ -7,7 +7,7 @@ export const exportToCSV = (data: any[], filename: string) => {
 
   // Get headers from first object
   const headers = Object.keys(data[0]);
-  
+
   // Create CSV content
   const csvContent = [
     headers.join(','), // Header row
@@ -29,43 +29,53 @@ export const exportToCSV = (data: any[], filename: string) => {
   const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
   const link = document.createElement('a');
   const url = URL.createObjectURL(blob);
-  
+
   link.setAttribute('href', url);
   link.setAttribute('download', filename);
   link.style.visibility = 'hidden';
-  
+
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
-  
+
   URL.revokeObjectURL(url);
 };
 
-export const exportUserData = async (supabase: any, userId: string) => {
+import { databases } from "@/lib/appwrite";
+import { Query } from "appwrite";
+
+export const exportUserData = async (userId: string) => {
   try {
+    const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+
     // Fetch all user data
     const [profileData, productsData, ordersData, postsData] = await Promise.all([
-      supabase.from('profiles').select('*').eq('id', userId).single(),
-      supabase.from('products').select('*').eq('farmer_id', userId),
-      supabase.from('orders').select('*').or(`buyer_id.eq.${userId},farmer_id.eq.${userId}`),
-      supabase.from('posts').select('*').eq('user_id', userId),
+      databases.getDocument(dbId, 'profiles', userId).catch(() => null),
+      databases.listDocuments(dbId, 'products', [Query.equal('farmer_id', userId)]).catch(() => ({ documents: [] })),
+      databases.listDocuments(dbId, 'orders', [
+        Query.or([
+          Query.equal('buyer_id', userId),
+          Query.equal('farmer_id', userId)
+        ])
+      ]).catch(() => ({ documents: [] })),
+      databases.listDocuments(dbId, 'posts', [Query.equal('user_id', userId)]).catch(() => ({ documents: [] })),
     ]);
 
     // Export each dataset
-    if (profileData.data) {
-      exportToCSV([profileData.data], `agrilink_profile_${new Date().toISOString().split('T')[0]}.csv`);
+    if (profileData) {
+      exportToCSV([profileData], `agrilink_profile_${new Date().toISOString().split('T')[0]}.csv`);
     }
 
-    if (productsData.data && productsData.data.length > 0) {
-      exportToCSV(productsData.data, `agrilink_products_${new Date().toISOString().split('T')[0]}.csv`);
+    if (productsData.documents && productsData.documents.length > 0) {
+      exportToCSV(productsData.documents, `agrilink_products_${new Date().toISOString().split('T')[0]}.csv`);
     }
 
-    if (ordersData.data && ordersData.data.length > 0) {
-      exportToCSV(ordersData.data, `agrilink_orders_${new Date().toISOString().split('T')[0]}.csv`);
+    if (ordersData.documents && ordersData.documents.length > 0) {
+      exportToCSV(ordersData.documents, `agrilink_orders_${new Date().toISOString().split('T')[0]}.csv`);
     }
 
-    if (postsData.data && postsData.data.length > 0) {
-      exportToCSV(postsData.data, `agrilink_posts_${new Date().toISOString().split('T')[0]}.csv`);
+    if (postsData.documents && postsData.documents.length > 0) {
+      exportToCSV(postsData.documents, `agrilink_posts_${new Date().toISOString().split('T')[0]}.csv`);
     }
 
     return { success: true };

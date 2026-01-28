@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { account, databases, functions } from "@/lib/appwrite";
+import { ID, Query, Permission, Role } from "appwrite";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,60 +30,92 @@ const Marketplace = () => {
 
   const fetchProducts = async () => {
     // Try to get from cache first
-    const cacheKey = categoryFilter === "all" 
-      ? CACHE_KEYS.PRODUCTS 
+    const cacheKey = categoryFilter === "all"
+      ? CACHE_KEYS.PRODUCTS
       : CACHE_KEYS.PRODUCT_CATEGORY(categoryFilter);
-    
+
     const cached = cache.get<any[]>(cacheKey);
     if (cached) {
       setProducts(cached);
       return;
     }
 
-    // Fetch from database
-    let query = supabase
-      .from("products")
-      .select(`
-        *,
-        profiles:farmer_id (full_name, location)
-      `)
-      .eq("is_available", true);
+    try {
+      const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+      const queries = [
+        Query.equal("is_available", true),
+        Query.notEqual("is_hidden", true), // Filter out hidden products (admin moderation)
+      ];
 
-    if (categoryFilter !== "all") {
-      query = query.eq("category", categoryFilter as any);
+      if (categoryFilter !== "all") {
+        queries.push(Query.equal("category", categoryFilter));
+      }
+
+      // Fetch products
+      const response = await databases.listDocuments(
+        dbId,
+        "products",
+        queries
+      );
+
+      let products = response.documents;
+
+      // Manually fetch farmer profiles (relations)
+      const farmerIds = [...new Set(products.map(p => p.farmer_id))];
+
+      if (farmerIds.length > 0) {
+        // Appwrite Query.equal supports array for "IN" operator
+        const profilesResponse = await databases.listDocuments(
+          dbId,
+          "profiles",
+          [Query.equal("$id", farmerIds)]
+        );
+
+        const profilesMap = profilesResponse.documents.reduce((acc: any, profile: any) => {
+          acc[profile.id] = profile;
+          return acc;
+        }, {});
+
+        // Attach profiles to products
+        products = products.map(p => ({
+          ...p,
+          profiles: profilesMap[p.farmer_id] || { full_name: 'Unknown', location: 'Unknown' }
+        }));
+      }
+
+      // Store in cache
+      cache.set(cacheKey, products);
+      setProducts(products);
+    } catch (error) {
+      console.error("Failed to fetch products", error);
     }
-
-    const { data } = await query;
-    const products = data || [];
-    
-    // Store in cache
-    cache.set(cacheKey, products);
-    setProducts(products);
   };
 
   const fetchRecommendations = async () => {
     try {
       setIsLoadingRecommendations(true);
-      const { data: { session } } = await supabase.auth.getSession();
+      const session = await account.get().catch(() => null);
       if (!session) return;
 
       // Check cache first
-      const cacheKey = CACHE_KEYS.RECOMMENDATIONS(session.user.id);
+      const cacheKey = CACHE_KEYS.RECOMMENDATIONS(session.$id);
       const cached = cache.get<any[]>(cacheKey);
       if (cached) {
         setRecommendations(cached);
         return;
       }
 
-      const { data, error } = await supabase.functions.invoke('product-recommendations', {
-        body: { userId: session.user.id }
-      });
+      const execution = await functions.createExecution(
+        'product-recommendations', // Function ID
+        JSON.stringify({ userId: session.$id })
+      );
 
-      if (error) throw error;
-
-      const recs = data?.recommendations || [];
-      cache.set(cacheKey, recs, 10 * 60 * 1000); // Cache for 10 minutes
-      setRecommendations(recs);
+      if (execution.status === 'completed') {
+        const data = JSON.parse(execution.responseBody);
+        const recs = data?.recommendations || [];
+        cache.set(cacheKey, recs, 10 * 60 * 1000); // Cache for 10 minutes
+        setRecommendations(recs);
+      }
     } catch (error) {
       console.error('Failed to fetch recommendations:', error);
     } finally {
@@ -97,43 +130,58 @@ const Marketplace = () => {
 
   const handlePlaceOrder = async () => {
     try {
-      const { data: { session: userSession } } = await supabase.auth.getSession();
-      if (!userSession) {
+      const user = await account.get().catch(() => null);
+      if (!user) {
         toast.error("Please sign in to place an order");
         return;
       }
 
       const quantity = parseFloat(orderQuantity);
       const totalPrice = quantity * selectedProduct.price;
+      const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
 
-      const { error } = await supabase.from("orders").insert({
-        product_id: selectedProduct.id,
-        buyer_id: userSession.user.id,
-        farmer_id: selectedProduct.farmer_id,
-        quantity,
-        total_price: totalPrice,
-        delivery_address: deliveryAddress,
-        payment_type: "traditional",
-      });
-
-      if (error) throw error;
+      await databases.createDocument(
+        dbId,
+        "orders",
+        ID.unique(),
+        {
+          product_id: selectedProduct.$id, // Appwrite uses $id
+          buyer_id: user.$id,
+          farmer_id: selectedProduct.farmer_id,
+          quantity,
+          total_price: totalPrice,
+          delivery_address: deliveryAddress,
+          payment_type: "traditional",
+        },
+        [
+          Permission.read(Role.user(user.$id)), // Buyer can read
+          Permission.read(Role.user(selectedProduct.farmer_id)), // Farmer can read
+          Permission.write(Role.user(user.$id)), // Buyer can update/delete (maybe? or restrict)
+          // Note: Admin roles should be handled via Collection level permissions or Team roles
+        ]
+      );
 
       // Create notification for farmer
-      await supabase.from("notifications").insert({
-        user_id: selectedProduct.farmer_id,
-        type: "order",
-        title: "New Order Received",
-        message: `You have a new order for ${selectedProduct.name}`,
-        link: "/dashboard?tab=orders",
-      });
+      await databases.createDocument(
+        dbId,
+        "notifications",
+        ID.unique(),
+        {
+          user_id: selectedProduct.farmer_id,
+          type: "order",
+          title: "New Order Received",
+          message: `You have a new order for ${selectedProduct.name}`,
+          link: "/dashboard?tab=orders",
+        }
+      );
 
       toast.success("Order placed successfully!");
       setSelectedProduct(null);
       setOrderQuantity("");
       setDeliveryAddress("");
-      
+
       // Invalidate cache to refresh recommendations
-      cache.invalidate(CACHE_KEYS.RECOMMENDATIONS(userSession.user.id));
+      cache.invalidate(CACHE_KEYS.RECOMMENDATIONS(user.$id));
       fetchRecommendations();
     } catch (error: any) {
       toast.error(error.message);
@@ -201,9 +249,16 @@ const Marketplace = () => {
         {filteredProducts.map((product) => (
           <Card key={product.id} className="hover:shadow-lg transition-shadow">
             <CardHeader>
-              <div className="aspect-video bg-secondary rounded-lg mb-4 overflow-hidden">
+              {/* Fixed aspect ratio to prevent CLS */}
+              <div className="aspect-[4/3] bg-secondary rounded-lg mb-4 overflow-hidden">
                 {product.image_url ? (
-                  <img src={product.image_url} alt={product.name} className="w-full h-full object-cover" />
+                  <img
+                    src={product.image_url}
+                    alt={product.name}
+                    className="w-full h-full object-cover"
+                    loading="lazy"
+                    decoding="async"
+                  />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center">
                     <ShoppingCart className="h-12 w-12 text-muted-foreground" />

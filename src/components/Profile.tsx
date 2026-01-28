@@ -1,21 +1,35 @@
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { account, databases } from "@/lib/appwrite";
+import { ID, Query } from "appwrite";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Bell, User, Save, Download } from "lucide-react";
+import { Separator } from "@/components/ui/separator";
+import {
+  Bell,
+  MapPin,
+  Phone,
+  Mail,
+  Calendar,
+  Users,
+  Shield,
+  CheckCircle,
+  Edit3,
+  X,
+} from "lucide-react";
 import { toast } from "sonner";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { exportUserData } from "@/lib/dataExport";
 
 const Profile = () => {
   const [profile, setProfile] = useState<any>(null);
   const [userRole, setUserRole] = useState<any>(null);
+  const [userEmail, setUserEmail] = useState("");
   const [notifications, setNotifications] = useState<any[]>([]);
+  const [isEditing, setIsEditing] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [formData, setFormData] = useState({
     full_name: "",
     username: "",
@@ -24,6 +38,7 @@ const Profile = () => {
     bio: "",
   });
   const [followerCount, setFollowerCount] = useState(0);
+  const [joinDate, setJoinDate] = useState<string>("");
 
   useEffect(() => {
     fetchProfile();
@@ -31,71 +46,105 @@ const Profile = () => {
   }, []);
 
   const fetchProfile = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) return;
+    setLoading(true);
+    try {
+      const user = await account.get();
+      setUserEmail(user.email);
+      setJoinDate(user.$createdAt);
 
-    const { data: profileData } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("id", session.user.id)
-      .single();
+      const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
 
-    const { data: roleData } = await supabase
-      .from("user_roles")
-      .select("*")
-      .eq("user_id", session.user.id)
-      .single();
+      // Try to get existing profile
+      let profileData = null;
+      try {
+        profileData = await databases.getDocument(dbId, "profiles", user.$id);
+      } catch (e: any) {
+        // Profile doesn't exist - create one
+        if (e.code === 404) {
+          profileData = await databases.createDocument(
+            dbId,
+            "profiles",
+            user.$id,
+            {
+              full_name: user.name || "",
+              username: user.email.split("@")[0],
+            }
+          );
+          toast.info("Profile created! Please complete your details.");
+        } else {
+          throw e;
+        }
+      }
 
-    if (profileData) {
-      setProfile(profileData);
-      setFormData({
-        full_name: profileData.full_name || "",
-        username: profileData.username || "",
-        location: profileData.location || "",
-        phone: profileData.phone || "",
-        bio: profileData.bio || "",
-      });
+      if (profileData) {
+        setProfile(profileData);
+        setFormData({
+          full_name: profileData.full_name || "",
+          username: profileData.username || "",
+          location: profileData.location || "",
+          phone: profileData.phone || "",
+          bio: profileData.bio || "",
+        });
+      }
+
+      // Fetch user role
+      const rolesResponse = await databases.listDocuments(
+        dbId,
+        "user_roles",
+        [Query.equal("user_id", user.$id)]
+      );
+      if (rolesResponse.documents.length > 0) {
+        setUserRole(rolesResponse.documents[0]);
+      }
+
+      // Fetch follower count
+      try {
+        const followsData = await databases.listDocuments(
+          dbId,
+          "follows",
+          [Query.equal("following_id", user.$id), Query.limit(1)]
+        );
+        setFollowerCount(followsData.total || 0);
+      } catch (e) {
+        console.warn("Could not fetch followers:", e);
+      }
+    } catch (error) {
+      console.error("Error fetching profile:", error);
+      toast.error("Failed to load profile");
+    } finally {
+      setLoading(false);
     }
-
-    if (roleData) {
-      setUserRole(roleData);
-    }
-
-    // Fetch follower count
-    const { count } = await supabase
-      .from("follows")
-      .select("*", { count: "exact", head: true })
-      .eq("following_id", session.user.id);
-    
-    setFollowerCount(count || 0);
   };
 
   const fetchNotifications = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) return;
+    try {
+      const user = await account.get();
+      const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
 
-    const { data } = await supabase
-      .from("notifications")
-      .select("*")
-      .eq("user_id", session.user.id)
-      .order("created_at", { ascending: false });
-
-    setNotifications(data || []);
+      const { documents } = await databases.listDocuments(
+        dbId,
+        "notifications",
+        [
+          Query.equal("user_id", user.$id),
+          Query.orderDesc("$createdAt"),
+          Query.limit(10)
+        ]
+      );
+      setNotifications(documents || []);
+    } catch (e) {
+      console.warn("Could not fetch notifications:", e);
+    }
   };
 
   const handleUpdateProfile = async () => {
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) return;
+      const user = await account.get();
+      const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
 
-      const { error } = await supabase
-        .from("profiles")
-        .update(formData)
-        .eq("id", session.user.id);
+      await databases.updateDocument(dbId, "profiles", user.$id, formData);
 
-      if (error) throw error;
-
-      toast.success("Profile updated successfully!");
+      toast.success("Profile updated!");
+      setIsEditing(false);
       fetchProfile();
     } catch (error: any) {
       toast.error(error.message);
@@ -104,92 +153,146 @@ const Profile = () => {
 
   const markAsRead = async (notificationId: string) => {
     try {
-      const { error } = await supabase
-        .from("notifications")
-        .update({ is_read: true })
-        .eq("id", notificationId);
-
-      if (error) throw error;
+      const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+      await databases.updateDocument(dbId, "notifications", notificationId, { is_read: true });
       fetchNotifications();
     } catch (error: any) {
-      toast.error(error.message);
+      console.warn("Could not mark as read:", error);
     }
   };
 
-  const markAllAsRead = async () => {
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) return;
+  const getInitials = (name: string) => {
+    return name
+      .split(" ")
+      .map((n) => n[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2);
+  };
 
-      const { error } = await supabase
-        .from("notifications")
-        .update({ is_read: true })
-        .eq("user_id", session.user.id)
-        .eq("is_read", false);
-
-      if (error) throw error;
-      toast.success("All notifications marked as read");
-      fetchNotifications();
-    } catch (error: any) {
-      toast.error(error.message);
+  const getRoleBadgeColor = (role: string) => {
+    switch (role) {
+      case "admin":
+        return "bg-red-500/10 text-red-500 border-red-500/20";
+      case "farmer":
+        return "bg-green-500/10 text-green-500 border-green-500/20";
+      default:
+        return "bg-blue-500/10 text-blue-500 border-blue-500/20";
     }
   };
 
-  const handleExportData = async () => {
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) return;
-
-      toast.info("Preparing your data export...");
-      const result = await exportUserData(supabase, session.user.id);
-
-      if (result.success) {
-        toast.success("Data exported successfully! Check your downloads folder.");
-      } else {
-        toast.error("Failed to export data. Please try again.");
-      }
-    } catch (error: any) {
-      toast.error(error.message);
-    }
-  };
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
-      <Tabs defaultValue="profile">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="profile">Profile</TabsTrigger>
-          <TabsTrigger value="notifications">Notifications</TabsTrigger>
-        </TabsList>
+      {/* Profile Header Card */}
+      <Card className="overflow-hidden">
+        <div className="h-32 bg-gradient-to-r from-primary/20 via-primary/10 to-secondary/20" />
+        <CardContent className="relative pt-0">
+          <div className="flex flex-col md:flex-row gap-6 -mt-16">
+            {/* Avatar */}
+            <Avatar className="h-32 w-32 border-4 border-background shadow-lg">
+              <AvatarFallback className="text-3xl bg-primary text-primary-foreground">
+                {getInitials(formData.full_name || "U")}
+              </AvatarFallback>
+            </Avatar>
 
-        <TabsContent value="profile">
-          <Card>
-            <CardHeader>
-              <div className="flex items-center gap-4">
-                <Avatar className="h-20 w-20">
-                  <AvatarFallback className="text-2xl">
-                    {formData.full_name?.[0]?.toUpperCase() || "U"}
-                  </AvatarFallback>
-                </Avatar>
+            {/* Info */}
+            <div className="flex-1 pt-4 md:pt-8">
+              <div className="flex items-start justify-between">
                 <div>
-                  <CardTitle>{formData.full_name}</CardTitle>
-                  <CardDescription>
-                    {formData.username && <p className="text-sm">@{formData.username}</p>}
-                    <p className="text-sm mt-1">{followerCount} followers</p>
-                    {userRole && (
-                      <Badge className="mt-2">
-                        {userRole.role} {userRole.is_verified && "(Verified)"}
-                      </Badge>
-                    )}
-                  </CardDescription>
+                  <h1 className="text-2xl font-bold">{formData.full_name || "New User"}</h1>
+                  {formData.username && (
+                    <p className="text-muted-foreground">@{formData.username}</p>
+                  )}
                 </div>
+                <Button
+                  variant={isEditing ? "destructive" : "outline"}
+                  size="sm"
+                  onClick={() => setIsEditing(!isEditing)}
+                >
+                  {isEditing ? (
+                    <>
+                      <X className="h-4 w-4 mr-1" />
+                      Cancel
+                    </>
+                  ) : (
+                    <>
+                      <Edit3 className="h-4 w-4 mr-1" />
+                      Edit
+                    </>
+                  )}
+                </Button>
               </div>
-            </CardHeader>
-            <CardContent className="space-y-4">
+
+              {/* Badges */}
+              <div className="flex flex-wrap gap-2 mt-3">
+                {userRole && (
+                  <Badge variant="outline" className={getRoleBadgeColor(userRole.role)}>
+                    <Shield className="h-3 w-3 mr-1" />
+                    {userRole.role.charAt(0).toUpperCase() + userRole.role.slice(1)}
+                  </Badge>
+                )}
+                {userRole?.is_verified && (
+                  <Badge variant="outline" className="bg-emerald-500/10 text-emerald-500 border-emerald-500/20">
+                    <CheckCircle className="h-3 w-3 mr-1" />
+                    Verified
+                  </Badge>
+                )}
+                <Badge variant="outline" className="text-muted-foreground">
+                  <Users className="h-3 w-3 mr-1" />
+                  {followerCount} followers
+                </Badge>
+              </div>
+
+              {/* Quick Info */}
+              <div className="flex flex-wrap gap-4 mt-4 text-sm text-muted-foreground">
+                {formData.location && (
+                  <span className="flex items-center gap-1">
+                    <MapPin className="h-4 w-4" />
+                    {formData.location}
+                  </span>
+                )}
+                <span className="flex items-center gap-1">
+                  <Mail className="h-4 w-4" />
+                  {userEmail}
+                </span>
+                {joinDate && (
+                  <span className="flex items-center gap-1">
+                    <Calendar className="h-4 w-4" />
+                    Joined {new Date(joinDate).toLocaleDateString()}
+                  </span>
+                )}
+              </div>
+
+              {formData.bio && !isEditing && (
+                <p className="mt-4 text-sm">{formData.bio}</p>
+              )}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Edit Form */}
+      {isEditing && (
+        <Card>
+          <CardHeader>
+            <h3 className="text-lg font-semibold">Edit Profile</h3>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid md:grid-cols-2 gap-4">
               <div>
                 <Label>Full Name</Label>
                 <Input
                   value={formData.full_name}
                   onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
+                  placeholder="Your full name"
                 />
               </div>
               <div>
@@ -197,7 +300,7 @@ const Profile = () => {
                 <Input
                   value={formData.username}
                   onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-                  placeholder="@username"
+                  placeholder="username"
                 />
               </div>
               <div>
@@ -205,7 +308,7 @@ const Profile = () => {
                 <Input
                   value={formData.location}
                   onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                  placeholder="City, State"
+                  placeholder="City, Country"
                 />
               </div>
               <div>
@@ -216,87 +319,67 @@ const Profile = () => {
                   placeholder="+1 (555) 000-0000"
                 />
               </div>
-              <div>
-                <Label>Bio</Label>
-                <Textarea
-                  value={formData.bio}
-                  onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
-                  rows={4}
-                  placeholder="Tell us about yourself..."
-                />
-              </div>
-              <div className="flex gap-2">
-                <Button onClick={handleUpdateProfile} className="flex-1">
-                  <Save className="mr-2 h-4 w-4" />
-                  Save Changes
-                </Button>
-                <Button onClick={handleExportData} variant="outline" className="flex-1">
-                  <Download className="mr-2 h-4 w-4" />
-                  Export My Data
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
+            </div>
+            <div>
+              <Label>Bio</Label>
+              <Textarea
+                value={formData.bio}
+                onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
+                rows={3}
+                placeholder="Tell us about yourself..."
+              />
+            </div>
+            <Button onClick={handleUpdateProfile} className="w-full">
+              Save Changes
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
-        <TabsContent value="notifications">
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle>Notifications</CardTitle>
-                {notifications.some(n => !n.is_read) && (
-                  <Button variant="outline" size="sm" onClick={markAllAsRead}>
-                    Mark all as read
-                  </Button>
-                )}
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {notifications.map((notification) => (
+      {/* Notifications */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <h3 className="text-lg font-semibold flex items-center gap-2">
+            <Bell className="h-5 w-5" />
+            Recent Notifications
+          </h3>
+          {notifications.filter(n => !n.is_read).length > 0 && (
+            <Badge variant="destructive">
+              {notifications.filter(n => !n.is_read).length} new
+            </Badge>
+          )}
+        </CardHeader>
+        <CardContent>
+          {notifications.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <Bell className="h-12 w-12 mx-auto mb-2 opacity-50" />
+              <p>No notifications yet</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {notifications.slice(0, 5).map((notif, idx) => (
+                <div key={notif.$id}>
                   <div
-                    key={notification.id}
-                    className={`p-4 rounded-lg border ${
-                      !notification.is_read ? "bg-secondary" : "bg-card"
-                    }`}
+                    className={`flex items-start gap-3 p-3 rounded-lg transition-colors ${!notif.is_read ? "bg-primary/5" : "hover:bg-muted/50"
+                      }`}
+                    onClick={() => !notif.is_read && markAsRead(notif.$id)}
                   >
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <Bell className="h-4 w-4 text-primary" />
-                          <h4 className="font-semibold">{notification.title}</h4>
-                        </div>
-                        <p className="text-sm text-muted-foreground mb-2">
-                          {notification.message}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {new Date(notification.created_at).toLocaleString()}
-                        </p>
-                      </div>
-                      {!notification.is_read && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => markAsRead(notification.id)}
-                        >
-                          Mark read
-                        </Button>
-                      )}
+                    <div className={`w-2 h-2 rounded-full mt-2 ${!notif.is_read ? "bg-primary" : "bg-muted"}`} />
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-sm">{notif.title}</p>
+                      <p className="text-sm text-muted-foreground truncate">{notif.message}</p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {new Date(notif.$createdAt).toLocaleString()}
+                      </p>
                     </div>
                   </div>
-                ))}
-
-                {notifications.length === 0 && (
-                  <div className="text-center py-12">
-                    <Bell className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-                    <p className="text-lg text-muted-foreground">No notifications yet</p>
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+                  {idx < notifications.slice(0, 5).length - 1 && <Separator className="my-2" />}
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 };

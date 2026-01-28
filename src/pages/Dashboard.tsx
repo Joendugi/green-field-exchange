@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { account, databases } from "@/lib/appwrite";
+import { Query } from "appwrite";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2 } from "lucide-react";
@@ -21,45 +22,58 @@ const Dashboard = () => {
 
   useEffect(() => {
     const checkAuth = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (!session) {
+      try {
+        const user = await account.get();
+
+        if (!user) {
+          navigate("/auth");
+          return;
+        }
+
+        // Get user role
+        const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+        const roleData = await databases.listDocuments(
+          dbId,
+          "user_roles",
+          [Query.equal("user_id", user.$id)]
+        );
+
+        const currentRole = roleData.documents[0]?.role || null;
+        setUserRole(currentRole);
+
+        // Check if onboarding is needed
+        // 1. Check local storage first (fastest)
+        const localStatus = localStorage.getItem(`onboarding_completed_${user.$id}`);
+        if (localStatus === "true") {
+          setShowOnboarding(false);
+          setLoading(false);
+          return;
+        }
+
+        // 2. Check Database
+        try {
+          const profileData = await databases.getDocument(
+            dbId,
+            "profiles",
+            user.$id
+          );
+
+          if (!profileData?.onboarding_completed) {
+            setShowOnboarding(true);
+          }
+        } catch (e) {
+          // If profile fails, only show if we don't have local record
+          setShowOnboarding(true);
+        }
+
+      } catch (error) {
         navigate("/auth");
-        return;
+      } finally {
+        setLoading(false);
       }
-
-      // Get user role
-      const { data: roleData } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", session.user.id)
-        .single();
-
-      setUserRole(roleData?.role || null);
-
-      // Check if onboarding is needed
-      const { data: profileData } = await supabase
-        .from("profiles")
-        .select("onboarding_completed")
-        .eq("id", session.user.id)
-        .single();
-
-      if (!profileData?.onboarding_completed) {
-        setShowOnboarding(true);
-      }
-
-      setLoading(false);
     };
 
     checkAuth();
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (!session) {
-        navigate("/auth");
-      }
-    });
-
-    return () => subscription.unsubscribe();
   }, [navigate]);
 
   if (loading) {

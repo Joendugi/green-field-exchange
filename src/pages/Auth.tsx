@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { account, databases } from "@/lib/appwrite";
+import { ID } from "appwrite";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -21,6 +22,20 @@ const Auth = () => {
   const [passwordError, setPasswordError] = useState("");
   const [loginAttempts, setLoginAttempts] = useState(0);
   const [isLocked, setIsLocked] = useState(false);
+
+  useEffect(() => {
+    const checkSession = async () => {
+      try {
+        const session = await account.get();
+        if (session) {
+          navigate("/");
+        }
+      } catch (err) {
+        // No session active
+      }
+    };
+    checkSession();
+  }, [navigate]);
 
   const validatePassword = (pwd: string): boolean => {
     const minLength = 8;
@@ -56,7 +71,7 @@ const Auth = () => {
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // Validate password strength
     if (!validatePassword(password)) {
       return;
@@ -65,32 +80,44 @@ const Auth = () => {
     setIsLoading(true);
 
     try {
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            full_name: fullName,
-          },
-          emailRedirectTo: `${window.location.origin}/`,
-        },
-      });
+      // 1. Create Account
+      const user = await account.create(ID.unique(), email, password, fullName);
 
-      if (error) throw error;
+      // 2. Create Session (Login)
+      await account.createEmailPasswordSession(email, password);
 
-      if (data.user) {
-        // Insert user role
-        const { error: roleError } = await supabase
-          .from("user_roles")
-          .insert({ user_id: data.user.id, role });
+      // 3. Store User Role & Create Profile
+      // precise database ID should be in env, but for now we will use the one from env
+      const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
 
-        if (roleError) throw roleError;
+      await databases.createDocument(
+        dbId,
+        "user_roles",
+        ID.unique(),
+        {
+          user_id: user.$id,
+          role: role
+        }
+      );
 
-        toast.success("Account created successfully!");
-        navigate("/");
-      }
+      // Create initial profile
+      await databases.createDocument(
+        dbId,
+        "profiles",
+        user.$id, // Use User ID as Document ID for profiles for easy access
+        {
+          id: user.$id,
+          full_name: fullName,
+          username: email.split("@")[0],
+          // other fields can be optional/null in schema
+        }
+      );
+
+      toast.success("Account created successfully!");
+      navigate("/");
     } catch (error: any) {
-      toast.error(error.message);
+      console.error(error);
+      toast.error(error.message || "Failed to create account");
     } finally {
       setIsLoading(false);
     }
@@ -108,28 +135,33 @@ const Auth = () => {
     setIsLoading(true);
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
+      // Delete existing session if any to avoid "session already active" error
+      try {
+        await account.deleteSession("current");
+      } catch (err) {
+        // Ignore "session not found" error
+      }
 
-      if (error) {
-        // Track failed login attempt
-        const newAttempts = loginAttempts + 1;
-        setLoginAttempts(newAttempts);
+      await account.createEmailPasswordSession(email, password);
 
-        if (newAttempts >= 5) {
-          setIsLocked(true);
-          setTimeout(() => {
-            setIsLocked(false);
-            setLoginAttempts(0);
-          }, 15 * 60 * 1000); // 15 minutes lockout
-          toast.error("Account temporarily locked due to multiple failed attempts.");
-        } else {
-          toast.error(`Invalid credentials. ${5 - newAttempts} attempts remaining.`);
+      // Check if user is banned
+      const user = await account.get();
+      const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+
+      try {
+        const profile = await databases.getDocument(dbId, "profiles", user.$id);
+        if (profile.is_banned) {
+          // Log out the banned user immediately
+          await account.deleteSession("current");
+          toast.error(profile.ban_reason
+            ? `Your account has been suspended: ${profile.ban_reason}`
+            : "Your account has been suspended. Please contact support.");
+          setIsLoading(false);
+          return;
         }
-        
-        throw error;
+      } catch (profileError) {
+        // Profile may not exist yet, allow login
+        console.warn("Could not check ban status:", profileError);
       }
 
       // Reset on successful login
@@ -137,7 +169,21 @@ const Auth = () => {
       toast.success("Welcome back!");
       navigate("/");
     } catch (error: any) {
-      // Error already handled above
+      console.error(error);
+      // Track failed login attempt
+      const newAttempts = loginAttempts + 1;
+      setLoginAttempts(newAttempts);
+
+      if (newAttempts >= 5) {
+        setIsLocked(true);
+        setTimeout(() => {
+          setIsLocked(false);
+          setLoginAttempts(0);
+        }, 15 * 60 * 1000); // 15 minutes lockout
+        toast.error("Account temporarily locked due to multiple failed attempts.");
+      } else {
+        toast.error(`Invalid credentials. ${5 - newAttempts} attempts remaining.`);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -161,7 +207,7 @@ const Auth = () => {
               <TabsTrigger value="signin">Sign In</TabsTrigger>
               <TabsTrigger value="signup">Sign Up</TabsTrigger>
             </TabsList>
-            
+
             <TabsContent value="signin">
               <form onSubmit={handleSignIn} className="space-y-4">
                 <div className="space-y-2">

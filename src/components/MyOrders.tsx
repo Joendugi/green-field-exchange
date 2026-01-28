@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { account, databases } from "@/lib/appwrite";
+import { ID, Query } from "appwrite";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -18,47 +19,90 @@ const MyOrders = ({ userRole }: MyOrdersProps) => {
   }, []);
 
   const fetchOrders = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) return;
+    const user = await account.get().catch(() => null);
+    if (!user) return;
 
-    let query = supabase
-      .from("orders")
-      .select(`
-        *,
-        products (name, unit),
-        buyer:buyer_id (full_name),
-        farmer:farmer_id (full_name)
-      `)
-      .order("created_at", { ascending: false });
+    const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+    const queries = [];
+
+    // Sort logic in Appwrite: Query.orderDesc("created_at")
+    queries.push(Query.orderDesc("$createdAt"));
 
     if (userRole === "farmer") {
-      query = query.eq("farmer_id", session.user.id);
+      queries.push(Query.equal("farmer_id", user.$id));
     } else {
-      query = query.eq("buyer_id", session.user.id);
+      queries.push(Query.equal("buyer_id", user.$id));
     }
 
-    const { data } = await query;
-    setOrders(data || []);
+    const { documents: ordersData } = await databases.listDocuments(
+      dbId,
+      "orders",
+      queries
+    );
+
+    // Manual joins
+    let enrichedOrders = [...ordersData];
+
+    // 1. Fetch Products
+    const productIds = [...new Set(ordersData.map(o => o.product_id))];
+    if (productIds.length > 0) {
+      const productsData = await databases.listDocuments(
+        dbId,
+        "products",
+        [Query.equal("$id", productIds)]
+      );
+      const productsMap = productsData.documents.reduce((acc: any, p: any) => ({ ...acc, [p.$id]: p }), {});
+      enrichedOrders = enrichedOrders.map(o => ({ ...o, products: productsMap[o.product_id] }));
+    }
+
+    // 2. Fetch Profiles (Buyer & Farmer)
+    const profileIds = [...new Set([
+      ...ordersData.map(o => o.buyer_id),
+      ...ordersData.map(o => o.farmer_id)
+    ])];
+
+    if (profileIds.length > 0) {
+      const profilesData = await databases.listDocuments(
+        dbId,
+        "profiles",
+        [Query.equal("$id", profileIds)]
+      );
+      const profilesMap = profilesData.documents.reduce((acc: any, p: any) => ({ ...acc, [p.$id]: p }), {});
+      enrichedOrders = enrichedOrders.map(o => ({
+        ...o,
+        buyer: profilesMap[o.buyer_id],
+        farmer: profilesMap[o.farmer_id]
+      }));
+    }
+
+    setOrders(enrichedOrders);
   };
 
   const handleUpdateStatus = async (orderId: string, newStatus: string) => {
     try {
-      const { error } = await supabase
-        .from("orders")
-        .update({ status: newStatus as any })
-        .eq("id", orderId);
+      const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
 
-      if (error) throw error;
+      await databases.updateDocument(
+        dbId,
+        "orders",
+        orderId,
+        { status: newStatus }
+      );
 
-      const order = orders.find(o => o.id === orderId);
+      const order = orders.find(o => o.$id === orderId);
       if (order) {
-        await supabase.from("notifications").insert({
-          user_id: order.buyer_id,
-          type: "order",
-          title: "Order Status Updated",
-          message: `Your order status has been updated to: ${newStatus}`,
-          link: "/dashboard?tab=orders",
-        });
+        await databases.createDocument(
+          dbId,
+          "notifications",
+          ID.unique(),
+          {
+            user_id: order.buyer_id,
+            type: "order",
+            title: "Order Status Updated",
+            message: `Your order status has been updated to: ${newStatus}`,
+            link: "/dashboard?tab=orders",
+          }
+        );
       }
 
       toast.success("Order status updated!");
@@ -86,7 +130,7 @@ const MyOrders = ({ userRole }: MyOrdersProps) => {
 
       <div className="space-y-4">
         {orders.map((order) => (
-          <Card key={order.id}>
+          <Card key={order.$id}>
             <CardHeader>
               <div className="flex items-center justify-between">
                 <CardTitle className="text-lg">{order.products?.name}</CardTitle>
@@ -113,7 +157,7 @@ const MyOrders = ({ userRole }: MyOrdersProps) => {
                 <div>
                   <span className="text-muted-foreground">Order Date:</span>
                   <p className="font-semibold">
-                    {new Date(order.created_at).toLocaleDateString()}
+                    {new Date(order.$createdAt).toLocaleDateString()}
                   </p>
                 </div>
               </div>
@@ -123,11 +167,12 @@ const MyOrders = ({ userRole }: MyOrdersProps) => {
                 <p className="text-sm">{order.delivery_address}</p>
               </div>
 
+
               {userRole === "farmer" && order.status === "pending" && (
                 <div className="flex gap-2">
                   <Button
                     size="sm"
-                    onClick={() => handleUpdateStatus(order.id, "accepted")}
+                    onClick={() => handleUpdateStatus(order.$id, "accepted")}
                     className="flex-1"
                   >
                     <CheckCircle className="mr-2 h-4 w-4" />
@@ -136,7 +181,7 @@ const MyOrders = ({ userRole }: MyOrdersProps) => {
                   <Button
                     size="sm"
                     variant="destructive"
-                    onClick={() => handleUpdateStatus(order.id, "cancelled")}
+                    onClick={() => handleUpdateStatus(order.$id, "cancelled")}
                     className="flex-1"
                   >
                     <XCircle className="mr-2 h-4 w-4" />
@@ -148,7 +193,7 @@ const MyOrders = ({ userRole }: MyOrdersProps) => {
               {userRole === "farmer" && order.status === "accepted" && (
                 <Button
                   size="sm"
-                  onClick={() => handleUpdateStatus(order.id, "completed")}
+                  onClick={() => handleUpdateStatus(order.$id, "completed")}
                   className="w-full"
                 >
                   <CheckCircle className="mr-2 h-4 w-4" />

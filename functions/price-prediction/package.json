@@ -1,0 +1,10 @@
+{
+    "name": "price-prediction",
+    "version": "1.0.0",
+    "description": "AgriLink Price Prediction Engine",
+    "main": "src/main.js",
+    "type": "module",
+    "dependencies": {
+        "node-appwrite": "^11.1.1"
+    }
+}

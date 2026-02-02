@@ -84,3 +84,40 @@ export const exportUserData = async (userId: string) => {
     return { success: false, error };
   }
 };
+
+export const exportSystemData = async () => {
+  try {
+    const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+    const limit = 1000; // Basic limit for now
+
+    // Fetch all system data
+    const [profiles, products, orders, messages, notifications] = await Promise.all([
+      databases.listDocuments(dbId, 'profiles', [Query.limit(limit)]).catch(() => ({ documents: [] })),
+      databases.listDocuments(dbId, 'products', [Query.limit(limit)]).catch(() => ({ documents: [] })),
+      databases.listDocuments(dbId, 'orders', [Query.limit(limit)]).catch(() => ({ documents: [] })),
+      databases.listDocuments(dbId, 'messages', [Query.limit(limit)]).catch(() => ({ documents: [] })),
+      databases.listDocuments(dbId, 'notifications', [Query.limit(limit)]).catch(() => ({ documents: [] })),
+    ]);
+
+    const date = new Date().toISOString().split('T')[0];
+
+    if (profiles.documents.length > 0) exportToCSV(profiles.documents, `system_users_${date}.csv`);
+    if (products.documents.length > 0) exportToCSV(products.documents, `system_products_${date}.csv`);
+    if (orders.documents.length > 0) exportToCSV(orders.documents, `system_orders_${date}.csv`);
+    if (messages.documents.length > 0) exportToCSV(messages.documents, `system_chat_logs_${date}.csv`);
+    if (notifications.documents.length > 0) exportToCSV(notifications.documents, `system_activity_logs_${date}.csv`);
+
+    return {
+      success: true, count: {
+        users: profiles.documents.length,
+        products: products.documents.length,
+        orders: orders.documents.length,
+        messages: messages.documents.length,
+        notifications: notifications.documents.length
+      }
+    };
+  } catch (error) {
+    console.error('System Export error:', error);
+    return { success: false, error };
+  }
+};

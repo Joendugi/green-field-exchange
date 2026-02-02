@@ -61,6 +61,16 @@ const MyProducts = () => {
     const user = await account.get().catch(() => null);
     if (!user) return;
 
+    // Try cache first
+    const cacheKey = CACHE_KEYS.MY_PRODUCTS(user.$id);
+    const cached = cache.get<any[]>(cacheKey);
+
+    if (cached) {
+      setProducts(cached);
+      // We return here but could also fetch background update if needed
+      // For now, simple cache-first strategy
+    }
+
     const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
     const { documents } = await databases.listDocuments(
       dbId,
@@ -72,6 +82,8 @@ const MyProducts = () => {
     );
 
     setProducts(documents || []);
+    // Update cache
+    cache.set(cacheKey, documents || []);
   };
 
   const uploadMedia = async (file: File) => {
@@ -140,10 +152,16 @@ const MyProducts = () => {
           dbId,
           "products",
           ID.unique(),
-          productData
+          {
+            ...productData,
+            is_available: true,
+          }
         );
         toast.success("Product added successfully!");
       }
+
+      // Invalidate specific user products cache
+      cache.invalidate(CACHE_KEYS.MY_PRODUCTS(user.$id));
 
       // Invalidate product cache
       cache.invalidatePattern('products');
@@ -222,6 +240,12 @@ const MyProducts = () => {
       );
 
       toast.success("Product deleted successfully!");
+
+      const user = await account.get().catch(() => null);
+      if (user) {
+        cache.invalidate(CACHE_KEYS.MY_PRODUCTS(user.$id));
+      }
+
       fetchMyProducts();
     } catch (error: any) {
       toast.error(error.message);
@@ -239,6 +263,12 @@ const MyProducts = () => {
       );
 
       toast.success(`Product ${!product.is_available ? "enabled" : "disabled"}`);
+
+      const user = await account.get().catch(() => null);
+      if (user) {
+        cache.invalidate(CACHE_KEYS.MY_PRODUCTS(user.$id));
+      }
+
       fetchMyProducts();
     } catch (error: any) {
       toast.error(error.message);

@@ -3,7 +3,14 @@
  * Adds missing attributes to Appwrite collections.
  */
 
-const API_KEY = '69796e940027732d8471';
+const [, , providedKey] = process.argv;
+const API_KEY = providedKey;
+
+if (!API_KEY) {
+    console.error("Error: APPWRITE_API_KEY is missing.");
+    console.log("Usage: node final_schema_fix.js <YOUR_API_KEY>");
+    process.exit(1);
+}
 const PROJECT_ID = "696bbd4b000e6aeb9cea";
 const DATABASE_ID = "6978ad9f0002bb2dc06e";
 const ENDPOINT = "https://fra.cloud.appwrite.io/v1";
@@ -69,6 +76,33 @@ async function fixSchema() {
             size: 255,
             required: false
         }).catch(e => console.log(`  Conversations (last_sender_id): ${e.message}`));
+
+
+        console.log("Waiting for attributes to process...");
+        await new Promise(r => setTimeout(r, 2000));
+
+        // Create Indexes
+        console.log("Creating indexes...");
+        await callAppwrite(`/databases/${DATABASE_ID}/collections/messages/indexes`, 'POST', {
+            key: 'idx_messages_read',
+            type: 'key',
+            attributes: ['is_read']
+        }).catch(e => console.log(`  Index (messages): ${e.message}`));
+
+        await callAppwrite(`/databases/${DATABASE_ID}/collections/notifications/indexes`, 'POST', {
+            key: 'idx_notifications_read',
+            type: 'key',
+            attributes: ['is_read']
+        }).catch(e => console.log(`  Index (notifications): ${e.message}`));
+
+        // Orders Permissions
+        console.log("Updating orders permissions...");
+        await callAppwrite(`/databases/${DATABASE_ID}/collections/orders`, 'PUT', {
+            collectionId: "orders",
+            name: "Orders",
+            permissions: ["read(\"any\")", "create(\"users\")", "update(\"users\")", "delete(\"users\")"],
+            documentSecurity: true
+        }).catch(e => console.log(`  Orders Perms: ${e.message}`));
 
         console.log("Schema fix complete!");
     } catch (error) {

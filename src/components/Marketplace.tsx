@@ -13,7 +13,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { cache, CACHE_KEYS } from "@/lib/cache";
 
+import { useAuth } from "@/contexts/AuthContext";
+
 const Marketplace = () => {
+  const { user } = useAuth();
   const [products, setProducts] = useState<any[]>([]);
   const [recommendations, setRecommendations] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
@@ -26,7 +29,7 @@ const Marketplace = () => {
   useEffect(() => {
     fetchProducts();
     fetchRecommendations();
-  }, [categoryFilter]);
+  }, [categoryFilter, user]);
 
   const fetchProducts = async () => {
     // Try to get from cache first
@@ -72,7 +75,7 @@ const Marketplace = () => {
         );
 
         const profilesMap = profilesResponse.documents.reduce((acc: any, profile: any) => {
-          acc[profile.id] = profile;
+          acc[profile.$id] = profile;
           return acc;
         }, {});
 
@@ -94,11 +97,13 @@ const Marketplace = () => {
   const fetchRecommendations = async () => {
     try {
       setIsLoadingRecommendations(true);
-      const session = await account.get().catch(() => null);
-      if (!session) return;
+      if (!user) {
+        setRecommendations([]);
+        return;
+      }
 
       // Check cache first
-      const cacheKey = CACHE_KEYS.RECOMMENDATIONS(session.$id);
+      const cacheKey = CACHE_KEYS.RECOMMENDATIONS(user.$id);
       const cached = cache.get<any[]>(cacheKey);
       if (cached) {
         setRecommendations(cached);
@@ -107,7 +112,7 @@ const Marketplace = () => {
 
       const execution = await functions.createExecution(
         'product-recommendations', // Function ID
-        JSON.stringify({ userId: session.$id })
+        JSON.stringify({ userId: user.$id })
       );
 
       if (execution.status === 'completed') {
@@ -130,50 +135,47 @@ const Marketplace = () => {
 
   const handlePlaceOrder = async () => {
     try {
-      const user = await account.get().catch(() => null);
       if (!user) {
         toast.error("Please sign in to place an order");
         return;
       }
 
       const quantity = parseFloat(orderQuantity);
+      if (isNaN(quantity) || quantity <= 0) {
+        toast.error("Please enter a valid quantity");
+        return;
+      }
+
       const totalPrice = quantity * selectedProduct.price;
       const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
 
-      await databases.createDocument(
-        dbId,
-        "orders",
-        ID.unique(),
-        {
-          product_id: selectedProduct.$id, // Appwrite uses $id
-          buyer_id: user.$id,
-          farmer_id: selectedProduct.farmer_id,
-          quantity,
-          total_price: totalPrice,
-          delivery_address: deliveryAddress,
-          payment_type: "traditional",
-        },
-        [
-          Permission.read(Role.user(user.$id)), // Buyer can read
-          Permission.read(Role.user(selectedProduct.farmer_id)), // Farmer can read
-          Permission.write(Role.user(user.$id)), // Buyer can update/delete (maybe? or restrict)
-          // Note: Admin roles should be handled via Collection level permissions or Team roles
-        ]
+      if (!selectedProduct.farmer_id) {
+        toast.error("Invalid product: Missing farmer information");
+        console.error("Product invalid:", selectedProduct);
+        return;
+      }
+
+      // Call Server-Side Function to place order (Handles permissions safely)
+      const execution = await functions.createExecution(
+        'place-order',
+        JSON.stringify({
+          buyerId: user.$id,
+          product: selectedProduct,
+          quantity: quantity,
+          deliveryAddress: deliveryAddress
+        })
       );
 
-      // Create notification for farmer
-      await databases.createDocument(
-        dbId,
-        "notifications",
-        ID.unique(),
-        {
-          user_id: selectedProduct.farmer_id,
-          type: "order",
-          title: "New Order Received",
-          message: `You have a new order for ${selectedProduct.name}`,
-          link: "/dashboard?tab=orders",
-        }
-      );
+      const response = JSON.parse(execution.responseBody);
+
+      if (!response.success && execution.status === 'completed') {
+        // Function executed but returned application error
+        throw new Error(response.message);
+      }
+
+      if (execution.status === 'failed') {
+        throw new Error("Server function failed to execute");
+      }
 
       toast.success("Order placed successfully!");
       setSelectedProduct(null);
@@ -184,7 +186,8 @@ const Marketplace = () => {
       cache.invalidate(CACHE_KEYS.RECOMMENDATIONS(user.$id));
       fetchRecommendations();
     } catch (error: any) {
-      toast.error(error.message);
+      console.error("Order creation failed:", error);
+      toast.error(`Order failed: ${error.message}`);
     }
   };
 

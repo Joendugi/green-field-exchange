@@ -8,12 +8,13 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 // Lazy load all pages for code splitting
 const Index = lazy(() => import("./pages/Index"));
 const Auth = lazy(() => import("./pages/Auth"));
-const Dashboard = lazy(() => import("./pages/Dashboard"));
+const Profile = lazy(() => import("./components/Profile"));
 const Social = lazy(() => import("./pages/Social"));
 const AI = lazy(() => import("./pages/AI"));
 const Messages = lazy(() => import("./pages/Messages"));
 const UserProfile = lazy(() => import("./pages/UserProfile"));
 const NotFound = lazy(() => import("./pages/NotFound"));
+const ProtectedRoute = lazy(() => import("./components/ProtectedRoute"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -36,26 +37,50 @@ const PageLoader = () => (
   </div>
 );
 
+import { AuthProvider } from "@/contexts/AuthContext";
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <Toaster />
       <Sonner />
-      <BrowserRouter>
-        <Suspense fallback={<PageLoader />}>
-          <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/auth" element={<Auth />} />
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/social" element={<Social />} />
-            <Route path="/ai" element={<AI />} />
-            <Route path="/messages" element={<Messages />} />
-            <Route path="/profile/:userId" element={<UserProfile />} />
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </Suspense>
-      </BrowserRouter>
+      <AuthProvider>
+        <BrowserRouter>
+          <Suspense fallback={<PageLoader />}>
+            <Routes>
+              <Route path="/" element={<Index />} />
+              <Route path="/auth" element={<Auth />} />
+              <Route path="/profile" element={
+                <ProtectedRoute>
+                  <Profile />
+                </ProtectedRoute>
+              } />
+              <Route path="/social" element={
+                <ProtectedRoute>
+                  <Social />
+                </ProtectedRoute>
+              } />
+              <Route path="/ai" element={
+                <ProtectedRoute>
+                  <AI />
+                </ProtectedRoute>
+              } />
+              <Route path="/messages" element={
+                <ProtectedRoute>
+                  <Messages />
+                </ProtectedRoute>
+              } />
+              <Route path="/profile/:userId" element={
+                <ProtectedRoute>
+                  <UserProfile />
+                </ProtectedRoute>
+              } />
+              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </Suspense>
+        </BrowserRouter>
+      </AuthProvider>
     </TooltipProvider>
   </QueryClientProvider>
 );

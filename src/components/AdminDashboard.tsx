@@ -38,9 +38,11 @@ import {
   Send,
   Search,
   AlertTriangle,
+  Download,
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
+import { exportSystemData } from "@/lib/dataExport";
 
 const AdminDashboard = () => {
   const [stats, setStats] = useState({
@@ -470,6 +472,7 @@ const AdminDashboard = () => {
           </TabsTrigger>
           <TabsTrigger value="moderation">Content</TabsTrigger>
           <TabsTrigger value="broadcast">Broadcast</TabsTrigger>
+          <TabsTrigger value="exports">Data Exports</TabsTrigger>
         </TabsList>
 
         {/* Users Tab */}
@@ -798,8 +801,49 @@ const AdminDashboard = () => {
                 disabled={!broadcastTitle.trim() || !broadcastMessage.trim()}
               >
                 <Send className="h-4 w-4 mr-2" />
-                Send to All Users
+                Send Broadcast
               </Button>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Data Exports Tab */}
+        <TabsContent value="exports" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Download className="h-5 w-5" />
+                System Data Export
+              </CardTitle>
+              <CardDescription>
+                Download comprehensive system data including users, products, orders, chat logs, and activity logs.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-col items-start gap-4">
+                <div className="p-4 border rounded-lg bg-secondary/20 w-full">
+                  <h4 className="font-semibold mb-2">Available Datasets</h4>
+                  <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1">
+                    <li>Use List (Profiles & Roles)</li>
+                    <li>Product Catalog</li>
+                    <li>Order History</li>
+                    <li>Chat Logs (Messages)</li>
+                    <li>Activity Logs (Notifications & Alerts)</li>
+                  </ul>
+                </div>
+                <Button onClick={async () => {
+                  toast.info("Starting export...");
+                  const result = await exportSystemData();
+                  if (result.success) {
+                    toast.success(`Export complete! Processed ${Object.values(result.count || {}).reduce((a, b) => a + b, 0)} records.`);
+                  } else {
+                    toast.error("Export failed. Check console.");
+                  }
+                }}>
+                  <Download className="mr-2 h-4 w-4" />
+                  Download All System Data
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>

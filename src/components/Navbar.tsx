@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { account, databases, client } from "@/lib/appwrite";
+import { databases, client } from "@/lib/appwrite";
 import { Query } from "appwrite";
 import {
   Bell,
@@ -12,14 +12,19 @@ import {
   MessageSquare,
   Menu,
   X,
+  LogOut,
+  Settings,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNavigate, useLocation } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
+  DropdownMenuLabel,
 } from "@/components/ui/dropdown-menu";
 import {
   Sheet,
@@ -31,16 +36,18 @@ import {
 import { Badge } from "@/components/ui/badge";
 import ThemeToggle from "./ThemeToggle";
 
+// ... imports ...
+
 const Navbar = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { user, logout } = useAuth();
   const [unreadCount, setUnreadCount] = useState(0);
   const [unreadMessagesCount, setUnreadMessagesCount] = useState(0);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     const fetchUnreadCounts = async () => {
-      const user = await account.get().catch(() => null);
       if (!user) return;
 
       const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
@@ -52,13 +59,18 @@ const Navbar = () => {
           "notifications",
           [
             Query.equal("user_id", user.$id),
-            Query.equal("is_read", false),
-            Query.limit(1)
+            // Query.equal("is_read", false), // Attribute missing in schema
+            Query.limit(10)
           ]
         );
-        setUnreadCount(notifications.total);
-      } catch (error) {
-        console.warn("Notifications count failed:", error);
+        // Filter locally if attribute exists, else assume 0
+        const unreadInfo = notifications.documents.filter((n: any) => n.is_read === false);
+        setUnreadCount(unreadInfo.length);
+      } catch (error: any) {
+        // Suppress 401/400 errors during polling
+        if (error.code !== 401 && error.code !== 400) {
+          console.warn("Notifications count failed:", error);
+        }
       }
 
       // Fetch Unread Messages
@@ -68,13 +80,16 @@ const Navbar = () => {
           "messages",
           [
             Query.notEqual("sender_id", user.$id),
-            Query.equal("is_read", false),
-            Query.limit(1)
+            // Query.equal("is_read", false), // Attribute missing in schema
+            Query.limit(10)
           ]
         );
-        setUnreadMessagesCount(messages.total);
-      } catch (error) {
-        console.warn("Messages count failed:", error);
+        const unreadMsgs = messages.documents.filter((m: any) => m.is_read === false);
+        setUnreadMessagesCount(unreadMsgs.length);
+      } catch (error: any) {
+        if (error.code !== 401 && error.code !== 400) {
+          console.warn("Messages count failed:", error);
+        }
       }
     };
 
@@ -94,14 +109,15 @@ const Navbar = () => {
     return () => {
       unsubscribe();
     };
-  }, []);
+  }, [user]);
 
   const isActive = (path: string) => location.pathname === path;
 
+  // ... navItems ...
+
   const navItems = [
     { path: "/", label: "Marketplace", icon: Home },
-    { path: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-    { path: "/messages", label: "Messages", icon: MessageSquare, badge: unreadMessagesCount },
+    { path: "/messages", label: "Message", icon: MessageSquare, badge: unreadMessagesCount },
     { path: "/social", label: "Social", icon: Users },
     { path: "/ai", label: "AI Assistant", icon: Bot },
   ];
@@ -109,6 +125,15 @@ const Navbar = () => {
   const handleNavigation = (path: string) => {
     navigate(path);
     setMobileMenuOpen(false);
+  };
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+      navigate("/auth");
+    } catch (error) {
+      console.error("Logout failed:", error);
+    }
   };
 
   return (
@@ -166,10 +191,31 @@ const Navbar = () => {
             </DropdownMenuContent>
           </DropdownMenu>
 
-          {/* Profile Button */}
-          <Button variant="ghost" size="icon" onClick={() => navigate("/dashboard?tab=profile")}>
-            <User className="h-5 w-5" />
-          </Button>
+          {/* Profile Dropdown */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon">
+                <User className="h-5 w-5" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuLabel>My Account</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => navigate("/profile")}>
+                <User className="mr-2 h-4 w-4" />
+                <span>Profile</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => navigate("/profile?tab=settings")}>
+                <Settings className="mr-2 h-4 w-4" />
+                <span>Settings</span>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={handleLogout} className="text-destructive focus:text-destructive">
+                <LogOut className="mr-2 h-4 w-4" />
+                <span>Log out</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
 
           {/* Mobile Menu Button */}
           <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>

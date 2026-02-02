@@ -72,7 +72,7 @@ class CacheManager {
   invalidatePattern(pattern: string): void {
     // Invalidate all keys matching pattern
     const keysToDelete: string[] = [];
-    
+
     this.cache.forEach((_, key) => {
       if (key.includes(pattern)) {
         keysToDelete.push(key);
@@ -121,4 +121,5 @@ export const CACHE_KEYS = {
   USER_PROFILE: (userId: string) => `profile_${userId}`,
   PRICE_PREDICTION: (category: string, location: string) => `price_${category}_${location}`,
   RECOMMENDATIONS: (userId: string) => `recommendations_${userId}`,
+  MY_PRODUCTS: (userId: string) => `my_products_${userId}`,
 };

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { ExecutionMethod } from "appwrite";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -31,7 +32,7 @@ const AIAssistant = () => {
         JSON.stringify({ messages: [...messages, userMessage] }),
         false, // async = false (wait for response)
         "/", // path
-        "POST", // method
+        ExecutionMethod.POST, // method
         { "Content-Type": "application/json" } // headers
       );
 

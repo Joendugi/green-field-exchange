@@ -12,8 +12,11 @@ import { toast } from "sonner";
 import { Loader2, Sprout, AlertCircle } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
+import { useAuth } from "@/contexts/AuthContext";
+
 const Auth = () => {
   const navigate = useNavigate();
+  const { user, checkAuth } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -24,20 +27,15 @@ const Auth = () => {
   const [isLocked, setIsLocked] = useState(false);
 
   useEffect(() => {
-    const checkSession = async () => {
-      try {
-        const session = await account.get();
-        if (session) {
-          navigate("/");
-        }
-      } catch (err) {
-        // No session active
-      }
-    };
-    checkSession();
-  }, [navigate]);
+    if (user) {
+      navigate("/");
+    }
+  }, [user, navigate]);
+
+  // ... validatePassword ...
 
   const validatePassword = (pwd: string): boolean => {
+    // ... existing validation logic ...
     const minLength = 8;
     const hasUppercase = /[A-Z]/.test(pwd);
     const hasLowercase = /[a-z]/.test(pwd);
@@ -81,13 +79,12 @@ const Auth = () => {
 
     try {
       // 1. Create Account
-      const user = await account.create(ID.unique(), email, password, fullName);
+      const newUser = await account.create(ID.unique(), email, password, fullName);
 
       // 2. Create Session (Login)
       await account.createEmailPasswordSession(email, password);
 
       // 3. Store User Role & Create Profile
-      // precise database ID should be in env, but for now we will use the one from env
       const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
 
       await databases.createDocument(
@@ -95,7 +92,7 @@ const Auth = () => {
         "user_roles",
         ID.unique(),
         {
-          user_id: user.$id,
+          user_id: newUser.$id,
           role: role
         }
       );
@@ -104,15 +101,15 @@ const Auth = () => {
       await databases.createDocument(
         dbId,
         "profiles",
-        user.$id, // Use User ID as Document ID for profiles for easy access
+        newUser.$id,
         {
-          id: user.$id,
+          id: newUser.$id,
           full_name: fullName,
           username: email.split("@")[0],
-          // other fields can be optional/null in schema
         }
       );
 
+      await checkAuth(); // Update global auth context
       toast.success("Account created successfully!");
       navigate("/");
     } catch (error: any) {
@@ -126,7 +123,6 @@ const Auth = () => {
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Check if account is temporarily locked
     if (isLocked) {
       toast.error("Too many failed attempts. Please try again in 15 minutes.");
       return;
@@ -135,7 +131,6 @@ const Auth = () => {
     setIsLoading(true);
 
     try {
-      // Delete existing session if any to avoid "session already active" error
       try {
         await account.deleteSession("current");
       } catch (err) {
@@ -145,13 +140,12 @@ const Auth = () => {
       await account.createEmailPasswordSession(email, password);
 
       // Check if user is banned
-      const user = await account.get();
+      const currentUser = await account.get();
       const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
 
       try {
-        const profile = await databases.getDocument(dbId, "profiles", user.$id);
+        const profile = await databases.getDocument(dbId, "profiles", currentUser.$id);
         if (profile.is_banned) {
-          // Log out the banned user immediately
           await account.deleteSession("current");
           toast.error(profile.ban_reason
             ? `Your account has been suspended: ${profile.ban_reason}`
@@ -160,17 +154,15 @@ const Auth = () => {
           return;
         }
       } catch (profileError) {
-        // Profile may not exist yet, allow login
         console.warn("Could not check ban status:", profileError);
       }
 
-      // Reset on successful login
       setLoginAttempts(0);
+      await checkAuth(); // Update global auth context
       toast.success("Welcome back!");
       navigate("/");
     } catch (error: any) {
       console.error(error);
-      // Track failed login attempt
       const newAttempts = loginAttempts + 1;
       setLoginAttempts(newAttempts);
 
@@ -179,7 +171,7 @@ const Auth = () => {
         setTimeout(() => {
           setIsLocked(false);
           setLoginAttempts(0);
-        }, 15 * 60 * 1000); // 15 minutes lockout
+        }, 15 * 60 * 1000);
         toast.error("Account temporarily locked due to multiple failed attempts.");
       } else {
         toast.error(`Invalid credentials. ${5 - newAttempts} attempts remaining.`);

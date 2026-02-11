@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { account, databases, functions, storage } from "@/lib/appwrite";
+import { ID, Query } from "appwrite";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,7 +9,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+<<<<<<< HEAD
 import { Plus, Edit, Trash2, Package, Lightbulb, BarChart3, Layers, DollarSign, Grid, Check } from "lucide-react";
+=======
+import { Plus, Edit, Trash2, Package, Lightbulb, Upload, X } from "lucide-react";
+>>>>>>> f82e77df9b7fe97c8b63fccece12444e06b1f760
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { Switch } from "@/components/ui/switch";
@@ -24,8 +29,14 @@ const MyProducts = () => {
   const [isLoadingPrediction, setIsLoadingPrediction] = useState(false);
   const [isVerified, setIsVerified] = useState(false);
   const [verificationDialogOpen, setVerificationDialogOpen] = useState(false);
+<<<<<<< HEAD
   const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
   const [bulkLoading, setBulkLoading] = useState(false);
+=======
+  const [mediaFile, setMediaFile] = useState<File | null>(null);
+  const [mediaPreview, setMediaPreview] = useState<string>("");
+  const [isUploading, setIsUploading] = useState(false);
+>>>>>>> f82e77df9b7fe97c8b63fccece12444e06b1f760
   const [formData, setFormData] = useState({
     name: "",
     description: "",
@@ -66,36 +77,84 @@ const MyProducts = () => {
   };
 
   const checkVerification = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) return;
+    const user = await account.get().catch(() => null);
+    if (!user) return;
 
-    const { data } = await supabase
-      .from("user_roles")
-      .select("is_verified")
-      .eq("user_id", session.user.id)
-      .single();
+    const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+    const { documents } = await databases.listDocuments(
+      dbId,
+      "user_roles",
+      [Query.equal("user_id", user.$id)]
+    );
 
-    setIsVerified(data?.is_verified || false);
+    setIsVerified(documents[0]?.is_verified || false);
   };
 
   const fetchMyProducts = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) return;
+    const user = await account.get().catch(() => null);
+    if (!user) return;
 
-    const { data } = await supabase
-      .from("products")
-      .select("*")
-      .eq("farmer_id", session.user.id)
-      .order("created_at", { ascending: false });
+    // Try cache first
+    const cacheKey = CACHE_KEYS.MY_PRODUCTS(user.$id);
+    const cached = cache.get<any[]>(cacheKey);
 
+<<<<<<< HEAD
     setProducts(data || []);
     setSelectedProducts([]);
   };
 
   const handleSubmit = async () => {
+=======
+    if (cached) {
+      setProducts(cached);
+      // We return here but could also fetch background update if needed
+      // For now, simple cache-first strategy
+    }
+
+    const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+    const { documents } = await databases.listDocuments(
+      dbId,
+      "products",
+      [
+        Query.equal("farmer_id", user.$id),
+        Query.orderDesc("$createdAt")
+      ]
+    );
+
+    setProducts(documents || []);
+    // Update cache
+    cache.set(cacheKey, documents || []);
+  };
+
+  const uploadMedia = async (file: File) => {
+    const bucketId = import.meta.env.VITE_APPWRITE_BUCKET_ID;
+    if (!bucketId) {
+      throw new Error("Storage Bucket ID not configured");
+    }
+
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) return;
+      const fileUpload = await storage.createFile(
+        bucketId,
+        ID.unique(),
+        file
+      );
+
+      // Get view URL
+      const result = storage.getFileView(bucketId, fileUpload.$id);
+      return result.href;
+    } catch (error) {
+      console.error("Upload error", error);
+      throw error;
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+>>>>>>> f82e77df9b7fe97c8b63fccece12444e06b1f760
+    try {
+      const user = await account.get().catch(() => null);
+      if (!user) return;
 
       // Check product limit for unverified users
       if (!editingProduct && !isVerified && products.length >= 5) {
@@ -103,30 +162,47 @@ const MyProducts = () => {
         return;
       }
 
+      setIsUploading(true);
+      let imageUrl = formData.image_url;
+
+      if (mediaFile) {
+        imageUrl = await uploadMedia(mediaFile);
+      }
+
       const productData = {
         ...formData,
+        image_url: imageUrl,
         price: parseFloat(formData.price),
         quantity: parseFloat(formData.quantity),
-        farmer_id: session.user.id,
+        farmer_id: user.$id,
         category: formData.category as any,
       };
 
-      if (editingProduct) {
-        const { error } = await supabase
-          .from("products")
-          .update(productData)
-          .eq("id", editingProduct.id);
+      const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
 
-        if (error) throw error;
+      if (editingProduct) {
+        await databases.updateDocument(
+          dbId,
+          "products",
+          editingProduct.$id,
+          productData
+        );
         toast.success("Product updated successfully!");
       } else {
-        const { error } = await supabase
-          .from("products")
-          .insert(productData);
-
-        if (error) throw error;
+        await databases.createDocument(
+          dbId,
+          "products",
+          ID.unique(),
+          {
+            ...productData,
+            is_available: true,
+          }
+        );
         toast.success("Product added successfully!");
       }
+
+      // Invalidate specific user products cache
+      cache.invalidate(CACHE_KEYS.MY_PRODUCTS(user.$id));
 
       // Invalidate product cache
       cache.invalidatePattern('products');
@@ -134,10 +210,15 @@ const MyProducts = () => {
       setIsAddDialogOpen(false);
       setEditingProduct(null);
       setPricePrediction(null);
+<<<<<<< HEAD
       setImagePreview(null);
       setImageFileName(null);
       setFormErrors({});
       setCurrentStep(0);
+=======
+      setMediaFile(null);
+      setMediaPreview("");
+>>>>>>> f82e77df9b7fe97c8b63fccece12444e06b1f760
       setFormData({
         name: "",
         description: "",
@@ -151,6 +232,8 @@ const MyProducts = () => {
       fetchMyProducts();
     } catch (error: any) {
       toast.error(error.message);
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -176,18 +259,22 @@ const MyProducts = () => {
         return;
       }
 
-      const { data, error } = await supabase.functions.invoke('price-prediction', {
-        body: { 
-          category: formData.category, 
-          location: formData.location 
-        }
-      });
+      const execution = await functions.createExecution(
+        'price-prediction',
+        JSON.stringify({
+          category: formData.category,
+          location: formData.location
+        })
+      );
 
-      if (error) throw error;
-
-      // Cache the prediction
-      cache.set(cacheKey, data, 30 * 60 * 1000); // 30 minutes
-      setPricePrediction(data);
+      if (execution.status === 'completed') {
+        const data = JSON.parse(execution.responseBody);
+        // Cache the prediction
+        cache.set(cacheKey, data, 30 * 60 * 1000); // 30 minutes
+        setPricePrediction(data);
+      } else {
+        throw new Error("Prediction failed");
+      }
     } catch (error: any) {
       toast.error("Failed to get price prediction");
       console.error(error);
@@ -198,13 +285,20 @@ const MyProducts = () => {
 
   const handleDelete = async (id: string) => {
     try {
-      const { error } = await supabase
-        .from("products")
-        .delete()
-        .eq("id", id);
+      const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+      await databases.deleteDocument(
+        dbId,
+        "products",
+        id
+      );
 
-      if (error) throw error;
       toast.success("Product deleted successfully!");
+
+      const user = await account.get().catch(() => null);
+      if (user) {
+        cache.invalidate(CACHE_KEYS.MY_PRODUCTS(user.$id));
+      }
+
       fetchMyProducts();
     } catch (error: any) {
       toast.error(error.message);
@@ -213,13 +307,21 @@ const MyProducts = () => {
 
   const handleToggleAvailability = async (product: any) => {
     try {
-      const { error } = await supabase
-        .from("products")
-        .update({ is_available: !product.is_available })
-        .eq("id", product.id);
+      const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+      await databases.updateDocument(
+        dbId,
+        "products",
+        product.$id,
+        { is_available: !product.is_available }
+      );
 
-      if (error) throw error;
       toast.success(`Product ${!product.is_available ? "enabled" : "disabled"}`);
+
+      const user = await account.get().catch(() => null);
+      if (user) {
+        cache.invalidate(CACHE_KEYS.MY_PRODUCTS(user.$id));
+      }
+
       fetchMyProducts();
     } catch (error: any) {
       toast.error(error.message);
@@ -285,16 +387,18 @@ const MyProducts = () => {
 
   const handleRequestVerification = async () => {
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) return;
+      const user = await account.get().catch(() => null);
+      if (!user) return;
 
-      const { error } = await supabase
-        .from("verification_requests")
-        .insert({
-          user_id: session.user.id,
-        });
-
-      if (error) throw error;
+      const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+      await databases.createDocument(
+        dbId,
+        "verification_requests",
+        ID.unique(),
+        {
+          user_id: user.$id,
+        }
+      );
 
       toast.success("Verification request submitted!");
       setVerificationDialogOpen(false);
@@ -786,11 +890,78 @@ const MyProducts = () => {
                   </div>
                 ))}
               </div>
+<<<<<<< HEAD
               <form onSubmit={handleFormSubmit} className="space-y-6">
                 {renderStepContent()}
                 <div className="flex justify-between pt-2">
                   <Button type="button" variant="outline" onClick={handlePreviousStep} disabled={currentStep === 0}>
                     Back
+=======
+
+              <div>
+                <Label>Description</Label>
+                <Textarea
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  rows={3}
+                />
+              </div>
+
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <Label>Price</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={formData.price}
+                    onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                    required
+                  />
+                </div>
+                <div>
+                  <Label>Quantity</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={formData.quantity}
+                    onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
+                    required
+                  />
+                </div>
+                <div>
+                  <Label>Unit</Label>
+                  <Input
+                    value={formData.unit}
+                    onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
+                    placeholder="kg, lbs, etc"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div>
+                <Label>Location</Label>
+                <Input
+                  value={formData.location}
+                  onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                  required
+                />
+              </div>
+
+              {/* AI Price Prediction */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label>AI Price Suggestion</Label>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={getPricePrediction}
+                    disabled={isLoadingPrediction || !formData.category || !formData.location}
+                  >
+                    <Lightbulb className="mr-2 h-4 w-4" />
+                    {isLoadingPrediction ? "Analyzing..." : "Get Suggestion"}
+>>>>>>> f82e77df9b7fe97c8b63fccece12444e06b1f760
                   </Button>
                   <div className="flex gap-2">
                     <Button
@@ -824,8 +995,114 @@ const MyProducts = () => {
                     </Button>
                   </div>
                 </div>
+<<<<<<< HEAD
               </form>
             </div>
+=======
+                {pricePrediction && (
+                  <Alert className="bg-primary/5 border-primary/20">
+                    <Lightbulb className="h-4 w-4" />
+                    <AlertDescription>
+                      <div className="space-y-1">
+                        <p className="font-semibold">
+                          Suggested Price: ${pricePrediction.suggested_price?.toFixed(2) || "N/A"}
+                        </p>
+                        <p className="text-sm">
+                          Confidence: <Badge variant="outline">{pricePrediction.confidence}</Badge>
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          {pricePrediction.reasoning}
+                        </p>
+                        <Button
+                          type="button"
+                          variant="link"
+                          size="sm"
+                          className="p-0 h-auto"
+                          onClick={() => {
+                            if (pricePrediction.suggested_price) {
+                              setFormData({ ...formData, price: pricePrediction.suggested_price.toFixed(2) });
+                            }
+                          }}
+                        >
+                          Use this price
+                        </Button>
+                      </div>
+                    </AlertDescription>
+                  </Alert>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label>Product Image</Label>
+                <div className="flex flex-col gap-4">
+                  {mediaPreview ? (
+                    <div className="relative aspect-video w-full rounded-lg overflow-hidden bg-secondary">
+                      <img src={mediaPreview} alt="Preview" className="w-full h-full object-cover" />
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="icon"
+                        className="absolute top-2 right-2 h-8 w-8"
+                        onClick={() => {
+                          setMediaFile(null);
+                          setMediaPreview("");
+                        }}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ) : formData.image_url ? (
+                    <div className="relative aspect-video w-full rounded-lg overflow-hidden bg-secondary border">
+                      <img src={formData.image_url} alt="Current" className="w-full h-full object-cover" />
+                      <p className="absolute bottom-2 right-2 bg-black/50 text-white text-[10px] px-2 py-1 rounded">Using URL</p>
+                    </div>
+                  ) : null}
+
+                  <div className="grid grid-cols-1 gap-2">
+                    <div className="relative">
+                      <Input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        id="product-image-upload"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            setMediaFile(file);
+                            const reader = new FileReader();
+                            reader.onloadend = () => setMediaPreview(reader.result as string);
+                            reader.readAsDataURL(file);
+                          }
+                        }}
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="w-full"
+                        onClick={() => document.getElementById('product-image-upload')?.click()}
+                      >
+                        <Upload className="mr-2 h-4 w-4" />
+                        Upload Local Image
+                      </Button>
+                    </div>
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none text-muted-foreground text-xs font-bold uppercase">URL</div>
+                      <Input
+                        value={formData.image_url}
+                        onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
+                        placeholder="Or paste external image link..."
+                        className="pl-12"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <Button type="submit" className="w-full" disabled={isUploading}>
+                {isUploading ? "Processing..." : (editingProduct ? "Update Product" : "Add Product")}
+              </Button>
+            </form>
+>>>>>>> f82e77df9b7fe97c8b63fccece12444e06b1f760
           </DialogContent>
         </Dialog>
       </div>
@@ -923,7 +1200,7 @@ const MyProducts = () => {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {products.map((product) => (
-          <Card key={product.id}>
+          <Card key={product.$id}>
             <CardHeader>
               <div className="flex items-center justify-between">
                 <Checkbox
@@ -1001,7 +1278,7 @@ const MyProducts = () => {
               <Button
                 variant="destructive"
                 size="sm"
-                onClick={() => handleDelete(product.id)}
+                onClick={() => handleDelete(product.$id)}
               >
                 <Trash2 className="h-4 w-4" />
               </Button>
@@ -1022,7 +1299,7 @@ const MyProducts = () => {
           <AlertDialogHeader>
             <AlertDialogTitle>Product Limit Reached</AlertDialogTitle>
             <AlertDialogDescription>
-              You've reached the limit of 5 products for unverified users. 
+              You've reached the limit of 5 products for unverified users.
               Request verification to add unlimited products.
             </AlertDialogDescription>
           </AlertDialogHeader>

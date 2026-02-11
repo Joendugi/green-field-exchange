@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { account } from "@/lib/appwrite";
 import { useNavigate } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import Navbar from "@/components/Navbar";
@@ -12,25 +12,15 @@ const AI = () => {
 
   useEffect(() => {
     const checkAuth = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (!session) {
+      try {
+        await account.get();
+        setLoading(false);
+      } catch (error) {
         navigate("/auth");
-        return;
       }
-
-      setLoading(false);
     };
 
     checkAuth();
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (!session) {
-        navigate("/auth");
-      }
-    });
-
-    return () => subscription.unsubscribe();
   }, [navigate]);
 
   if (loading) {

@@ -1,0 +1,10 @@
+{
+    "name": "ai-chat",
+    "version": "1.0.0",
+    "description": "AgriLink AI Chat Assistant",
+    "main": "src/main.js",
+    "type": "module",
+    "dependencies": {
+        "node-appwrite": "^11.1.1"
+    }
+}

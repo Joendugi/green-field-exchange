@@ -1,24 +1,115 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>green-field-exchange</title>
-    <meta name="description" content="Lovable Generated Project" />
-    <meta name="author" content="Lovable" />
 
-    <meta property="og:title" content="green-field-exchange" />
-    <meta property="og:description" content="Lovable Generated Project" />
-    <meta property="og:type" content="website" />
-    <meta property="og:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AgriLink - Farm to Table Marketplace</title>
+  <link rel="icon" type="image/png" href="/favicon.png" />
+  <meta name="description" content="AgriLink connects farmers directly with buyers for fresh agricultural products" />
+  <meta name="author" content="AgriLink" />
 
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:site" content="@lovable_dev" />
-    <meta name="twitter:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
-  </head>
+  <!-- Preconnect to external domains for faster loading -->
+  <link rel="preconnect" href="https://fra.cloud.appwrite.io" crossorigin />
+  <link rel="dns-prefetch" href="https://fra.cloud.appwrite.io" />
 
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
+  <!-- Preload critical fonts -->
+  <link rel="preload" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" as="style"
+    onload="this.onload=null;this.rel='stylesheet'" />
+  <noscript>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" />
+  </noscript>
+
+  <meta property="og:title" content="AgriLink - Farm to Table Marketplace" />
+  <meta property="og:description" content="Connecting farmers directly with buyers for fresh agricultural products" />
+  <meta property="og:type" content="website" />
+  <meta property="og:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
+
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:site" content="@lovable_dev" />
+  <meta name="twitter:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
+
+  <!-- Critical CSS for initial render (prevents layout shift) -->
+  <style>
+    /* Prevent FOUC and layout shift */
+    html {
+      font-family: Inter, system-ui, -apple-system, sans-serif;
+    }
+
+    #root {
+      min-height: 100vh;
+    }
+
+    /* Reserve space for navbar */
+    .navbar-placeholder {
+      height: 65px;
+    }
+
+    /* Skeleton animation */
+    @keyframes skeleton-pulse {
+
+      0%,
+      100% {
+        opacity: 1;
+      }
+
+      50% {
+        opacity: 0.5;
+      }
+    }
+
+    .skeleton {
+      background: linear-gradient(90deg, #e5e7eb 25%, #f3f4f6 50%, #e5e7eb 75%);
+      background-size: 200% 100%;
+      animation: skeleton-pulse 1.5s ease-in-out infinite;
+      border-radius: 0.5rem;
+    }
+
+    /* Initial loading state */
+    .initial-loader {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      background: #fafafa;
+    }
+
+    .initial-loader .spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid #e5e7eb;
+      border-top-color: #22c55e;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    /* Dark mode support */
+    @media (prefers-color-scheme: dark) {
+      .initial-loader {
+        background: #1a1a1a;
+      }
+
+      .skeleton {
+        background: linear-gradient(90deg, #374151 25%, #4b5563 50%, #374151 75%);
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div id="root">
+    <!-- Initial loader shown until React hydrates -->
+    <div class="initial-loader">
+      <div class="spinner"></div>
+    </div>
+  </div>
+  <script type="module" src="/src/main.tsx"></script>
+</body>
+
 </html>

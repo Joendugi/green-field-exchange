@@ -1,6 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+<<<<<<< HEAD
 import { useAuthActions } from "@convex-dev/auth/react";
+=======
+import { account, databases } from "@/lib/appwrite";
+import { ID } from "appwrite";
+>>>>>>> f82e77df9b7fe97c8b63fccece12444e06b1f760
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,9 +17,15 @@ import { Loader2, Sprout, AlertCircle } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import AdminLoginForm from "@/components/AdminLoginForm";
 
+import { useAuth } from "@/contexts/AuthContext";
+
 const Auth = () => {
   const navigate = useNavigate();
+<<<<<<< HEAD
   const { signIn } = useAuthActions();
+=======
+  const { user, checkAuth } = useAuth();
+>>>>>>> f82e77df9b7fe97c8b63fccece12444e06b1f760
   const [isLoading, setIsLoading] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -27,7 +38,16 @@ const Auth = () => {
   const [adminPassword, setAdminPassword] = useState("");
   const [isAdminLoading, setIsAdminLoading] = useState(false);
 
+  useEffect(() => {
+    if (user) {
+      navigate("/");
+    }
+  }, [user, navigate]);
+
+  // ... validatePassword ...
+
   const validatePassword = (pwd: string): boolean => {
+    // ... existing validation logic ...
     const minLength = 8;
     const hasUppercase = /[A-Z]/.test(pwd);
     const hasLowercase = /[a-z]/.test(pwd);
@@ -61,7 +81,7 @@ const Auth = () => {
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // Validate password strength
     if (!validatePassword(password)) {
       return;
@@ -70,6 +90,7 @@ const Auth = () => {
     setIsLoading(true);
 
     try {
+<<<<<<< HEAD
       // Sign up with Convex Auth
       await signIn({
         provider: "password",
@@ -79,10 +100,45 @@ const Auth = () => {
         name: fullName,
       });
 
+=======
+      // 1. Create Account
+      const newUser = await account.create(ID.unique(), email, password, fullName);
+
+      // 2. Create Session (Login)
+      await account.createEmailPasswordSession(email, password);
+
+      // 3. Store User Role & Create Profile
+      const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+
+      await databases.createDocument(
+        dbId,
+        "user_roles",
+        ID.unique(),
+        {
+          user_id: newUser.$id,
+          role: role
+        }
+      );
+
+      // Create initial profile
+      await databases.createDocument(
+        dbId,
+        "profiles",
+        newUser.$id,
+        {
+          id: newUser.$id,
+          full_name: fullName,
+          username: email.split("@")[0],
+        }
+      );
+
+      await checkAuth(); // Update global auth context
+>>>>>>> f82e77df9b7fe97c8b63fccece12444e06b1f760
       toast.success("Account created successfully!");
       navigate("/");
     } catch (error: any) {
-      toast.error(error.message);
+      console.error(error);
+      toast.error(error.message || "Failed to create account");
     } finally {
       setIsLoading(false);
     }
@@ -91,7 +147,6 @@ const Auth = () => {
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Check if account is temporarily locked
     if (isLocked) {
       toast.error("Too many failed attempts. Please try again in 15 minutes.");
       return;
@@ -100,6 +155,7 @@ const Auth = () => {
     setIsLoading(true);
 
     try {
+<<<<<<< HEAD
       // Sign in with Convex Auth
       await signIn({
         provider: "password",
@@ -109,11 +165,44 @@ const Auth = () => {
       });
 
       // Reset on successful login
+=======
+      try {
+        await account.deleteSession("current");
+      } catch (err) {
+        // Ignore "session not found" error
+      }
+
+      await account.createEmailPasswordSession(email, password);
+
+      // Check if user is banned
+      const currentUser = await account.get();
+      const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+
+      try {
+        const profile = await databases.getDocument(dbId, "profiles", currentUser.$id);
+        if (profile.is_banned) {
+          await account.deleteSession("current");
+          toast.error(profile.ban_reason
+            ? `Your account has been suspended: ${profile.ban_reason}`
+            : "Your account has been suspended. Please contact support.");
+          setIsLoading(false);
+          return;
+        }
+      } catch (profileError) {
+        console.warn("Could not check ban status:", profileError);
+      }
+
+>>>>>>> f82e77df9b7fe97c8b63fccece12444e06b1f760
       setLoginAttempts(0);
+      await checkAuth(); // Update global auth context
       toast.success("Welcome back!");
       navigate("/");
     } catch (error: any) {
+<<<<<<< HEAD
       // Track failed login attempt
+=======
+      console.error(error);
+>>>>>>> f82e77df9b7fe97c8b63fccece12444e06b1f760
       const newAttempts = loginAttempts + 1;
       setLoginAttempts(newAttempts);
 
@@ -122,7 +211,11 @@ const Auth = () => {
         setTimeout(() => {
           setIsLocked(false);
           setLoginAttempts(0);
+<<<<<<< HEAD
         }, 15 * 60 * 1000); // 15 minutes lockout
+=======
+        }, 15 * 60 * 1000);
+>>>>>>> f82e77df9b7fe97c8b63fccece12444e06b1f760
         toast.error("Account temporarily locked due to multiple failed attempts.");
       } else {
         toast.error(`Invalid credentials. ${5 - newAttempts} attempts remaining.`);
@@ -151,7 +244,7 @@ const Auth = () => {
               <TabsTrigger value="signup">Sign Up</TabsTrigger>
               <TabsTrigger value="admin">Admin</TabsTrigger>
             </TabsList>
-            
+
             <TabsContent value="signin">
               <form onSubmit={handleSignIn} className="space-y-4">
                 <div className="space-y-2">

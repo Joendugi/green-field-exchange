@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { account, databases } from "@/lib/appwrite";
+import { ID, Query } from "appwrite";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -34,19 +35,25 @@ const Settings = () => {
 
   const fetchSettings = async () => {
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) return;
+      const user = await account.get().catch(() => null);
+      if (!user) return;
 
-      const { data, error } = await supabase
-        .from("user_settings")
-        .select("*")
-        .eq("user_id", session.user.id)
-        .single();
+      const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+      const { documents } = await databases.listDocuments(
+        dbId,
+        "user_settings",
+        [Query.equal("user_id", user.$id), Query.limit(1)]
+      );
 
+<<<<<<< HEAD
       if (error && error.code !== "PGRST116") throw error;
 
       if (data) {
         const typedData = data as Partial<UserSettingsState>;
+=======
+      if (documents.length > 0) {
+        const data = documents[0];
+>>>>>>> f82e77df9b7fe97c8b63fccece12444e06b1f760
         setSettings({
           notifications_enabled: typedData.notifications_enabled ?? true,
           notifications_orders: typedData.notifications_orders ?? true,
@@ -57,6 +64,7 @@ const Settings = () => {
         });
       } else {
         // Create default settings
+<<<<<<< HEAD
         await supabase
           .from("user_settings")
           .upsert(
@@ -68,6 +76,19 @@ const Settings = () => {
               onConflict: "user_id",
             }
           );
+=======
+        await databases.createDocument(
+          dbId,
+          "user_settings",
+          ID.unique(),
+          {
+            user_id: user.$id,
+            notifications_enabled: true,
+            ai_assistant_enabled: true,
+            dark_mode: false,
+          }
+        );
+>>>>>>> f82e77df9b7fe97c8b63fccece12444e06b1f760
       }
     } catch (error: any) {
       console.error("Error fetching settings:", error);
@@ -78,12 +99,13 @@ const Settings = () => {
 
   const updateSetting = async (key: keyof UserSettingsState, value: boolean) => {
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) return;
+      const user = await account.get().catch(() => null);
+      if (!user) return;
 
       const nextSettings = { ...settings, [key]: value };
       setSettings(nextSettings);
 
+<<<<<<< HEAD
       const { error } = await supabase
         .from("user_settings")
         .upsert(
@@ -98,6 +120,38 @@ const Settings = () => {
 
       if (error) throw error;
 
+=======
+      const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+
+      const { documents } = await databases.listDocuments(
+        dbId,
+        "user_settings",
+        [Query.equal("user_id", user.$id), Query.limit(1)]
+      );
+
+      if (documents.length > 0) {
+        await databases.updateDocument(
+          dbId,
+          "user_settings",
+          documents[0].$id,
+          { [key]: value }
+        );
+      } else {
+        await databases.createDocument(
+          dbId,
+          "user_settings",
+          ID.unique(),
+          {
+            user_id: user.$id,
+            notifications_enabled: true,
+            ai_assistant_enabled: true,
+            dark_mode: false,
+            [key]: value // Override default just in case
+          }
+        );
+      }
+
+>>>>>>> f82e77df9b7fe97c8b63fccece12444e06b1f760
       toast.success("Setting updated!");
     } catch (error: any) {
       toast.error("Failed to update setting");

@@ -1,5 +1,10 @@
+<<<<<<< HEAD
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+=======
+import { useState } from "react";
+import { account, databases } from "@/lib/appwrite";
+>>>>>>> f82e77df9b7fe97c8b63fccece12444e06b1f760
 import {
   Dialog,
   DialogContent,
@@ -75,15 +80,20 @@ const Onboarding = ({ open, onComplete, onDismiss }: OnboardingProps) => {
 
   const handleComplete = async () => {
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) return;
+      const user = await account.get().catch(() => null);
+      if (!user) return;
 
-      const { error } = await supabase
-        .from("profiles")
-        .update({ onboarding_completed: true })
-        .eq("id", session.user.id);
+      const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+      await databases.updateDocument(
+        dbId,
+        "profiles",
+        user.$id,
+        { onboarding_completed: true }
+      ).catch(e => console.warn("Failed to sync onboarding to DB", e));
 
-      if (error) throw error;
+      // Mark in local storage as well for instant feedback
+      localStorage.setItem(`onboarding_completed_${user.$id}`, "true");
+
       onComplete();
       if (typeof window !== "undefined") {
         window.localStorage.removeItem(STEP_STORAGE_KEY);
@@ -104,11 +114,15 @@ const Onboarding = ({ open, onComplete, onDismiss }: OnboardingProps) => {
   const currentStep = steps[step];
 
   return (
+<<<<<<< HEAD
     <Dialog open={open} onOpenChange={(nextOpen) => {
       if (!nextOpen && open) {
         handleDismiss();
       }
     }}>
+=======
+    <Dialog open={open} onOpenChange={(val) => { if (!val) handleComplete(); }}>
+>>>>>>> f82e77df9b7fe97c8b63fccece12444e06b1f760
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>{currentStep.title}</DialogTitle>
@@ -128,23 +142,26 @@ const Onboarding = ({ open, onComplete, onDismiss }: OnboardingProps) => {
         <div className="flex flex-col items-center space-y-6 py-6">
           {currentStep.icon}
           <p className="text-center text-muted-foreground">{currentStep.content}</p>
-          
+
           <div className="flex gap-2">
             {steps.map((_, idx) => (
               <div
                 key={idx}
-                className={`h-2 w-2 rounded-full transition-all ${
-                  idx === step ? "bg-primary w-8" : "bg-muted"
-                }`}
+                className={`h-2 w-2 rounded-full transition-all ${idx === step ? "bg-primary w-8" : "bg-muted"
+                  }`}
               />
             ))}
           </div>
         </div>
         <div className="flex justify-between">
-          {step > 0 && (
+          {step > 0 ? (
             <Button variant="outline" onClick={() => setStep(step - 1)}>
               <ChevronLeft className="mr-2 h-4 w-4" />
               Previous
+            </Button>
+          ) : (
+            <Button variant="ghost" onClick={handleComplete} className="text-muted-foreground">
+              Skip Tutorial
             </Button>
           )}
           <div className="flex-1" />

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { account, databases } from "@/lib/appwrite";
+import { ID, Query } from "appwrite";
 import { Moon, Sun } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -22,15 +23,31 @@ const ThemeToggle = () => {
 
   useEffect(() => {
     const loadTheme = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        // Check localStorage for non-logged in users
-        const savedTheme = localStorage.getItem("theme");
-        if (savedTheme === "dark") {
+      try {
+        const user = await account.get().catch(() => null);
+        if (!user) {
+          // Check localStorage for non-logged in users
+          const savedTheme = localStorage.getItem("theme");
+          if (savedTheme === "dark") {
+            setDarkMode(true);
+            document.documentElement.classList.add("dark");
+          }
+          return;
+        }
+
+        const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+        const { documents } = await databases.listDocuments(
+          dbId,
+          "user_settings",
+          [Query.equal("user_id", user.$id), Query.limit(1)]
+        );
+
+        if (documents.length > 0 && documents[0].dark_mode) {
           setDarkMode(true);
           applyTheme(true);
           dispatchThemeChange(true);
         }
+<<<<<<< HEAD
         return;
       }
 
@@ -44,6 +61,11 @@ const ThemeToggle = () => {
       setDarkMode(darkPreference);
       applyTheme(darkPreference);
       dispatchThemeChange(darkPreference);
+=======
+      } catch (error) {
+        console.error("Error loading theme", error);
+      }
+>>>>>>> f82e77df9b7fe97c8b63fccece12444e06b1f760
     };
 
     loadTheme();
@@ -63,6 +85,7 @@ const ThemeToggle = () => {
     applyTheme(newDarkMode);
     dispatchThemeChange(newDarkMode);
 
+<<<<<<< HEAD
     const { data: { session } } = await supabase.auth.getSession();
     if (session) {
       const { error } = await supabase
@@ -76,6 +99,43 @@ const ThemeToggle = () => {
     } else {
       // Save to localStorage for non-logged in users
       localStorage.setItem("theme", newDarkMode ? "dark" : "light");
+=======
+    try {
+      const user = await account.get().catch(() => null);
+      if (user) {
+        const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+        // Check if settings exist
+        const { documents } = await databases.listDocuments(
+          dbId,
+          "user_settings",
+          [Query.equal("user_id", user.$id), Query.limit(1)]
+        );
+
+        if (documents.length > 0) {
+          await databases.updateDocument(
+            dbId,
+            "user_settings",
+            documents[0].$id,
+            { dark_mode: newDarkMode }
+          );
+        } else {
+          await databases.createDocument(
+            dbId,
+            "user_settings",
+            ID.unique(),
+            {
+              user_id: user.$id,
+              dark_mode: newDarkMode
+            }
+          );
+        }
+      } else {
+        // Save to localStorage for non-logged in users
+        localStorage.setItem("theme", newDarkMode ? "dark" : "light");
+      }
+    } catch (error) {
+      console.error("Error saving theme preference", error);
+>>>>>>> f82e77df9b7fe97c8b63fccece12444e06b1f760
     }
   };
 

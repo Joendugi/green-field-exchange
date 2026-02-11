@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { account } from "@/lib/appwrite";
 import { Button } from "@/components/ui/button";
 import { Sprout, ShoppingCart, Users, TrendingUp, ShieldCheck, Star } from "lucide-react";
 import heroBanner from "@/assets/hero-banner.jpg";
@@ -14,31 +14,29 @@ const Index = () => {
 
   useEffect(() => {
     const checkAuth = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      setIsLoggedIn(!!session);
+      try {
+        await account.get();
+        setIsLoggedIn(true);
+      } catch (error) {
+        setIsLoggedIn(false);
+      }
     };
 
     checkAuth();
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => {
-      setIsLoggedIn(!!session);
-    });
-
-    return () => subscription.unsubscribe();
   }, []);
 
   if (isLoggedIn) {
-  return (
-    <div className="min-h-screen bg-background">
-      <Navbar />
-      <div className="fixed bottom-4 right-4 z-50">
-        <ThemeToggle />
+    return (
+      <div className="min-h-screen bg-background">
+        <Navbar />
+        <div className="fixed bottom-4 right-4 z-50">
+          <ThemeToggle />
+        </div>
+        <div className="container mx-auto px-4 py-6">
+          <Marketplace />
+        </div>
       </div>
-      <div className="container mx-auto px-4 py-6">
-        <Marketplace />
-      </div>
-    </div>
-  );
+    );
   }
 
   return (
@@ -46,7 +44,7 @@ const Index = () => {
       <div className="absolute top-4 right-4">
         <ThemeToggle />
       </div>
-      
+
       {/* Hero Section */}
       <div className="relative h-[600px] overflow-hidden">
         <img src={heroBanner} alt="Farm produce" className="w-full h-full object-cover" />

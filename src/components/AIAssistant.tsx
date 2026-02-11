@@ -1,10 +1,11 @@
 import { useState } from "react";
+import { ExecutionMethod } from "appwrite";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Bot, Send, Loader2 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { functions } from "@/lib/appwrite";
 import { toast } from "sonner";
 
 const AIAssistant = () => {
@@ -26,11 +27,20 @@ const AIAssistant = () => {
     setIsLoading(true);
 
     try {
-      const { data, error } = await supabase.functions.invoke("ai-chat", {
-        body: { messages: [...messages, userMessage] },
-      });
+      const execution = await functions.createExecution(
+        "ai-chat", // Assuming function ID is "ai-chat"
+        JSON.stringify({ messages: [...messages, userMessage] }),
+        false, // async = false (wait for response)
+        "/", // path
+        ExecutionMethod.POST, // method
+        { "Content-Type": "application/json" } // headers
+      );
 
-      if (error) throw error;
+      if (execution.status !== "completed") {
+        throw new Error("Function execution failed");
+      }
+
+      const data = JSON.parse(execution.responseBody);
 
       const assistantMessage = {
         role: "assistant",
@@ -64,16 +74,14 @@ const AIAssistant = () => {
           {messages.map((message, index) => (
             <div
               key={index}
-              className={`mb-4 flex ${
-                message.role === "user" ? "justify-end" : "justify-start"
-              }`}
+              className={`mb-4 flex ${message.role === "user" ? "justify-end" : "justify-start"
+                }`}
             >
               <div
-                className={`max-w-[80%] rounded-lg p-4 ${
-                  message.role === "user"
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-secondary"
-                }`}
+                className={`max-w-[80%] rounded-lg p-4 ${message.role === "user"
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-secondary"
+                  }`}
               >
                 <p className="whitespace-pre-wrap">{message.content}</p>
               </div>

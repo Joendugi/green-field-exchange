@@ -50,6 +50,21 @@ npm run dev
 - Click on "New codespace" to launch a new Codespace environment.
 - Edit files directly within the Codespace and commit and push your changes once you're done.
 
+## Overview
+
+AgriLink is a modern platform connecting farmers, buyers, and administrators with a comprehensive suite of features. To support future growth (target: 2M users) the platform embraces a layered architecture:
+
+| Layer | Purpose | Core components |
+| --- | --- | --- |
+| **Edge & Delivery** | Fast static delivery & TLS termination | CDN (Cloudflare/Akamai), WAF, HTTP/2/3 support |
+| **Gateway & Routing** | Auth, rate limiting, routing | API Gateway + managed load balancer |
+| **App Services** | Domain logic split into independent services | Auth/Profile, Marketplace, Orders, Messaging, AI (containerized on Kubernetes/ECS) |
+| **Data & State** | Durable storage & high throughput reads | Postgres (Aurora) w/ read replicas, Redis cache, Object storage (S3) |
+| **Async & Streaming** | Decouple heavy workloads | Kafka/PubSub, SQS-style queues, background workers |
+| **Observability & Ops** | Reliability & governance | OpenTelemetry, centralized logging (ELK/OpenSearch), IaC (Terraform) |
+
+Each service is stateless, deployed as containers (or serverless functions for lightweight jobs), and communicates via message queues/events when loosely coupled. Shared libraries (auth clients, validation, tracing) enforce consistency across services.
+
 ## What technologies are used for this project?
 
 This project is built with:

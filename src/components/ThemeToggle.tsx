@@ -2,9 +2,23 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Moon, Sun } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 const ThemeToggle = () => {
   const [darkMode, setDarkMode] = useState(false);
+
+  const dispatchThemeChange = (value: boolean) => {
+    window.dispatchEvent(new CustomEvent("theme-change", { detail: { darkMode: value } }));
+  };
+
+  const applyTheme = (value: boolean) => {
+    if (value) {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
+    localStorage.setItem("theme", value ? "dark" : "light");
+  };
 
   useEffect(() => {
     const loadTheme = async () => {
@@ -14,7 +28,8 @@ const ThemeToggle = () => {
         const savedTheme = localStorage.getItem("theme");
         if (savedTheme === "dark") {
           setDarkMode(true);
-          document.documentElement.classList.add("dark");
+          applyTheme(true);
+          dispatchThemeChange(true);
         }
         return;
       }
@@ -25,33 +40,39 @@ const ThemeToggle = () => {
         .eq("user_id", session.user.id)
         .single();
 
-      if (data?.dark_mode) {
-        setDarkMode(true);
-        document.documentElement.classList.add("dark");
-      }
+      const darkPreference = !!data?.dark_mode;
+      setDarkMode(darkPreference);
+      applyTheme(darkPreference);
+      dispatchThemeChange(darkPreference);
     };
 
     loadTheme();
+
+    const handleThemeEvent = (event: Event) => {
+      const customEvent = event as CustomEvent<{ darkMode: boolean }>;
+      setDarkMode(customEvent.detail.darkMode);
+    };
+
+    window.addEventListener("theme-change", handleThemeEvent as EventListener);
+    return () => window.removeEventListener("theme-change", handleThemeEvent as EventListener);
   }, []);
 
   const toggleTheme = async () => {
     const newDarkMode = !darkMode;
     setDarkMode(newDarkMode);
-
-    if (newDarkMode) {
-      document.documentElement.classList.add("dark");
-    } else {
-      document.documentElement.classList.remove("dark");
-    }
+    applyTheme(newDarkMode);
+    dispatchThemeChange(newDarkMode);
 
     const { data: { session } } = await supabase.auth.getSession();
     if (session) {
-      await supabase
+      const { error } = await supabase
         .from("user_settings")
-        .upsert({
-          user_id: session.user.id,
-          dark_mode: newDarkMode,
-        });
+        .update({ dark_mode: newDarkMode })
+        .eq("user_id", session.user.id);
+
+      if (error) {
+        console.error("Failed to persist theme preference", error);
+      }
     } else {
       // Save to localStorage for non-logged in users
       localStorage.setItem("theme", newDarkMode ? "dark" : "light");
@@ -59,13 +80,25 @@ const ThemeToggle = () => {
   };
 
   return (
-    <Button variant="ghost" size="icon" onClick={toggleTheme}>
-      {darkMode ? (
-        <Sun className="h-5 w-5" />
-      ) : (
-        <Moon className="h-5 w-5" />
-      )}
-    </Button>
+    <Tooltip delayDuration={200}>
+      <TooltipTrigger asChild>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={toggleTheme}
+          aria-label={darkMode ? "Switch to light mode" : "Switch to dark mode"}
+        >
+          {darkMode ? (
+            <Sun className="h-5 w-5" />
+          ) : (
+            <Moon className="h-5 w-5" />
+          )}
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent>
+        <p>{darkMode ? "Light mode" : "Dark mode"}</p>
+      </TooltipContent>
+    </Tooltip>
   );
 };
 

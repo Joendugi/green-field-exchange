@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import {
   Dialog,
@@ -10,14 +10,22 @@ import {
 import { Button } from "@/components/ui/button";
 import { ShoppingCart, Users, MessageSquare, Sparkles, ChevronRight, ChevronLeft } from "lucide-react";
 import { toast } from "sonner";
+import { Progress } from "@/components/ui/progress";
 
 interface OnboardingProps {
   open: boolean;
   onComplete: () => void;
+  onDismiss?: () => void;
 }
 
-const Onboarding = ({ open, onComplete }: OnboardingProps) => {
-  const [step, setStep] = useState(0);
+const STEP_STORAGE_KEY = "onboarding:step";
+
+const Onboarding = ({ open, onComplete, onDismiss }: OnboardingProps) => {
+  const [step, setStep] = useState(() => {
+    if (typeof window === "undefined") return 0;
+    const stored = window.localStorage.getItem(STEP_STORAGE_KEY);
+    return stored ? Math.min(parseInt(stored, 10) || 0, 4) : 0;
+  });
 
   const steps = [
     {
@@ -52,6 +60,19 @@ const Onboarding = ({ open, onComplete }: OnboardingProps) => {
     },
   ];
 
+  useEffect(() => {
+    if (!open || typeof window === "undefined") return;
+    const stored = window.localStorage.getItem(STEP_STORAGE_KEY);
+    if (stored) {
+      setStep(Math.min(parseInt(stored, 10) || 0, steps.length - 1));
+    }
+  }, [open, steps.length]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem(STEP_STORAGE_KEY, step.toString());
+  }, [step]);
+
   const handleComplete = async () => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -64,6 +85,9 @@ const Onboarding = ({ open, onComplete }: OnboardingProps) => {
 
       if (error) throw error;
       onComplete();
+      if (typeof window !== "undefined") {
+        window.localStorage.removeItem(STEP_STORAGE_KEY);
+      }
       toast.success("Welcome aboard! Enjoy exploring AgriConnect!");
     } catch (error: any) {
       console.error("Error completing onboarding:", error);
@@ -71,15 +95,36 @@ const Onboarding = ({ open, onComplete }: OnboardingProps) => {
     }
   };
 
+  const handleDismiss = () => {
+    onDismiss?.();
+  };
+
+  const progress = ((step + 1) / steps.length) * 100;
+
   const currentStep = steps[step];
 
   return (
-    <Dialog open={open} onOpenChange={() => {}}>
+    <Dialog open={open} onOpenChange={(nextOpen) => {
+      if (!nextOpen && open) {
+        handleDismiss();
+      }
+    }}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>{currentStep.title}</DialogTitle>
           <DialogDescription>{currentStep.description}</DialogDescription>
         </DialogHeader>
+        <div className="mb-4">
+          <Progress value={progress} className="w-full" />
+          <p className="text-xs text-muted-foreground mt-2 text-right">
+            Step {step + 1} of {steps.length}
+          </p>
+        </div>
+        <div className="flex justify-end mb-4">
+          <Button variant="ghost" size="sm" onClick={handleDismiss}>
+            Skip for now
+          </Button>
+        </div>
         <div className="flex flex-col items-center space-y-6 py-6">
           {currentStep.icon}
           <p className="text-center text-muted-foreground">{currentStep.content}</p>

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Sprout, ShoppingCart, Users, TrendingUp } from "lucide-react";
+import { Sprout, ShoppingCart, Users, TrendingUp, ShieldCheck, Star } from "lucide-react";
 import heroBanner from "@/assets/hero-banner.jpg";
 import Navbar from "@/components/Navbar";
 import Marketplace from "@/components/Marketplace";
@@ -64,10 +64,35 @@ const Index = () => {
               <p className="text-xl text-muted-foreground mb-8">
                 A marketplace platform that empowers farmers and creates direct connections with buyers for fresh agricultural products.
               </p>
-              <div className="flex gap-4">
-                <Button size="lg" onClick={() => navigate("/auth")}>
-                  Get Started
+              <div className="flex flex-wrap gap-4">
+                <Button size="lg" onClick={() => navigate("/auth")}>Get Started</Button>
+                <Button
+                  size="lg"
+                  variant="outline"
+                  onClick={() => navigate("/auth", { state: { redirectTo: "/" } })}
+                >
+                  Browse Marketplace
                 </Button>
+              </div>
+              <div className="mt-8 grid grid-cols-2 gap-6 max-w-xl">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-full bg-primary/10">
+                    <ShieldCheck className="h-6 w-6 text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold">2,500+</p>
+                    <p className="text-sm text-muted-foreground">Verified farmers in our network</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-full bg-primary/10">
+                    <Star className="h-6 w-6 text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold">4.9/5</p>
+                    <p className="text-sm text-muted-foreground">Average buyer satisfaction score</p>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -98,6 +123,18 @@ const Index = () => {
             <p className="text-muted-foreground">
               Get agricultural advice and market insights powered by AI
             </p>
+          </div>
+        </div>
+        <div className="mt-16 grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div className="rounded-2xl border bg-card p-6 shadow-sm">
+            <p className="text-muted-foreground text-sm uppercase tracking-wide">Trusted partners</p>
+            <p className="text-3xl font-bold mt-2">“AgriLink helped us sell harvests 2x faster.”</p>
+            <p className="mt-4 text-muted-foreground">– Maria Ortega, Riverside Cooperative</p>
+          </div>
+          <div className="rounded-2xl border bg-card p-6 shadow-sm">
+            <p className="text-muted-foreground text-sm uppercase tracking-wide">Buyer spotlight</p>
+            <p className="text-3xl font-bold mt-2">“Quality is consistent and negotiation is simple.”</p>
+            <p className="mt-4 text-muted-foreground">– Liam Park, FreshMart Produce</p>
           </div>
         </div>
       </div>

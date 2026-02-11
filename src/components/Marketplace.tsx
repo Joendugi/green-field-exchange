@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { cache, CACHE_KEYS } from "@/lib/cache";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const Marketplace = () => {
   const [products, setProducts] = useState<any[]>([]);
@@ -21,6 +22,7 @@ const Marketplace = () => {
   const [orderQuantity, setOrderQuantity] = useState("");
   const [deliveryAddress, setDeliveryAddress] = useState("");
   const [isLoadingRecommendations, setIsLoadingRecommendations] = useState(false);
+  const [isLoadingProducts, setIsLoadingProducts] = useState(true);
 
   useEffect(() => {
     fetchProducts();
@@ -28,6 +30,8 @@ const Marketplace = () => {
   }, [categoryFilter]);
 
   const fetchProducts = async () => {
+    setIsLoadingProducts(true);
+
     // Try to get from cache first
     const cacheKey = categoryFilter === "all" 
       ? CACHE_KEYS.PRODUCTS 
@@ -36,6 +40,7 @@ const Marketplace = () => {
     const cached = cache.get<any[]>(cacheKey);
     if (cached) {
       setProducts(cached);
+      setIsLoadingProducts(false);
       return;
     }
 
@@ -58,6 +63,7 @@ const Marketplace = () => {
     // Store in cache
     cache.set(cacheKey, products);
     setProducts(products);
+    setIsLoadingProducts(false);
   };
 
   const fetchRecommendations = async () => {
@@ -140,6 +146,26 @@ const Marketplace = () => {
     }
   };
 
+  const renderProductSkeletons = () => (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {Array.from({ length: 6 }).map((_, idx) => (
+        <Card key={idx} className="p-4">
+          <Skeleton className="h-40 w-full rounded-lg" />
+          <div className="space-y-3 mt-4">
+            <Skeleton className="h-6 w-3/4" />
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-1/2" />
+            <div className="flex items-center justify-between">
+              <Skeleton className="h-6 w-24" />
+              <Skeleton className="h-6 w-16" />
+            </div>
+            <Skeleton className="h-10 w-full" />
+          </div>
+        </Card>
+      ))}
+    </div>
+  );
+
   return (
     <div className="space-y-6">
       {/* Recommendations Section */}
@@ -197,19 +223,22 @@ const Marketplace = () => {
         </Select>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredProducts.map((product) => (
-          <Card key={product.id} className="hover:shadow-lg transition-shadow">
-            <CardHeader>
-              <div className="aspect-video bg-secondary rounded-lg mb-4 overflow-hidden">
-                {product.image_url ? (
-                  <img src={product.image_url} alt={product.name} className="w-full h-full object-cover" />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center">
-                    <ShoppingCart className="h-12 w-12 text-muted-foreground" />
-                  </div>
-                )}
-              </div>
+      {isLoadingProducts ? (
+        renderProductSkeletons()
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredProducts.map((product) => (
+            <Card key={product.id} className="hover:shadow-lg transition-shadow">
+              <CardHeader>
+                <div className="aspect-video bg-secondary rounded-lg mb-4 overflow-hidden">
+                  {product.image_url ? (
+                    <img src={product.image_url} alt={product.name} className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <ShoppingCart className="h-12 w-12 text-muted-foreground" />
+                    </div>
+                  )}
+                </div>
               <CardTitle>{product.name}</CardTitle>
               <CardDescription>{product.description}</CardDescription>
             </CardHeader>
@@ -287,10 +316,11 @@ const Marketplace = () => {
               </Dialog>
             </CardFooter>
           </Card>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
 
-      {filteredProducts.length === 0 && (
+      {!isLoadingProducts && filteredProducts.length === 0 && (
         <div className="text-center py-12">
           <ShoppingCart className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
           <p className="text-lg text-muted-foreground">No products found</p>

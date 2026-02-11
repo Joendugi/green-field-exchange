@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { useAuthActions } from "@convex-dev/auth/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,9 +10,11 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { toast } from "sonner";
 import { Loader2, Sprout, AlertCircle } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import AdminLoginForm from "@/components/AdminLoginForm";
 
 const Auth = () => {
   const navigate = useNavigate();
+  const { signIn } = useAuthActions();
   const [isLoading, setIsLoading] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -21,6 +23,9 @@ const Auth = () => {
   const [passwordError, setPasswordError] = useState("");
   const [loginAttempts, setLoginAttempts] = useState(0);
   const [isLocked, setIsLocked] = useState(false);
+  const [adminEmail, setAdminEmail] = useState("");
+  const [adminPassword, setAdminPassword] = useState("");
+  const [isAdminLoading, setIsAdminLoading] = useState(false);
 
   const validatePassword = (pwd: string): boolean => {
     const minLength = 8;
@@ -65,30 +70,17 @@ const Auth = () => {
     setIsLoading(true);
 
     try {
-      const { data, error } = await supabase.auth.signUp({
+      // Sign up with Convex Auth
+      await signIn({
+        provider: "password",
+        flow: "signUp",
         email,
         password,
-        options: {
-          data: {
-            full_name: fullName,
-          },
-          emailRedirectTo: `${window.location.origin}/`,
-        },
+        name: fullName,
       });
 
-      if (error) throw error;
-
-      if (data.user) {
-        // Insert user role
-        const { error: roleError } = await supabase
-          .from("user_roles")
-          .insert({ user_id: data.user.id, role });
-
-        if (roleError) throw roleError;
-
-        toast.success("Account created successfully!");
-        navigate("/");
-      }
+      toast.success("Account created successfully!");
+      navigate("/");
     } catch (error: any) {
       toast.error(error.message);
     } finally {
@@ -108,36 +100,33 @@ const Auth = () => {
     setIsLoading(true);
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      // Sign in with Convex Auth
+      await signIn({
+        provider: "password",
+        flow: "signIn",
         email,
         password,
       });
-
-      if (error) {
-        // Track failed login attempt
-        const newAttempts = loginAttempts + 1;
-        setLoginAttempts(newAttempts);
-
-        if (newAttempts >= 5) {
-          setIsLocked(true);
-          setTimeout(() => {
-            setIsLocked(false);
-            setLoginAttempts(0);
-          }, 15 * 60 * 1000); // 15 minutes lockout
-          toast.error("Account temporarily locked due to multiple failed attempts.");
-        } else {
-          toast.error(`Invalid credentials. ${5 - newAttempts} attempts remaining.`);
-        }
-        
-        throw error;
-      }
 
       // Reset on successful login
       setLoginAttempts(0);
       toast.success("Welcome back!");
       navigate("/");
     } catch (error: any) {
-      // Error already handled above
+      // Track failed login attempt
+      const newAttempts = loginAttempts + 1;
+      setLoginAttempts(newAttempts);
+
+      if (newAttempts >= 5) {
+        setIsLocked(true);
+        setTimeout(() => {
+          setIsLocked(false);
+          setLoginAttempts(0);
+        }, 15 * 60 * 1000); // 15 minutes lockout
+        toast.error("Account temporarily locked due to multiple failed attempts.");
+      } else {
+        toast.error(`Invalid credentials. ${5 - newAttempts} attempts remaining.`);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -157,9 +146,10 @@ const Auth = () => {
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="signin" className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
+            <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="signin">Sign In</TabsTrigger>
               <TabsTrigger value="signup">Sign Up</TabsTrigger>
+              <TabsTrigger value="admin">Admin</TabsTrigger>
             </TabsList>
             
             <TabsContent value="signin">
@@ -261,6 +251,17 @@ const Auth = () => {
                   Create Account
                 </Button>
               </form>
+            </TabsContent>
+
+            <TabsContent value="admin">
+              <AdminLoginForm 
+                adminEmail={adminEmail}
+                setAdminEmail={setAdminEmail}
+                adminPassword={adminPassword}
+                setAdminPassword={setAdminPassword}
+                isAdminLoading={isAdminLoading}
+                setIsAdminLoading={setIsAdminLoading}
+              />
             </TabsContent>
           </Tabs>
         </CardContent>

@@ -1,0 +1,142 @@
+import { mutation, query } from "./_generated/server";
+import { v } from "convex/values";
+
+export const getProfile = query({
+  args: { userId: v.id("users") },
+  handler: async (ctx, args) => {
+    const profile = await ctx.db
+      .query("profiles")
+      .withIndex("by_userId", (q) => q.eq("userId", args.userId))
+      .first();
+    
+    return profile;
+  },
+});
+
+export const createProfile = mutation({
+  args: {
+    userId: v.id("users"),
+    username: v.string(),
+    full_name: v.optional(v.string()),
+    avatar_url: v.optional(v.string()),
+    bio: v.optional(v.string()),
+    location: v.optional(v.string()),
+    website: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const now = Date.now();
+    
+    // Check if profile already exists
+    const existingProfile = await ctx.db
+      .query("profiles")
+      .withIndex("by_userId", (q) => q.eq("userId", args.userId))
+      .first();
+    
+    if (existingProfile) {
+      throw new Error("Profile already exists");
+    }
+    
+    // Check if username is taken
+    const existingUsername = await ctx.db
+      .query("profiles")
+      .withIndex("by_username", (q) => q.eq("username", args.username))
+      .first();
+    
+    if (existingUsername) {
+      throw new Error("Username already taken");
+    }
+    
+    const profileId = await ctx.db.insert("profiles", {
+      ...args,
+      verified: false,
+      verification_requested: false,
+      onboarded: false,
+      created_at: now,
+      updated_at: now,
+    });
+    
+    return profileId;
+  },
+});
+
+export const updateProfile = mutation({
+  args: {
+    userId: v.id("users"),
+    username: v.optional(v.string()),
+    full_name: v.optional(v.string()),
+    avatar_url: v.optional(v.string()),
+    bio: v.optional(v.string()),
+    location: v.optional(v.string()),
+    website: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const profile = await ctx.db
+      .query("profiles")
+      .withIndex("by_userId", (q) => q.eq("userId", args.userId))
+      .first();
+    
+    if (!profile) {
+      throw new Error("Profile not found");
+    }
+    
+    // Check if new username is taken (if provided)
+    if (args.username && args.username !== profile.username) {
+      const existingUsername = await ctx.db
+        .query("profiles")
+        .withIndex("by_username", (q) => q.eq("username", args.username))
+        .first();
+      
+      if (existingUsername) {
+        throw new Error("Username already taken");
+      }
+    }
+    
+    const now = Date.now();
+    const updateData: any = { updated_at: now };
+    
+    // Only update provided fields
+    if (args.username !== undefined) updateData.username = args.username;
+    if (args.full_name !== undefined) updateData.full_name = args.full_name;
+    if (args.avatar_url !== undefined) updateData.avatar_url = args.avatar_url;
+    if (args.bio !== undefined) updateData.bio = args.bio;
+    if (args.location !== undefined) updateData.location = args.location;
+    if (args.website !== undefined) updateData.website = args.website;
+    
+    await ctx.db.patch(profile._id, updateData);
+    
+    return profile._id;
+  },
+});
+
+export const getProfileByUsername = query({
+  args: { username: v.string() },
+  handler: async (ctx, args) => {
+    const profile = await ctx.db
+      .query("profiles")
+      .withIndex("by_username", (q) => q.eq("username", args.username))
+      .first();
+    
+    return profile;
+  },
+});
+
+export const setOnboarded = mutation({
+  args: { userId: v.id("users") },
+  handler: async (ctx, args) => {
+    const profile = await ctx.db
+      .query("profiles")
+      .withIndex("by_userId", (q) => q.eq("userId", args.userId))
+      .first();
+    
+    if (!profile) {
+      throw new Error("Profile not found");
+    }
+    
+    await ctx.db.patch(profile._id, {
+      onboarded: true,
+      updated_at: Date.now(),
+    });
+    
+    return profile._id;
+  },
+});

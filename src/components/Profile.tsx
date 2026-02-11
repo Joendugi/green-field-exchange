@@ -24,6 +24,8 @@ const Profile = () => {
     bio: "",
   });
   const [followerCount, setFollowerCount] = useState(0);
+  const [hasPendingVerification, setHasPendingVerification] = useState(false);
+  const [isSubmittingVerification, setIsSubmittingVerification] = useState(false);
 
   useEffect(() => {
     fetchProfile();
@@ -68,6 +70,17 @@ const Profile = () => {
       .eq("following_id", session.user.id);
     
     setFollowerCount(count || 0);
+
+    const { data: verificationRequests } = await supabase
+      .from("verification_requests")
+      .select("status")
+      .eq("user_id", session.user.id)
+      .order("created_at", { ascending: false })
+      .limit(1);
+
+    setHasPendingVerification(
+      verificationRequests?.some((request) => request.status === "pending" || request.status === "in_review") ?? false
+    );
   };
 
   const fetchNotifications = async () => {
@@ -153,8 +166,62 @@ const Profile = () => {
     }
   };
 
+  const handleRequestVerification = async () => {
+    try {
+      setIsSubmittingVerification(true);
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+
+      const { error } = await supabase
+        .from("verification_requests")
+        .insert({
+          user_id: session.user.id,
+          status: "pending",
+        });
+
+      if (error) {
+        if (error.code === "23505") {
+          toast.info("You already have a pending verification request.");
+          setHasPendingVerification(true);
+          return;
+        }
+        throw error;
+      }
+
+      toast.success("Verification request submitted! We'll notify you once it's reviewed.");
+      setHasPendingVerification(true);
+    } catch (error: any) {
+      toast.error(error.message);
+    } finally {
+      setIsSubmittingVerification(false);
+    }
+  };
+
   return (
     <div className="max-w-4xl mx-auto space-y-6">
+      {userRole && !userRole.is_verified && (
+        <Card className="border-dashed bg-muted/40">
+          <CardHeader>
+            <CardTitle>Get verified</CardTitle>
+            <CardDescription>
+              Verified farmers earn a badge on their profile and can publish unlimited listings.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <p className="text-sm text-muted-foreground">
+              {hasPendingVerification
+                ? "Your verification request is currently under review. We'll send you an update soon."
+                : "Share proof of identity or business registration so buyers can trust your listings."}
+            </p>
+            <Button
+              onClick={handleRequestVerification}
+              disabled={hasPendingVerification || isSubmittingVerification}
+            >
+              {hasPendingVerification ? "Request submitted" : "Apply for verification"}
+            </Button>
+          </CardContent>
+        </Card>
+      )}
       <Tabs defaultValue="profile">
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="profile">Profile</TabsTrigger>

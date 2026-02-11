@@ -1,10 +1,6 @@
-<<<<<<< HEAD
-import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
-=======
-import { useState } from "react";
-import { account, databases } from "@/lib/appwrite";
->>>>>>> f82e77df9b7fe97c8b63fccece12444e06b1f760
+import { useState, useEffect } from "react";
+import { useMutation } from "convex/react";
+import { api } from "../../convex/_generated/api";
 import {
   Dialog,
   DialogContent,
@@ -16,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { ShoppingCart, Users, MessageSquare, Sparkles, ChevronRight, ChevronLeft } from "lucide-react";
 import { toast } from "sonner";
 import { Progress } from "@/components/ui/progress";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface OnboardingProps {
   open: boolean;
@@ -26,6 +23,8 @@ interface OnboardingProps {
 const STEP_STORAGE_KEY = "onboarding:step";
 
 const Onboarding = ({ open, onComplete, onDismiss }: OnboardingProps) => {
+  const { user: currentUser } = useAuth();
+  const updateProfile = useMutation(api.users.updateProfile);
   const [step, setStep] = useState(() => {
     if (typeof window === "undefined") return 0;
     const stored = window.localStorage.getItem(STEP_STORAGE_KEY);
@@ -80,19 +79,11 @@ const Onboarding = ({ open, onComplete, onDismiss }: OnboardingProps) => {
 
   const handleComplete = async () => {
     try {
-      const user = await account.get().catch(() => null);
-      if (!user) return;
-
-      const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
-      await databases.updateDocument(
-        dbId,
-        "profiles",
-        user.$id,
-        { onboarding_completed: true }
-      ).catch(e => console.warn("Failed to sync onboarding to DB", e));
-
-      // Mark in local storage as well for instant feedback
-      localStorage.setItem(`onboarding_completed_${user.$id}`, "true");
+      if (currentUser) {
+        await updateProfile({ onboarding_completed: true });
+        // Mark in local storage as well for instant feedback
+        localStorage.setItem(`onboarding_completed_${currentUser._id}`, "true");
+      }
 
       onComplete();
       if (typeof window !== "undefined") {
@@ -110,19 +101,14 @@ const Onboarding = ({ open, onComplete, onDismiss }: OnboardingProps) => {
   };
 
   const progress = ((step + 1) / steps.length) * 100;
-
   const currentStep = steps[step];
 
   return (
-<<<<<<< HEAD
     <Dialog open={open} onOpenChange={(nextOpen) => {
       if (!nextOpen && open) {
         handleDismiss();
       }
     }}>
-=======
-    <Dialog open={open} onOpenChange={(val) => { if (!val) handleComplete(); }}>
->>>>>>> f82e77df9b7fe97c8b63fccece12444e06b1f760
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>{currentStep.title}</DialogTitle>

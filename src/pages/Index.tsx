@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { account } from "@/lib/appwrite";
+import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Sprout, ShoppingCart, Users, TrendingUp, ShieldCheck, Star } from "lucide-react";
 import heroBanner from "@/assets/hero-banner.jpg";
@@ -10,24 +10,13 @@ import ThemeToggle from "@/components/ThemeToggle";
 
 const Index = () => {
   const navigate = useNavigate();
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const { isAuthenticated, loading: authLoading } = useAuth();
 
-  useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        await account.get();
-        setIsLoggedIn(true);
-      } catch (error) {
-        setIsLoggedIn(false);
-      }
-    };
+  if (authLoading) return null;
 
-    checkAuth();
-  }, []);
-
-  if (isLoggedIn) {
+  if (isAuthenticated) {
     return (
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen bg-background text-foreground">
         <Navbar />
         <div className="fixed bottom-4 right-4 z-50">
           <ThemeToggle />

@@ -1,46 +1,44 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from "react";
-import { account } from "@/lib/appwrite";
-import { Models } from "appwrite";
+import { createContext, useContext, ReactNode } from "react";
+import { useConvexAuth, useQuery } from "convex/react";
+import { useAuthActions } from "@convex-dev/auth/react";
+import { api } from "../../convex/_generated/api";
 
 interface AuthContextType {
-    user: Models.User<Models.Preferences> | null;
+    user: any; // We'll store the profile document here
+    role: string | null;
     loading: boolean;
-    checkAuth: () => Promise<void>;
+    isAuthenticated: boolean;
     logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-    const [user, setUser] = useState<Models.User<Models.Preferences> | null>(null);
-    const [loading, setLoading] = useState(true);
+    const { isAuthenticated, isLoading: authLoading } = useConvexAuth();
+    const { signOut } = useAuthActions();
 
-    const checkAuth = async () => {
-        try {
-            const userData = await account.get();
-            setUser(userData);
-        } catch (error) {
-            setUser(null);
-        } finally {
-            setLoading(false);
-        }
-    };
+    // Fetch profile if authenticated
+    const profile = useQuery(api.users.getProfile, isAuthenticated ? {} : "skip");
+    const roleData = useQuery(api.users.getRole, isAuthenticated ? {} : "skip");
+
+    const loading = authLoading || (isAuthenticated && (profile === undefined || roleData === undefined));
 
     const logout = async () => {
         try {
-            await account.deleteSession("current");
-            setUser(null);
+            await signOut();
         } catch (error) {
             console.error("Logout failed", error);
         }
     };
 
-    useEffect(() => {
-        checkAuth();
-    }, []);
-
     return (
-        <AuthContext.Provider value={{ user, loading, checkAuth, logout }}>
+        <AuthContext.Provider value={{
+            user: profile,
+            role: roleData?.role || null,
+            loading,
+            isAuthenticated,
+            logout
+        }}>
             {children}
         </AuthContext.Provider>
     );

@@ -1,27 +1,20 @@
-import { useEffect, useState } from "react";
-import { account } from "@/lib/appwrite";
+import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import SocialFeedEnhanced from "@/components/SocialFeedEnhanced";
 import ThemeToggle from "@/components/ThemeToggle";
+import { useAuth } from "@/contexts/AuthContext";
 
 const Social = () => {
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(true);
+  const { isAuthenticated, loading } = useAuth();
 
   useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        await account.get();
-        setLoading(false);
-      } catch (error) {
-        navigate("/auth");
-      }
-    };
-
-    checkAuth();
-  }, [navigate]);
+    if (!loading && !isAuthenticated) {
+      navigate("/auth");
+    }
+  }, [isAuthenticated, loading, navigate]);
 
   if (loading) {
     return (

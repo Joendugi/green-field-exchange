@@ -1,0 +1,229 @@
+import { mutation, query } from "./_generated/server";
+import { v } from "convex/values";
+import { getAuthUserId } from "@convex-dev/auth/server";
+
+export const getProfile = query({
+    args: { userId: v.optional(v.id("users")) },
+    handler: async (ctx, args) => {
+        let userId = args.userId;
+
+        if (!userId) {
+            const authId = await getAuthUserId(ctx);
+            if (!authId) return null;
+            userId = authId;
+        }
+
+        if (!userId) return null;
+
+        const profile = await ctx.db
+            .query("profiles")
+            .withIndex("by_userId", (q) => q.eq("userId", userId!))
+            .unique();
+
+        return profile;
+    },
+});
+
+export const getSettings = query({
+    args: {},
+    handler: async (ctx) => {
+        const userId = await getAuthUserId(ctx);
+        if (!userId) return null;
+
+        return await ctx.db
+            .query("user_settings")
+            .withIndex("by_userId", (q) => q.eq("userId", userId))
+            .unique();
+    },
+});
+
+export const updateSettings = mutation({
+    args: {
+        notifications_enabled: v.optional(v.boolean()),
+        notifications_orders: v.optional(v.boolean()),
+        notifications_social: v.optional(v.boolean()),
+        notifications_system: v.optional(v.boolean()),
+        ai_assistant_enabled: v.optional(v.boolean()),
+        dark_mode: v.optional(v.boolean()),
+    },
+    handler: async (ctx, args) => {
+        const userId = await getAuthUserId(ctx);
+        if (!userId) throw new Error("Unauthorized");
+
+        const existing = await ctx.db
+            .query("user_settings")
+            .withIndex("by_userId", (q) => q.eq("userId", userId))
+            .unique();
+
+        const now = Date.now();
+        if (existing) {
+            await ctx.db.patch(existing._id, {
+                ...args,
+                updated_at: now,
+            });
+        } else {
+            await ctx.db.insert("user_settings", {
+                userId,
+                notifications_enabled: args.notifications_enabled ?? true,
+                notifications_orders: args.notifications_orders ?? true,
+                notifications_social: args.notifications_social ?? true,
+                notifications_system: args.notifications_system ?? true,
+                ai_assistant_enabled: args.ai_assistant_enabled ?? true,
+                dark_mode: args.dark_mode ?? false,
+                created_at: now,
+                updated_at: now,
+            });
+        }
+    },
+});
+
+export const getUploadUrl = mutation(async (ctx) => {
+    return await ctx.storage.generateUploadUrl();
+});
+
+export const updateProfile = mutation({
+    args: {
+        username: v.optional(v.string()), // Unique check needed? 
+        full_name: v.optional(v.string()),
+        bio: v.optional(v.string()),
+        location: v.optional(v.string()),
+        website: v.optional(v.string()),
+        avatar_url: v.optional(v.string()),
+        role: v.optional(v.string()),
+        onboarding_completed: v.optional(v.boolean()),
+    },
+    handler: async (ctx, args) => {
+        const userId = await getAuthUserId(ctx);
+        if (!userId) throw new Error("Unauthorized");
+
+        const { role, ...profileArgs } = args;
+
+        if (role) {
+            const existingRole = await ctx.db
+                .query("user_roles")
+                .withIndex("by_userId", (q) => q.eq("userId", userId))
+                .unique();
+
+            if (existingRole) {
+                await ctx.db.patch(existingRole._id, { role });
+            } else {
+                await ctx.db.insert("user_roles", {
+                    userId,
+                    role,
+                    created_at: Date.now(),
+                });
+            }
+        }
+
+        const existingProfile = await ctx.db
+            .query("profiles")
+            .withIndex("by_userId", (q) => q.eq("userId", userId))
+            .unique();
+
+        if (existingProfile) {
+            await ctx.db.patch(existingProfile._id, {
+                ...profileArgs,
+                updated_at: Date.now(),
+            });
+        } else {
+            await ctx.db.insert("profiles", {
+                userId: userId,
+                verified: false,
+                verification_requested: false,
+                onboarded: true,
+                created_at: Date.now(),
+                updated_at: Date.now(),
+                ...profileArgs,
+                username: profileArgs.username || (await ctx.db.get(userId))?.email || "user",
+            });
+        }
+    },
+});
+
+
+
+
+export const getRole = query({
+    args: { userId: v.optional(v.id("users")) },
+    handler: async (ctx, args) => {
+        let userId = args.userId;
+        if (!userId) {
+            userId = (await getAuthUserId(ctx)) ?? undefined;
+        }
+        if (!userId) return null;
+
+        return await ctx.db
+            .query("user_roles")
+            .withIndex("by_userId", (q) => q.eq("userId", userId))
+            .unique();
+    },
+});
+
+export const requestVerification = mutation({
+    args: {},
+    handler: async (ctx) => {
+        const userId = await getAuthUserId(ctx);
+        if (!userId) throw new Error("Unauthorized");
+
+        const existing = await ctx.db
+            .query("verification_requests")
+            .withIndex("by_userId", (q) => q.eq("userId", userId))
+            .filter((q) => q.or(q.eq(q.field("status"), "pending"), q.eq(q.field("status"), "in_review")))
+            .unique();
+
+        if (existing) throw new Error("Verification already pending");
+
+        await ctx.db.insert("verification_requests", {
+            userId,
+            status: "pending",
+            created_at: Date.now(),
+            updated_at: Date.now(),
+        });
+    }
+});
+
+export const getFollowersCount = query({
+    args: { userId: v.optional(v.id("users")) },
+    handler: async (ctx, args) => {
+        let userId = args.userId;
+        if (!userId) {
+            userId = (await getAuthUserId(ctx)) ?? undefined;
+        }
+        if (!userId) return 0;
+
+        const follows = await ctx.db
+            .query("follows")
+            .withIndex("by_followingId", (q) => q.eq("followingId", userId!))
+            .collect();
+        return follows.length;
+    }
+});
+
+export const generateUploadUrl = mutation(async (ctx) => {
+    return await ctx.storage.generateUploadUrl();
+});
+
+export const searchUsers = query({
+    args: { query: v.string() },
+    handler: async (ctx, args) => {
+        const userId = await getAuthUserId(ctx);
+        if (!userId) return [];
+
+        const searchTerm = args.query.toLowerCase();
+        if (!searchTerm) return [];
+
+        // Convex doesn't have a native full-text search index on profiles by default,
+        // so we'll do a simple filter for now. For larger datasets, we should use search indexes.
+        const profiles = await ctx.db
+            .query("profiles")
+            .collect();
+
+        return profiles
+            .filter((p) =>
+                p.userId !== userId &&
+                (p.full_name?.toLowerCase().includes(searchTerm) ||
+                    p.username.toLowerCase().includes(searchTerm))
+            )
+            .slice(0, 10);
+    },
+});

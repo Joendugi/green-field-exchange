@@ -1,27 +1,20 @@
-import { useEffect, useState } from "react";
-import { account } from "@/lib/appwrite";
+import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import AIAssistant from "@/components/AIAssistant";
 import ThemeToggle from "@/components/ThemeToggle";
+import { useAuth } from "@/contexts/AuthContext";
 
 const AI = () => {
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(true);
+  const { isAuthenticated, loading } = useAuth();
 
   useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        await account.get();
-        setLoading(false);
-      } catch (error) {
-        navigate("/auth");
-      }
-    };
-
-    checkAuth();
-  }, [navigate]);
+    if (!loading && !isAuthenticated) {
+      navigate("/auth");
+    }
+  }, [isAuthenticated, loading, navigate]);
 
   if (loading) {
     return (

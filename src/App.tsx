@@ -2,29 +2,21 @@ import { Suspense, lazy } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClientProvider, QueryClient } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-<<<<<<< HEAD
-import Index from "./pages/Index";
-import Auth from "./pages/Auth";
-import Dashboard from "./pages/Dashboard";
-import Admin from "./pages/Admin";
-import Social from "./pages/Social";
-import AI from "./pages/AI";
-import UserProfile from "./pages/UserProfile";
-import NotFound from "./pages/NotFound";
-=======
->>>>>>> f82e77df9b7fe97c8b63fccece12444e06b1f760
+import { AuthProvider } from "@/contexts/AuthContext";
 
 // Lazy load all pages for code splitting
 const Index = lazy(() => import("./pages/Index"));
 const Auth = lazy(() => import("./pages/Auth"));
-const Profile = lazy(() => import("./components/Profile"));
+const Dashboard = lazy(() => import("./pages/Dashboard"));
+const Admin = lazy(() => import("./pages/Admin"));
 const Social = lazy(() => import("./pages/Social"));
 const AI = lazy(() => import("./pages/AI"));
 const Messages = lazy(() => import("./pages/Messages"));
 const UserProfile = lazy(() => import("./pages/UserProfile"));
 const NotFound = lazy(() => import("./pages/NotFound"));
+const Profile = lazy(() => import("./components/Profile"));
 const ProtectedRoute = lazy(() => import("./components/ProtectedRoute"));
 
 const queryClient = new QueryClient({
@@ -48,34 +40,27 @@ const PageLoader = () => (
   </div>
 );
 
-import { AuthProvider } from "@/contexts/AuthContext";
-
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <Toaster />
       <Sonner />
-<<<<<<< HEAD
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Index />} />
-          <Route path="/auth" element={<Auth />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/admin" element={<Admin />} />
-          <Route path="/social" element={<Social />} />
-          <Route path="/ai" element={<AI />} />
-          <Route path="/profile/:userId" element={<UserProfile />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
-=======
       <AuthProvider>
         <BrowserRouter>
           <Suspense fallback={<PageLoader />}>
             <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/auth" element={<Auth />} />
+              <Route path="/dashboard" element={
+                <ProtectedRoute>
+                  <Dashboard />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin" element={
+                <ProtectedRoute>
+                  <Admin />
+                </ProtectedRoute>
+              } />
               <Route path="/profile" element={
                 <ProtectedRoute>
                   <Profile />
@@ -107,7 +92,6 @@ const App = () => (
           </Suspense>
         </BrowserRouter>
       </AuthProvider>
->>>>>>> f82e77df9b7fe97c8b63fccece12444e06b1f760
     </TooltipProvider>
   </QueryClientProvider>
 );

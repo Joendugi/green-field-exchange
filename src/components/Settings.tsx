@@ -1,167 +1,54 @@
-import { useEffect, useState } from "react";
-import { account, databases } from "@/lib/appwrite";
-import { ID, Query } from "appwrite";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useQuery, useMutation } from "convex/react";
+import { api } from "../../convex/_generated/api";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Moon, Sun } from "lucide-react";
-
-interface UserSettingsState {
-  notifications_enabled: boolean;
-  notifications_orders: boolean;
-  notifications_social: boolean;
-  notifications_system: boolean;
-  ai_assistant_enabled: boolean;
-  dark_mode: boolean;
-}
-
-const defaultSettings: UserSettingsState = {
-  notifications_enabled: true,
-  notifications_orders: true,
-  notifications_social: true,
-  notifications_system: true,
-  ai_assistant_enabled: true,
-  dark_mode: false,
-};
+import { Moon, Sun, Loader2 } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 
 const Settings = () => {
-  const [settings, setSettings] = useState<UserSettingsState>(defaultSettings);
-  const [loading, setLoading] = useState(true);
+  const { isAuthenticated } = useAuth();
+  const settings = useQuery(api.users.getSettings);
+  const updateSettingsMutation = useMutation(api.users.updateSettings);
 
-  useEffect(() => {
-    fetchSettings();
-  }, []);
-
-  const fetchSettings = async () => {
+  const updateSetting = async (key: string, value: boolean) => {
     try {
-      const user = await account.get().catch(() => null);
-      if (!user) return;
-
-      const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
-      const { documents } = await databases.listDocuments(
-        dbId,
-        "user_settings",
-        [Query.equal("user_id", user.$id), Query.limit(1)]
-      );
-
-<<<<<<< HEAD
-      if (error && error.code !== "PGRST116") throw error;
-
-      if (data) {
-        const typedData = data as Partial<UserSettingsState>;
-=======
-      if (documents.length > 0) {
-        const data = documents[0];
->>>>>>> f82e77df9b7fe97c8b63fccece12444e06b1f760
-        setSettings({
-          notifications_enabled: typedData.notifications_enabled ?? true,
-          notifications_orders: typedData.notifications_orders ?? true,
-          notifications_social: typedData.notifications_social ?? true,
-          notifications_system: typedData.notifications_system ?? true,
-          ai_assistant_enabled: typedData.ai_assistant_enabled ?? true,
-          dark_mode: typedData.dark_mode ?? false,
-        });
-      } else {
-        // Create default settings
-<<<<<<< HEAD
-        await supabase
-          .from("user_settings")
-          .upsert(
-            {
-              user_id: session.user.id,
-              ...defaultSettings,
-            },
-            {
-              onConflict: "user_id",
-            }
-          );
-=======
-        await databases.createDocument(
-          dbId,
-          "user_settings",
-          ID.unique(),
-          {
-            user_id: user.$id,
-            notifications_enabled: true,
-            ai_assistant_enabled: true,
-            dark_mode: false,
-          }
-        );
->>>>>>> f82e77df9b7fe97c8b63fccece12444e06b1f760
-      }
-    } catch (error: any) {
-      console.error("Error fetching settings:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const updateSetting = async (key: keyof UserSettingsState, value: boolean) => {
-    try {
-      const user = await account.get().catch(() => null);
-      if (!user) return;
-
-      const nextSettings = { ...settings, [key]: value };
-      setSettings(nextSettings);
-
-<<<<<<< HEAD
-      const { error } = await supabase
-        .from("user_settings")
-        .upsert(
-          {
-            user_id: session.user.id,
-            ...nextSettings,
-          },
-          {
-            onConflict: "user_id",
-          }
-        );
-
-      if (error) throw error;
-
-=======
-      const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
-
-      const { documents } = await databases.listDocuments(
-        dbId,
-        "user_settings",
-        [Query.equal("user_id", user.$id), Query.limit(1)]
-      );
-
-      if (documents.length > 0) {
-        await databases.updateDocument(
-          dbId,
-          "user_settings",
-          documents[0].$id,
-          { [key]: value }
-        );
-      } else {
-        await databases.createDocument(
-          dbId,
-          "user_settings",
-          ID.unique(),
-          {
-            user_id: user.$id,
-            notifications_enabled: true,
-            ai_assistant_enabled: true,
-            dark_mode: false,
-            [key]: value // Override default just in case
-          }
-        );
-      }
-
->>>>>>> f82e77df9b7fe97c8b63fccece12444e06b1f760
+      await updateSettingsMutation({ [key]: value });
       toast.success("Setting updated!");
     } catch (error: any) {
       toast.error("Failed to update setting");
-      setSettings({ ...settings, [key]: !value });
     }
   };
 
-  if (loading) {
-    return <div>Loading settings...</div>;
+  if (settings === undefined) {
+    return (
+      <div className="flex justify-center py-12">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
   }
+
+  if (!settings && isAuthenticated) {
+    // Settings don't exist yet, mutation will create them on first update or we can trigger it
+    return (
+      <div className="text-center py-12">
+        <Button onClick={() => updateSetting("notifications_enabled", true)}>
+          Initialize Settings
+        </Button>
+      </div>
+    );
+  }
+
+  const currentSettings = settings || {
+    notifications_enabled: true,
+    notifications_orders: true,
+    notifications_social: true,
+    notifications_system: true,
+    ai_assistant_enabled: true,
+    dark_mode: false,
+  };
 
   return (
     <div className="space-y-6 max-w-2xl">
@@ -173,33 +60,17 @@ const Settings = () => {
           <CardDescription>Customize the look and feel of your app</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className={`rounded-xl border p-4 transition-colors ${settings.dark_mode ? "bg-slate-900 text-slate-100" : "bg-slate-50"}`}>
+          <div className={`rounded-xl border p-4 transition-colors ${currentSettings.dark_mode ? "bg-slate-900 text-slate-100" : "bg-slate-50"}`}>
             <p className="text-sm font-semibold">Live preview</p>
             <div className="mt-3 space-y-2 text-xs">
-              <div className={`h-8 rounded-lg ${settings.dark_mode ? "bg-slate-800" : "bg-white"}`} />
+              <div className={`h-8 rounded-lg ${currentSettings.dark_mode ? "bg-slate-800" : "bg-white"}`} />
               <div className="flex gap-2">
-                <div className={`h-3 flex-1 rounded ${settings.dark_mode ? "bg-slate-700" : "bg-slate-200"}`} />
-                <div className={`h-3 flex-1 rounded ${settings.dark_mode ? "bg-slate-700" : "bg-slate-200"}`} />
+                <div className={`h-3 flex-1 rounded ${currentSettings.dark_mode ? "bg-slate-700" : "bg-slate-200"}`} />
+                <div className={`h-3 flex-1 rounded ${currentSettings.dark_mode ? "bg-slate-700" : "bg-slate-200"}`} />
               </div>
               <p className="text-muted-foreground text-xs">
-                {settings.dark_mode ? "Dark theme keeps things easy on the eyes." : "Light theme is bright and energetic."}
+                {currentSettings.dark_mode ? "Dark theme keeps things easy on the eyes." : "Light theme is bright and energetic."}
               </p>
-            </div>
-          </div>
-          <div className="flex items-center justify-between">
-            <div className="space-y-0.5">
-              <Label>Dark Mode</Label>
-              <p className="text-sm text-muted-foreground">
-                Use the theme toggle in the navbar to switch appearance.
-              </p>
-            </div>
-            <div className="flex items-center gap-2 opacity-70">
-              {settings.dark_mode ? (
-                <Moon className="h-4 w-4 text-muted-foreground" />
-              ) : (
-                <Sun className="h-4 w-4 text-muted-foreground" />
-              )}
-              <Switch checked={settings.dark_mode} disabled aria-readonly aria-label="Dark mode status" />
             </div>
           </div>
         </CardContent>
@@ -219,7 +90,7 @@ const Settings = () => {
               </p>
             </div>
             <Switch
-              checked={settings.notifications_enabled}
+              checked={currentSettings.notifications_enabled}
               onCheckedChange={(checked) => updateSetting("notifications_enabled", checked)}
             />
           </div>
@@ -228,34 +99,31 @@ const Settings = () => {
               <div className="flex items-center justify-between">
                 <Label>Orders</Label>
                 <Switch
-                  checked={settings.notifications_orders}
+                  checked={currentSettings.notifications_orders}
                   onCheckedChange={(checked) => updateSetting("notifications_orders", checked)}
-                  disabled={!settings.notifications_enabled}
+                  disabled={!currentSettings.notifications_enabled}
                 />
               </div>
-              <p className="text-xs text-muted-foreground">Alerts for new orders and status changes.</p>
             </div>
             <div className="space-y-1">
               <div className="flex items-center justify-between">
                 <Label>Community</Label>
                 <Switch
-                  checked={settings.notifications_social}
+                  checked={currentSettings.notifications_social}
                   onCheckedChange={(checked) => updateSetting("notifications_social", checked)}
-                  disabled={!settings.notifications_enabled}
+                  disabled={!currentSettings.notifications_enabled}
                 />
               </div>
-              <p className="text-xs text-muted-foreground">Mentions, messages, and social activity.</p>
             </div>
             <div className="space-y-1">
               <div className="flex items-center justify-between">
                 <Label>System</Label>
                 <Switch
-                  checked={settings.notifications_system}
+                  checked={currentSettings.notifications_system}
                   onCheckedChange={(checked) => updateSetting("notifications_system", checked)}
-                  disabled={!settings.notifications_enabled}
+                  disabled={!currentSettings.notifications_enabled}
                 />
               </div>
-              <p className="text-xs text-muted-foreground">Platform updates and important notices.</p>
             </div>
           </div>
         </CardContent>
@@ -267,14 +135,6 @@ const Settings = () => {
           <CardDescription>Control AI-powered features</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="rounded-lg border bg-muted/40 p-4 text-sm">
-            <p className="font-semibold">AI Preview</p>
-            <p className="text-muted-foreground">
-              {settings.ai_assistant_enabled
-                ? "You'll see smarter price suggestions, tailored recommendations, and quick insights."
-                : "Turn the AI assistant back on to see helpful suggestions while you work."}
-            </p>
-          </div>
           <div className="flex items-center justify-between">
             <div className="space-y-0.5">
               <Label>AI Assistant</Label>
@@ -283,7 +143,7 @@ const Settings = () => {
               </p>
             </div>
             <Switch
-              checked={settings.ai_assistant_enabled}
+              checked={currentSettings.ai_assistant_enabled}
               onCheckedChange={(checked) => updateSetting("ai_assistant_enabled", checked)}
             />
           </div>

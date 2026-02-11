@@ -1,0 +1,56 @@
+import { mutation, query } from "./_generated/server";
+import { v } from "convex/values";
+import { getAuthUserId } from "@convex-dev/auth/server";
+
+async function ensureAdmin(ctx: any) {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Unauthorized");
+
+    const role = await ctx.db
+        .query("user_roles")
+        .withIndex("by_userId", (q: any) => q.eq("userId", userId))
+        .filter((q: any) => q.eq(q.field("role"), "admin"))
+        .unique();
+
+    if (!role) throw new Error("Admin privileges required");
+
+    return await ctx.db.get(userId);
+}
+
+export const get = query({
+    args: {},
+    handler: async (ctx) => {
+        // Return the single settings document
+        const settings = await ctx.db.query("admin_settings").first();
+        return settings;
+    }
+});
+
+
+export const update = mutation({
+    args: {
+        force_dark_mode: v.boolean(),
+        enable_beta_features: v.boolean(),
+        enable_ads_portal: v.boolean(),
+        enable_bulk_tools: v.boolean(),
+    },
+    handler: async (ctx, args) => {
+        const admin = await ensureAdmin(ctx);
+
+        const existing = await ctx.db.query("admin_settings").first();
+
+        if (existing) {
+            await ctx.db.patch(existing._id, {
+                ...args,
+                updated_by: admin._id,
+                updated_at: Date.now()
+            });
+        } else {
+            await ctx.db.insert("admin_settings", {
+                ...args,
+                updated_by: admin._id,
+                updated_at: Date.now()
+            });
+        }
+    }
+});

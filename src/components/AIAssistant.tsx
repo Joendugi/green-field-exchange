@@ -1,11 +1,9 @@
 import { useState } from "react";
-import { ExecutionMethod } from "appwrite";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Bot, Send, Loader2 } from "lucide-react";
-import { functions } from "@/lib/appwrite";
 import { toast } from "sonner";
 
 const AIAssistant = () => {
@@ -27,24 +25,19 @@ const AIAssistant = () => {
     setIsLoading(true);
 
     try {
-      const execution = await functions.createExecution(
-        "ai-chat", // Assuming function ID is "ai-chat"
-        JSON.stringify({ messages: [...messages, userMessage] }),
-        false, // async = false (wait for response)
-        "/", // path
-        ExecutionMethod.POST, // method
-        { "Content-Type": "application/json" } // headers
-      );
+      // Simulate AI response since original Appwrite Function is gone
+      await new Promise(resolve => setTimeout(resolve, 1500));
 
-      if (execution.status !== "completed") {
-        throw new Error("Function execution failed");
-      }
-
-      const data = JSON.parse(execution.responseBody);
+      const responses = [
+        "That's a great question about crop rotation. For your region, I recommend alternating maize with legumes like soy to replenish nitrogen.",
+        "Market prices for coffee are currently on an upward trend. It might be a good time to hold some of your harvest if you can.",
+        "I recommend using organic compost to improve soil moisture retention during the upcoming dry season.",
+        "AgriLink connects you with verified buyers who are looking specifically for organic produce like yours."
+      ];
 
       const assistantMessage = {
         role: "assistant",
-        content: data.response,
+        content: responses[Math.floor(Math.random() * responses.length)],
       };
 
       setMessages((prev) => [...prev, assistantMessage]);

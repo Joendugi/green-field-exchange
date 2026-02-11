@@ -1,0 +1,178 @@
+import { mutation, query } from "./_generated/server";
+import { v } from "convex/values";
+import { getAuthUserId } from "@convex-dev/auth/server";
+
+// Create a new order
+export const create = mutation({
+    args: {
+        productId: v.id("products"),
+        quantity: v.number(),
+        payment_type: v.string(),
+        delivery_address: v.string(),
+    },
+    handler: async (ctx, args) => {
+        const userId = await getAuthUserId(ctx);
+        if (!userId) throw new Error("Unauthorized");
+
+        const buyer = await ctx.db.get(userId);
+        if (!buyer) throw new Error("User not found");
+
+        const product = await ctx.db.get(args.productId);
+        if (!product) throw new Error("Product not found");
+
+        if (product.farmerId === userId) {
+            throw new Error("You cannot order your own product");
+        }
+
+        if (product.quantity < args.quantity) {
+            throw new Error(`Insufficient quantity. Only ${product.quantity} available.`);
+        }
+
+        const total_price = product.price * args.quantity;
+
+        const orderId = await ctx.db.insert("orders", {
+            buyerId: buyer._id,
+            farmerId: product.farmerId,
+            productId: args.productId,
+            quantity: args.quantity,
+            total_price,
+            status: "pending",
+            payment_type: args.payment_type,
+            delivery_address: args.delivery_address,
+            created_at: Date.now(),
+            updated_at: Date.now(),
+        });
+
+        // Notify Farmer
+        await ctx.db.insert("notifications", {
+            userId: product.farmerId,
+            title: "New Order Received",
+            message: `You have a new order for ${args.quantity} ${product.unit} of ${product.name}`,
+            is_read: false,
+            created_at: Date.now(),
+            link: "/orders",
+            type: "order",
+        });
+
+        return orderId;
+    },
+});
+
+// List orders for the current user (either as buyer or farmer)
+export const list = query({
+    args: { role: v.optional(v.string()) }, // 'buyer' or 'farmer', optional
+    handler: async (ctx, args) => {
+        const userId = await getAuthUserId(ctx);
+        if (!userId) return [];
+
+        let orders;
+        // Simple logic: fetch all where user is buyer OR farmer
+        // Convex doesn't support OR in queries easily, so we might need two queries or careful indexing.
+
+        // If role is specified, we optimize
+        if (args.role === "farmer") {
+            orders = await ctx.db
+                .query("orders")
+                .withIndex("by_farmerId", (q) => q.eq("farmerId", userId))
+                .collect();
+        } else if (args.role === "buyer") {
+            orders = await ctx.db
+                .query("orders")
+                .withIndex("by_buyerId", (q) => q.eq("buyerId", userId))
+                .collect();
+        } else {
+            // Fetch both and merge? Or just fetch relevant based on context.
+            // For simplicity, let's assume the UI passes the role context or we return both.
+            // Let's return valid orders for this user.
+            const asBuyer = await ctx.db
+                .query("orders")
+                .withIndex("by_buyerId", (q) => q.eq("buyerId", userId))
+                .collect();
+
+            const asFarmer = await ctx.db
+                .query("orders")
+                .withIndex("by_farmerId", (q) => q.eq("farmerId", userId))
+                .collect();
+
+            // Merge and dedupe (though a user shouldn't start an order with themselves usually)
+            const combined = [...asBuyer, ...asFarmer.filter(o => !asBuyer.some(b => b._id === o._id))];
+            orders = combined;
+        }
+
+        // Sort by createdAt desc in memory
+        orders.sort((a, b) => b.created_at - a.created_at);
+
+        // Enhance with product details and profiles
+        const ordersWithDetails = await Promise.all(
+            orders.map(async (order) => {
+                const product = await ctx.db.get(order.productId);
+
+                const buyerProfile = await ctx.db
+                    .query("profiles")
+                    .withIndex("by_userId", (q) => q.eq("userId", order.buyerId))
+                    .unique();
+
+                const farmerProfile = await ctx.db
+                    .query("profiles")
+                    .withIndex("by_userId", (q) => q.eq("userId", order.farmerId))
+                    .unique();
+
+                // Fallback to user auth data if profile missing (optional)
+                // const buyerUser = await ctx.db.get(order.buyerId);
+                // const farmerUser = await ctx.db.get(order.farmerId);
+
+                return {
+                    ...order,
+                    product,
+                    buyer: buyerProfile,
+                    farmer: farmerProfile,
+                };
+            })
+        );
+
+        return ordersWithDetails;
+    },
+});
+
+export const updateStatus = mutation({
+    args: {
+        orderId: v.id("orders"),
+        status: v.string(),
+    },
+    handler: async (ctx, args) => {
+        const userId = await getAuthUserId(ctx);
+        if (!userId) throw new Error("Unauthorized");
+
+        const order = await ctx.db.get(args.orderId);
+        if (!order) throw new Error("Order not found");
+
+        // Only farmer can update status (except maybe 'cancelled' by buyer if pending)
+        if (order.farmerId !== userId) {
+            // Allow buyer to cancel if pending
+            if (args.status === "cancelled" && order.buyerId === userId && order.status === "pending") {
+                // Allowed
+            } else {
+                throw new Error("Unauthorized to update order status");
+            }
+        }
+
+        await ctx.db.patch(args.orderId, {
+            status: args.status,
+            updated_at: Date.now(),
+        });
+
+        // Notify the other party
+        const recipientId = userId === order.farmerId ? order.buyerId : order.farmerId;
+        const updateMsg = args.status === "cancelled" ? "cancelled" : `updated to ${args.status}`;
+
+        await ctx.db.insert("notifications", {
+            userId: recipientId,
+            title: "Order Update",
+            message: `Order #${order._id} status has been ${updateMsg}`,
+            is_read: false,
+            created_at: Date.now(),
+            link: "/orders",
+            type: "order"
+        });
+    },
+});

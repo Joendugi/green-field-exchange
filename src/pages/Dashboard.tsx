@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2 } from "lucide-react";
@@ -11,14 +10,14 @@ import AdminDashboard from "@/components/AdminDashboard";
 import Settings from "@/components/Settings";
 import Onboarding from "@/components/Onboarding";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useAuth } from "@/contexts/AuthContext";
 
 const TAB_STORAGE_KEY = "dashboard:last-tab";
 
 const Dashboard = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [loading, setLoading] = useState(true);
-  const [userRole, setUserRole] = useState<string | null>(null);
+  const { user, role, loading, isAuthenticated } = useAuth();
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [activeTab, setActiveTab] = useState(() => {
     const urlTab = searchParams.get("tab");
@@ -40,10 +39,10 @@ const Dashboard = () => {
   }, [searchParams, activeTab]);
 
   useEffect(() => {
-    if (activeTab === "admin" && userRole !== "admin") {
+    if (activeTab === "admin" && role !== "admin") {
       handleTabChange("profile");
     }
-  }, [activeTab, userRole]);
+  }, [activeTab, role]);
 
   function handleTabChange(value: string) {
     setActiveTab(value);
@@ -56,47 +55,15 @@ const Dashboard = () => {
   }
 
   useEffect(() => {
-    const checkAuth = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (!session) {
-        navigate("/auth");
-        return;
-      }
+    if (!loading && !isAuthenticated) {
+      navigate("/auth");
+    }
 
-      // Get user role
-      const { data: roleData } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", session.user.id)
-        .single();
-
-      setUserRole(roleData?.role || null);
-
-      // Check if onboarding is needed
-      const { data: profileData } = await supabase
-        .from("profiles")
-        .select("onboarding_completed")
-        .eq("id", session.user.id)
-        .single();
-
-      if (!profileData?.onboarding_completed) {
-        setShowOnboarding(true);
-      }
-
-      setLoading(false);
-    };
-
-    checkAuth();
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (!session) {
-        navigate("/auth");
-      }
-    });
-
-    return () => subscription.unsubscribe();
-  }, [navigate]);
+    // Check onboarding logic - we can check user.onboarded
+    if (!loading && isAuthenticated && user && !user.onboarded) {
+      setShowOnboarding(true);
+    }
+  }, [loading, isAuthenticated, user, navigate]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -116,7 +83,7 @@ const Dashboard = () => {
               <TabsTrigger value="orders">Orders</TabsTrigger>
               <TabsTrigger value="products">My Products</TabsTrigger>
               <TabsTrigger value="settings">Settings</TabsTrigger>
-              {userRole === "admin" && <TabsTrigger value="admin">Admin</TabsTrigger>}
+              {role === "admin" && <TabsTrigger value="admin">Admin</TabsTrigger>}
             </TabsList>
 
             <TabsContent value="profile">
@@ -124,7 +91,7 @@ const Dashboard = () => {
             </TabsContent>
 
             <TabsContent value="orders">
-              <MyOrders userRole={userRole} />
+              <MyOrders /> // MyOrders should probably get its own role or use global auth
             </TabsContent>
 
             <TabsContent value="products">
@@ -135,7 +102,7 @@ const Dashboard = () => {
               <Settings />
             </TabsContent>
 
-            {userRole === "admin" && (
+            {role === "admin" && (
               <TabsContent value="admin">
                 <AdminDashboard />
               </TabsContent>

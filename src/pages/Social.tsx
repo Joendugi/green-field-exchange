@@ -10,13 +10,11 @@ const Social = () => {
   const navigate = useNavigate();
   const { isAuthenticated, loading } = useAuth();
 
-  useEffect(() => {
-    if (!loading && !isAuthenticated) {
-      navigate("/auth");
-    }
-  }, [isAuthenticated, loading, navigate]);
+  // Removed automatic redirect to allow anonymous viewing of the social feed.
+  // Component-level protection in SocialFeedEnhanced handles restricted actions.
 
-  if (loading) {
+
+  if (loading && isAuthenticated) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />

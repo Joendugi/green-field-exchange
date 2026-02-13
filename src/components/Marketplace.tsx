@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,6 +17,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/contexts/AuthContext";
 
 const Marketplace = () => {
+  const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
   const profile = useQuery(api.users.getProfile);
   const [searchQuery, setSearchQuery] = useState("");
@@ -155,7 +157,7 @@ const Marketplace = () => {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {products.map((product) => (
-            <Card key={product._id} className="hover:shadow-lg transition-shadow">
+            <Card key={product._id} className="hover-lift overflow-hidden">
               <CardHeader>
                 <div className="aspect-[4/3] bg-secondary rounded-lg mb-4 overflow-hidden">
                   {product.image_url ? (
@@ -196,6 +198,10 @@ const Marketplace = () => {
                 {product.farmerId === profile?.userId ? (
                   <Button className="w-full" variant="outline" disabled>
                     Your Product
+                  </Button>
+                ) : !isAuthenticated ? (
+                  <Button className="w-full" variant="outline" onClick={() => navigate("/auth")}>
+                    Login to Order
                   </Button>
                 ) : (
                   <Dialog>

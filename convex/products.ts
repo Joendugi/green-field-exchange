@@ -24,10 +24,23 @@ export const list = query({
                 .withIndex("by_category", (q) => q.eq("category", args.category!))
                 .collect();
         } else if (args.search) {
+            // Security: Sanitize and validate search input
+            if (args.search.length > 200) {
+                throw new Error("Search query too long");
+            }
+
+            const sanitizedSearch = args.search
+                .replace(/[<>]/g, '')
+                .trim();
+
+            if (sanitizedSearch.length < 2) {
+                return []; // Require at least 2 characters
+            }
+
             products = await ctx.db
                 .query("products")
                 .withSearchIndex("search_name", (q) => {
-                    const search = q.search("name", args.search!);
+                    const search = q.search("name", sanitizedSearch);
                     return args.category && args.category !== "all"
                         ? search.eq("category", args.category)
                         : search;
@@ -90,8 +103,55 @@ export const create = mutation({
         const userId = await getAuthUserId(ctx);
         if (!userId) throw new Error("Unauthorized");
 
+        // Input validation
+        if (args.price <= 0 || args.price > 1000000) {
+            throw new Error("Price must be between $0.01 and $1,000,000");
+        }
+
+        if (args.quantity < 0 || args.quantity > 1000000) {
+            throw new Error("Quantity must be between 0 and 1,000,000");
+        }
+
+        if (!Number.isInteger(args.quantity)) {
+            throw new Error("Quantity must be a whole number");
+        }
+
+        // Validate string lengths
+        if (args.name.length < 3 || args.name.length > 200) {
+            throw new Error("Product name must be between 3 and 200 characters");
+        }
+
+        if (args.description.length < 10 || args.description.length > 2000) {
+            throw new Error("Description must be between 10 and 2000 characters");
+        }
+
+        if (args.location.length < 2 || args.location.length > 200) {
+            throw new Error("Location must be between 2 and 200 characters");
+        }
+
+        // Validate category
+        const validCategories = [
+            "vegetables", "fruits", "grains", "dairy",
+            "livestock", "poultry", "machinery", "other"
+        ];
+        if (!validCategories.includes(args.category.toLowerCase())) {
+            throw new Error("Invalid category");
+        }
+
+        // Sanitize inputs
+        const sanitizedName = args.name.replace(/[<>]/g, '').trim();
+        const sanitizedDescription = args.description.replace(/[<>]/g, '').trim();
+
         const productId = await ctx.db.insert("products", {
-            ...args,
+            name: sanitizedName,
+            description: sanitizedDescription,
+            price: args.price,
+            quantity: args.quantity,
+            unit: args.unit,
+            category: args.category.toLowerCase(),
+            location: args.location,
+            image_url: args.image_url,
+            image_storage_id: args.image_storage_id,
             farmerId: userId,
             is_available: true,
             is_hidden: false,
@@ -158,6 +218,10 @@ export const remove = mutation({
 });
 
 export const generateUploadUrl = mutation(async (ctx) => {
+    // Security: Require authentication for file uploads
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Unauthorized - Please login to upload files");
+
     return await ctx.storage.generateUploadUrl();
 });
 

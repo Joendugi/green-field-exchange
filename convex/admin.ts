@@ -115,6 +115,17 @@ export const updateRole = mutation({
     handler: async (ctx, args) => {
         const { user: admin } = await ensureAdmin(ctx);
 
+        // Security: Validate role against whitelist
+        const VALID_ROLES = ["user", "farmer", "buyer", "admin"];
+        if (!VALID_ROLES.includes(args.role)) {
+            throw new Error(`Invalid role. Must be one of: ${VALID_ROLES.join(", ")}`);
+        }
+
+        // Security: Prevent self-escalation or self-demotion
+        if (args.userId === admin._id) {
+            throw new Error("Cannot modify your own role. Another admin must change your role.");
+        }
+
         const existingRole = await ctx.db
             .query("user_roles")
             .withIndex("by_userId", (q) => q.eq("userId", args.userId))
@@ -214,18 +225,38 @@ export const broadcastNotification = mutation({
     handler: async (ctx, args) => {
         const { user: admin } = await ensureAdmin(ctx);
 
+        // Input validation
+        if (args.title.length < 3 || args.title.length > 200) {
+            throw new Error("Title must be between 3 and 200 characters");
+        }
+
+        if (args.message.length < 10 || args.message.length > 1000) {
+            throw new Error("Message must be between 10 and 1000 characters");
+        }
+
         const users = await ctx.db.query("users").collect();
 
-        for (const user of users) {
-            await ctx.db.insert("notifications", {
-                userId: user._id,
-                title: args.title,
-                message: args.message,
-                is_read: false,
-                created_at: Date.now(),
-                type: "announcement"
-            });
+        // Security: Limit broadcast size to prevent abuse
+        if (users.length > 100000) {
+            throw new Error("Too many users. Please use batch notification system.");
         }
+
+        // Performance: Use parallel inserts instead of sequential loop
+        const notifications = users.map(user => ({
+            userId: user._id,
+            title: args.title,
+            message: args.message,
+            is_read: false,
+            created_at: Date.now(),
+            type: "announcement"
+        }));
+
+        // Insert in parallel (much faster than sequential)
+        await Promise.all(
+            notifications.map(notification =>
+                ctx.db.insert("notifications", notification)
+            )
+        );
 
         await logAdminAction(ctx, admin._id, "broadcast_notification", undefined, "announcement", args.title);
     }

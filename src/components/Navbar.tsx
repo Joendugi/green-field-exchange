@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { useAuthActions } from "@convex-dev/auth/react";
+import { useAuth } from "@/contexts/AuthContext";
 import {
   Bell,
   User,
@@ -41,6 +42,7 @@ const Navbar = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { signOut } = useAuthActions();
+  const { isAuthenticated } = useAuth();
 
   // Convex Queries
   const profile = useQuery(api.users.getProfile);
@@ -60,9 +62,13 @@ const Navbar = () => {
 
   const navItems = [
     { path: "/", label: "Marketplace", icon: Home },
-    { path: "/messages", label: "Message", icon: MessageSquare, badge: unreadMessagesCount },
-    { path: "/social", label: "Social", icon: Users },
-    { path: "/ai", label: "AI Assistant", icon: Bot },
+    ...(isAuthenticated ? [
+      { path: "/messages", label: "Message", icon: MessageSquare, badge: unreadMessagesCount },
+      { path: "/social", label: "Social", icon: Users },
+      { path: "/ai", label: "AI Assistant", icon: Bot },
+    ] : [
+      { path: "/social", label: "Social", icon: Users }, // Social is public
+    ]),
   ];
 
   const isActive = (path: string) => location.pathname === path;
@@ -144,98 +150,107 @@ const Navbar = () => {
           <ThemeToggle />
 
           {/* Notifications */}
-          <DropdownMenu open={isNotificationsOpen} onOpenChange={setIsNotificationsOpen}>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="relative">
-                <Bell className="h-5 w-5" />
-                {unreadCount > 0 && (
-                  <Badge className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs">
-                    {unreadCount}
-                  </Badge>
-                )}
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-80 md:w-96">
-              <DropdownMenuLabel className="flex items-center justify-between">
-                <span>Notifications</span>
-                {unreadCount > 0 && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-7 px-2 text-xs"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      handleMarkAllRead();
-                    }}
-                  >
-                    Mark all read
-                  </Button>
-                )}
-              </DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <ScrollArea className="max-h-80">
-                {notifications.length === 0 ? (
-                  <div className="p-4 text-sm text-muted-foreground text-center">
-                    You're all caught up!
-                  </div>
-                ) : (
-                  <div className="divide-y">
-                    {notifications.map((notification) => (
-                      <button
-                        key={notification._id}
-                        className={`w-full text-left px-4 py-3 hover:bg-muted/60 transition-colors ${notification.is_read ? "opacity-60" : "bg-primary/5"}`}
-                        onClick={() => handleNotificationClick(notification)}
-                      >
-                        <div className="flex items-center justify-between text-sm mb-1">
-                          <span className="font-semibold">{notification.title}</span>
-                          <span className="text-xs text-muted-foreground">
-                            {formatDistanceToNow(new Date(notification._creationTime), { addSuffix: true })}
-                          </span>
-                        </div>
-                        <p className="text-sm text-muted-foreground line-clamp-2">{notification.message}</p>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </ScrollArea>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          {isAuthenticated && (
+            <DropdownMenu open={isNotificationsOpen} onOpenChange={setIsNotificationsOpen}>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="relative">
+                  <Bell className="h-5 w-5" />
+                  {unreadCount > 0 && (
+                    <Badge className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs">
+                      {unreadCount}
+                    </Badge>
+                  )}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-80 md:w-96">
+                <DropdownMenuLabel className="flex items-center justify-between">
+                  <span>Notifications</span>
+                  {unreadCount > 0 && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 px-2 text-xs"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        handleMarkAllRead();
+                      }}
+                    >
+                      Mark all read
+                    </Button>
+                  )}
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <ScrollArea className="max-h-80">
+                  {notifications.length === 0 ? (
+                    <div className="p-4 text-sm text-muted-foreground text-center">
+                      You're all caught up!
+                    </div>
+                  ) : (
+                    <div className="divide-y">
+                      {notifications.map((notification) => (
+                        <button
+                          key={notification._id}
+                          className={`w-full text-left px-4 py-3 hover:bg-muted/60 transition-colors ${notification.is_read ? "opacity-60" : "bg-primary/5"}`}
+                          onClick={() => handleNotificationClick(notification)}
+                        >
+                          <div className="flex items-center justify-between text-sm mb-1">
+                            <span className="font-semibold">{notification.title}</span>
+                            <span className="text-xs text-muted-foreground">
+                              {formatDistanceToNow(new Date(notification._creationTime), { addSuffix: true })}
+                            </span>
+                          </div>
+                          <p className="text-sm text-muted-foreground line-clamp-2">{notification.message}</p>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </ScrollArea>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
 
-          {/* Profile */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon">
-                <User className="h-5 w-5" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuLabel>
-                {profile && profile.full_name ? profile.full_name : "My Account"}
-              </DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => navigate("/profile")}>
-                <User className="mr-2 h-4 w-4" />
-                <span>Profile</span>
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => navigate("/dashboard?tab=settings")}>
-                <Settings className="mr-2 h-4 w-4" />
-                <span>Settings</span>
-              </DropdownMenuItem>
-
-              {roleData?.role === "admin" && (
-                <DropdownMenuItem onClick={() => navigate("/admin")} className="text-primary focus:text-primary font-medium">
-                  <Shield className="mr-2 h-4 w-4" />
-                  <span>Admin Dashboard</span>
+          {/* Profile / Auth */}
+          {isAuthenticated ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon">
+                  <User className="h-5 w-5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuLabel>
+                  {profile && profile.full_name ? profile.full_name : "My Account"}
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => navigate("/profile")}>
+                  <User className="mr-2 h-4 w-4" />
+                  <span>Profile</span>
                 </DropdownMenuItem>
-              )}
+                <DropdownMenuItem onClick={() => navigate("/dashboard?tab=settings")}>
+                  <Settings className="mr-2 h-4 w-4" />
+                  <span>Settings</span>
+                </DropdownMenuItem>
 
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={handleLogout} className="text-destructive focus:text-destructive">
-                <LogOut className="mr-2 h-4 w-4" />
-                <span>Log out</span>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+                {roleData?.role === "admin" && (
+                  <DropdownMenuItem onClick={() => navigate("/admin")} className="text-primary focus:text-primary font-medium">
+                    <Shield className="mr-2 h-4 w-4" />
+                    <span>Admin Dashboard</span>
+                  </DropdownMenuItem>
+                )}
+
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handleLogout} className="text-destructive focus:text-destructive">
+                  <LogOut className="mr-2 h-4 w-4" />
+                  <span>Log out</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : (
+            <div className="flex items-center gap-2">
+              <Button variant="ghost" size="sm" onClick={() => navigate("/auth")}>Login</Button>
+              <Button size="sm" onClick={() => navigate("/auth")}>Sign Up</Button>
+            </div>
+          )}
 
           {/* Mobile Menu */}
           <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
@@ -269,10 +284,17 @@ const Navbar = () => {
                   </Button>
                 ))}
                 <div className="border-t my-2" />
-                <Button variant="ghost" onClick={handleLogout} className="justify-start gap-3 h-12 text-destructive">
-                  <LogOut className="h-5 w-5" />
-                  Log out
-                </Button>
+                {isAuthenticated ? (
+                  <Button variant="ghost" onClick={handleLogout} className="justify-start gap-3 h-12 text-destructive">
+                    <LogOut className="h-5 w-5" />
+                    Log out
+                  </Button>
+                ) : (
+                  <Button variant="default" onClick={() => handleNavigation("/auth")} className="justify-start gap-3 h-12">
+                    <User className="h-5 w-5" />
+                    Sign In
+                  </Button>
+                )}
               </div>
             </SheetContent>
           </Sheet>

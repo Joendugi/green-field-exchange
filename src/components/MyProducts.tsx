@@ -780,7 +780,16 @@ const MyProducts = () => {
       {products.length === 0 && (
         <div className="text-center py-12">
           <Package className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-          <p className="text-lg text-muted-foreground">No products yet. Add your first product!</p>
+          <p className="text-lg text-muted-foreground">
+            {!isAuthenticated
+              ? "Sign in to manage your products and start selling!"
+              : "No products yet. Add your first product!"}
+          </p>
+          {!isAuthenticated && (
+            <Button onClick={() => navigate("/auth")} className="mt-4">
+              Sign In to Start Selling
+            </Button>
+          )}
         </div>
       )}
 

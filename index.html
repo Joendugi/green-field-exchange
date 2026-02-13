@@ -12,6 +12,8 @@
   <!-- Preconnect to external domains for faster loading -->
   <link rel="preconnect" href="https://fra.cloud.appwrite.io" crossorigin />
   <link rel="dns-prefetch" href="https://fra.cloud.appwrite.io" />
+  <link rel="preconnect" href="https://api.convex.cloud" crossorigin />
+  <link rel="dns-prefetch" href="https://api.convex.cloud" />
 
   <!-- Preload critical fonts -->
   <link rel="preload" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" as="style"
@@ -31,41 +33,14 @@
 
   <!-- Critical CSS for initial render (prevents layout shift) -->
   <style>
-    /* Prevent FOUC and layout shift */
     html {
-      font-family: Inter, system-ui, -apple-system, sans-serif;
+      font-family: Inter, system-ui, sans-serif;
     }
 
     #root {
       min-height: 100vh;
     }
 
-    /* Reserve space for navbar */
-    .navbar-placeholder {
-      height: 65px;
-    }
-
-    /* Skeleton animation */
-    @keyframes skeleton-pulse {
-
-      0%,
-      100% {
-        opacity: 1;
-      }
-
-      50% {
-        opacity: 0.5;
-      }
-    }
-
-    .skeleton {
-      background: linear-gradient(90deg, #e5e7eb 25%, #f3f4f6 50%, #e5e7eb 75%);
-      background-size: 200% 100%;
-      animation: skeleton-pulse 1.5s ease-in-out infinite;
-      border-radius: 0.5rem;
-    }
-
-    /* Initial loading state */
     .initial-loader {
       display: flex;
       align-items: center;
@@ -89,14 +64,9 @@
       }
     }
 
-    /* Dark mode support */
     @media (prefers-color-scheme: dark) {
       .initial-loader {
         background: #1a1a1a;
-      }
-
-      .skeleton {
-        background: linear-gradient(90deg, #374151 25%, #4b5563 50%, #374151 75%);
       }
     }
   </style>

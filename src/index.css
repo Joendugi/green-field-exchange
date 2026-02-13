@@ -37,7 +37,7 @@ All colors MUST be HSL.
     --ring: 142 76% 36%;
 
     --radius: 0.75rem;
-    
+
     --gradient-hero: linear-gradient(135deg, hsl(142 76% 36%), hsl(142 76% 46%));
     --gradient-card: linear-gradient(180deg, hsl(0 0% 100%), hsl(142 20% 98%));
     --shadow-soft: 0 4px 24px -2px hsl(142 50% 36% / 0.12);
@@ -89,7 +89,7 @@ All colors MUST be HSL.
     --border: 30 15% 22%;
     --input: 30 15% 22%;
     --ring: 142 60% 45%;
-    
+
     --gradient-hero: linear-gradient(135deg, hsl(30 30% 20%), hsl(142 50% 30%));
     --gradient-card: linear-gradient(180deg, hsl(30 18% 15%), hsl(142 20% 18%));
     --shadow-soft: 0 4px 24px -2px hsl(142 50% 30% / 0.3);
@@ -118,6 +118,7 @@ All colors MUST be HSL.
 
 /* Performance: Prevent CLS (Cumulative Layout Shift) */
 @layer utilities {
+
   /* Fixed aspect ratio for product images */
   .product-image {
     aspect-ratio: 4 / 3;
@@ -140,17 +141,23 @@ All colors MUST be HSL.
   /* Skeleton loading animation */
   .skeleton-pulse {
     animation: pulse 1.5s ease-in-out infinite;
-    background: linear-gradient(90deg, 
-      hsl(var(--muted)) 0%, 
-      hsl(var(--muted) / 0.5) 50%, 
-      hsl(var(--muted)) 100%
-    );
+    background: linear-gradient(90deg,
+        hsl(var(--muted)) 0%,
+        hsl(var(--muted) / 0.5) 50%,
+        hsl(var(--muted)) 100%);
     background-size: 200% 100%;
   }
 
   @keyframes pulse {
-    0%, 100% { background-position: 200% 0; }
-    50% { background-position: 0% 0; }
+
+    0%,
+    100% {
+      background-position: 200% 0;
+    }
+
+    50% {
+      background-position: 0% 0;
+    }
   }
 
   /* Ensure images don't cause layout shift */
@@ -162,5 +169,187 @@ All colors MUST be HSL.
   /* Hero section fixed height to prevent shift */
   .hero-section {
     min-height: 600px;
+  }
+
+  /* Micro-interactions and animations */
+  .animate-like {
+    animation: like-bounce 0.4s ease-in-out;
+  }
+
+  @keyframes like-bounce {
+
+    0%,
+    100% {
+      transform: scale(1);
+    }
+
+    50% {
+      transform: scale(1.3);
+    }
+  }
+
+  .hover-lift {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  .hover-lift:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 24px -8px hsl(var(--primary) / 0.2);
+  }
+
+  .hover-glow {
+    transition: box-shadow 0.3s ease;
+  }
+
+  .hover-glow:hover {
+    box-shadow: 0 0 20px hsl(var(--primary) / 0.3);
+  }
+
+  /* Button enhancements */
+  .btn-primary {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .btn-primary::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.3);
+    transform: translate(-50%, -50%);
+    transition: width 0.6s, height 0.6s;
+  }
+
+  .btn-primary:hover::before {
+    width: 300px;
+    height: 300px;
+  }
+
+  /* Smooth transitions for all interactive elements */
+  button,
+  a,
+  input,
+  textarea,
+  select {
+    transition: all 0.2s ease;
+  }
+
+  /* Focus styles for accessibility */
+  *:focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
+  }
+
+  /* Card hover effect */
+  .card-hover {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  .card-hover:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-hover);
+  }
+
+  /* Fade in animation */
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .animate-fade-in {
+    animation: fadeIn 0.3s ease-out;
+  }
+
+  /* Shimmer effect for loading states */
+  @keyframes shimmer {
+    0% {
+      background-position: -1000px 0;
+    }
+
+    100% {
+      background-position: 1000px 0;
+    }
+  }
+
+  .shimmer {
+    background: linear-gradient(90deg,
+        hsl(var(--muted)) 0%,
+        hsl(var(--muted) / 0.8) 50%,
+        hsl(var(--muted)) 100%);
+    background-size: 1000px 100%;
+    animation: shimmer 2s infinite;
+  }
+
+  /* Premium Glassmorphism */
+  .glass {
+    @apply bg-white/10 backdrop-blur-md border border-white/20 shadow-xl;
+  }
+
+  .glass-dark {
+    @apply bg-black/20 backdrop-blur-md border border-white/10 shadow-2xl;
+  }
+
+  /* Floating Animation */
+  @keyframes float {
+
+    0%,
+    100% {
+      transform: translateY(0);
+    }
+
+    50% {
+      transform: translateY(-20px);
+    }
+  }
+
+  .animate-float {
+    animation: float 6s ease-in-out infinite;
+  }
+
+  .animate-float-delayed {
+    animation: float 7s ease-in-out infinite 1s;
+  }
+
+  /* Scroll Reveal Helper Classes */
+  .reveal {
+    opacity: 0;
+    transform: translateY(30px);
+    transition: all 0.8s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .reveal.active {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  /* Gradient Text */
+  .text-gradient {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-primary to-emerald-400;
+  }
+
+  /* Premium Card */
+  .card-premium {
+    @apply relative overflow-hidden transition-all duration-500 hover:scale-[1.02] hover:shadow-2xl border-none;
+    background: var(--gradient-card);
+  }
+
+  .card-premium::after {
+    content: '';
+    @apply absolute inset-0 opacity-0 transition-opacity duration-500 bg-gradient-to-br from-primary/5 to-transparent;
+  }
+
+  .card-premium:hover::after {
+    @apply opacity-100;
   }
 }

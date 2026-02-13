@@ -245,6 +245,14 @@ const schema = defineSchema({
   })
     .index("by_userId", ["userId", "postId"])
     .index("by_postId", ["postId"]),
+
+  rate_limit_tracking: defineTable({
+    key: v.string(), // userId or IP address
+    action: v.string(), // action being rate limited
+    timestamp: v.number(),
+  })
+    .index("by_key_action", ["key", "action"])
+    .index("by_timestamp", ["timestamp"]),
 });
 
 export default schema;

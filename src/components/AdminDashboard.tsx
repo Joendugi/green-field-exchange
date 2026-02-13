@@ -274,7 +274,6 @@ const AdminDashboard = () => {
         // For now, I'll skip this or send dummy data (bad).
         status: nextState ? "active" : "paused",
         // Pass empty strings for required fields if backend doesn't handle partials yet
-        title: "Toggle",
         target_url: "Toggle",
         description: "Toggle",
         budget: 0

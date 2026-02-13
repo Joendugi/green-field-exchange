@@ -14,6 +14,31 @@ export const create = mutation({
         const userId = await getAuthUserId(ctx);
         if (!userId) throw new Error("Unauthorized");
 
+        // Input validation
+        if (args.quantity <= 0 || args.quantity > 10000) {
+            throw new Error("Invalid quantity. Must be between 1 and 10,000");
+        }
+
+        if (!Number.isInteger(args.quantity)) {
+            throw new Error("Quantity must be a whole number");
+        }
+
+        // Validate payment type
+        const validPaymentTypes = ["cash", "card", "mobile_money", "bank_transfer"];
+        if (!validPaymentTypes.includes(args.payment_type.toLowerCase())) {
+            throw new Error("Invalid payment type");
+        }
+
+        // Validate delivery address
+        if (args.delivery_address.length < 10 || args.delivery_address.length > 500) {
+            throw new Error("Delivery address must be between 10 and 500 characters");
+        }
+
+        // Sanitize delivery address (basic XSS prevention)
+        const sanitizedAddress = args.delivery_address
+            .replace(/[<>]/g, '')
+            .trim();
+
         const buyer = await ctx.db.get(userId);
         if (!buyer) throw new Error("User not found");
 
@@ -30,31 +55,46 @@ export const create = mutation({
 
         const total_price = product.price * args.quantity;
 
-        const orderId = await ctx.db.insert("orders", {
-            buyerId: buyer._id,
-            farmerId: product.farmerId,
-            productId: args.productId,
-            quantity: args.quantity,
-            total_price,
-            status: "pending",
-            payment_type: args.payment_type,
-            delivery_address: args.delivery_address,
-            created_at: Date.now(),
+        // Fix race condition: Atomically decrement product quantity BEFORE creating order
+        await ctx.db.patch(args.productId, {
+            quantity: product.quantity - args.quantity,
             updated_at: Date.now(),
         });
 
-        // Notify Farmer
-        await ctx.db.insert("notifications", {
-            userId: product.farmerId,
-            title: "New Order Received",
-            message: `You have a new order for ${args.quantity} ${product.unit} of ${product.name}`,
-            is_read: false,
-            created_at: Date.now(),
-            link: "/orders",
-            type: "order",
-        });
+        try {
+            const orderId = await ctx.db.insert("orders", {
+                buyerId: buyer._id,
+                farmerId: product.farmerId,
+                productId: args.productId,
+                quantity: args.quantity,
+                total_price,
+                status: "pending",
+                payment_type: args.payment_type.toLowerCase(),
+                delivery_address: sanitizedAddress,
+                created_at: Date.now(),
+                updated_at: Date.now(),
+            });
 
-        return orderId;
+            // Notify Farmer
+            await ctx.db.insert("notifications", {
+                userId: product.farmerId,
+                title: "New Order Received",
+                message: `You have a new order for ${args.quantity} ${product.unit} of ${product.name}`,
+                is_read: false,
+                created_at: Date.now(),
+                link: "/orders",
+                type: "order",
+            });
+
+            return orderId;
+        } catch (error) {
+            // Rollback quantity if order creation fails
+            await ctx.db.patch(args.productId, {
+                quantity: product.quantity,
+                updated_at: Date.now(),
+            });
+            throw error;
+        }
     },
 });
 

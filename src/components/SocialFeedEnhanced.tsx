@@ -20,6 +20,7 @@ const SocialFeedEnhanced = () => {
   const [mediaPreview, setMediaPreview] = useState<string>("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [followingUsers, setFollowingUsers] = useState<Set<string>>(new Set());
 
   // Convex Queries
   const allPosts = useQuery(api.posts.getPosts, { limit: 50 });
@@ -31,8 +32,8 @@ const SocialFeedEnhanced = () => {
   const repostPost = useMutation(api.posts.repostPost);
   const unrepostPost = useMutation(api.posts.unrepostPost);
   const addCommentMutation = useMutation(api.posts.addComment);
-  const follow = useMutation(api.follows.follow);
-  const unfollow = useMutation(api.follows.unfollow);
+  const followMutation = useMutation(api.follows.follow);
+  const unfollowMutation = useMutation(api.follows.unfollow);
   const generateUploadUrl = useMutation(api.users.generateUploadUrl);
 
   const filteredPosts = allPosts?.filter(post => {
@@ -111,10 +112,16 @@ const SocialFeedEnhanced = () => {
       }
 
       if (isCurrentlyFollowing) {
-        await unfollow({ followingId: targetUserId });
+        await unfollowMutation({ followingId: targetUserId });
+        setFollowingUsers(prev => {
+          const next = new Set(prev);
+          next.delete(targetUserId);
+          return next;
+        });
         toast.success("Unfollowed!");
       } else {
-        await follow({ followingId: targetUserId });
+        await followMutation({ followingId: targetUserId });
+        setFollowingUsers(prev => new Set(prev).add(targetUserId));
         toast.success("Following!");
       }
     } catch (error: any) {
@@ -184,76 +191,88 @@ const SocialFeedEnhanced = () => {
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Create a Post</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <Textarea
-            placeholder="What's on your mind?"
-            value={newPostContent}
-            onChange={(e) => setNewPostContent(e.target.value)}
-            rows={3}
-          />
+      {!isAuthenticated ? (
+        <Card className="bg-primary/5 border-primary/20">
+          <CardHeader>
+            <CardTitle>Join the Community</CardTitle>
+            <CardDescription>Sign in to share your farming journey, like posts, and connect with others.</CardDescription>
+          </CardHeader>
+          <CardFooter>
+            <Button onClick={() => window.location.href = "/auth"} className="w-full">Sign In to Post</Button>
+          </CardFooter>
+        </Card>
+      ) : (
+        <Card>
+          <CardHeader>
+            <CardTitle>Create a Post</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Textarea
+              placeholder="What's on your mind?"
+              value={newPostContent}
+              onChange={(e) => setNewPostContent(e.target.value)}
+              rows={3}
+            />
 
-          {mediaPreview && (
-            <div className="relative">
-              {mediaFile?.type.startsWith("video/") ? (
-                <video src={mediaPreview} controls className="w-full rounded-lg max-h-64" />
-              ) : (
-                <img src={mediaPreview} alt="Preview" className="w-full rounded-lg max-h-64 object-cover" />
-              )}
+            {mediaPreview && (
+              <div className="relative">
+                {mediaFile?.type.startsWith("video/") ? (
+                  <video src={mediaPreview} controls className="w-full rounded-lg max-h-64" />
+                ) : (
+                  <img src={mediaPreview} alt="Preview" className="w-full rounded-lg max-h-64 object-cover" />
+                )}
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  className="absolute top-2 right-2"
+                  onClick={() => {
+                    setMediaFile(null);
+                    setMediaPreview("");
+                  }}
+                >
+                  Remove
+                </Button>
+              </div>
+            )}
+
+            <div className="flex gap-2">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*,video/*"
+                onChange={handleMediaChange}
+                className="hidden"
+              />
               <Button
-                variant="destructive"
+                type="button"
+                variant="outline"
                 size="sm"
-                className="absolute top-2 right-2"
-                onClick={() => {
-                  setMediaFile(null);
-                  setMediaPreview("");
-                }}
+                onClick={() => fileInputRef.current?.click()}
               >
-                Remove
+                <ImageIcon className="mr-2 h-4 w-4" />
+                Add Photo
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <Video className="mr-2 h-4 w-4" />
+                Add Video
               </Button>
             </div>
-          )}
-
-          <div className="flex gap-2">
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*,video/*"
-              onChange={handleMediaChange}
-              className="hidden"
-            />
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => fileInputRef.current?.click()}
-            >
-              <ImageIcon className="mr-2 h-4 w-4" />
-              Add Photo
+          </CardContent>
+          <CardFooter>
+            <Button onClick={handleCreatePost} className="w-full" disabled={!newPostContent.trim() && !mediaFile}>
+              Post
             </Button>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => fileInputRef.current?.click()}
-            >
-              <Video className="mr-2 h-4 w-4" />
-              Add Video
-            </Button>
-          </div>
-        </CardContent>
-        <CardFooter>
-          <Button onClick={handleCreatePost} className="w-full" disabled={!newPostContent.trim() && !mediaFile}>
-            Post
-          </Button>
-        </CardFooter>
-      </Card>
+          </CardFooter>
+        </Card>
+      )}
 
       {filteredPosts.map((post) => (
-        <Card key={post._id}>
+        <Card key={post._id} className="card-hover animate-fade-in">
           <CardHeader>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -266,7 +285,7 @@ const SocialFeedEnhanced = () => {
                 <div>
                   <div className="flex items-center gap-2">
                     <a
-                      href={`/profile/${post.userId}`}
+                      href={`/user/${post.userId}`}
                       className="hover:underline font-semibold"
                     >
                       {post.profiles?.full_name}
@@ -285,17 +304,23 @@ const SocialFeedEnhanced = () => {
                   </CardDescription>
                 </div>
               </div>
-              {post.userId !== currentUser?._id && (
+              {isAuthenticated && post.userId !== currentUser?._id && (
                 <Button
-                  variant="ghost"
+                  variant={followingUsers.has(post.userId) ? "outline" : "default"}
                   size="sm"
-                  // Note: Checking follower/following in a feed is heavy, 
-                  // In a real app we'd fetch this separately or embed it.
-                  // For now, we'll dummy it or assume the user can toggle.
-                  onClick={() => handleFollowToggle(post.userId, false)}
+                  onClick={() => handleFollowToggle(post.userId, followingUsers.has(post.userId))}
                 >
-                  <UserPlus className="mr-2 h-4 w-4" />
-                  Follow
+                  {followingUsers.has(post.userId) ? (
+                    <>
+                      <UserMinus className="mr-2 h-4 w-4" />
+                      Unfollow
+                    </>
+                  ) : (
+                    <>
+                      <UserPlus className="mr-2 h-4 w-4" />
+                      Follow
+                    </>
+                  )}
                 </Button>
               )}
             </div>
@@ -323,7 +348,13 @@ const SocialFeedEnhanced = () => {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => handleLikeToggle(post._id, post.isLiked)}
+                onClick={() => {
+                  if (!isAuthenticated) {
+                    toast.info("Please sign in to like posts");
+                    return;
+                  }
+                  handleLikeToggle(post._id, post.isLiked);
+                }}
               >
                 <Heart
                   className={`mr-2 h-4 w-4 ${post.isLiked ? "fill-red-500 text-red-500" : ""
@@ -331,14 +362,20 @@ const SocialFeedEnhanced = () => {
                 />
                 {post.likes_count || 0}
               </Button>
-              <Button variant="ghost" size="sm">
+              <Button variant="ghost" size="sm" onClick={() => !isAuthenticated && toast.info("Please sign in to comment")}>
                 <MessageCircle className="mr-2 h-4 w-4" />
                 {post.comments_count || 0}
               </Button>
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => handleRepostToggle(post._id, post.isReposted)}
+                onClick={() => {
+                  if (!isAuthenticated) {
+                    toast.info("Please sign in to repost");
+                    return;
+                  }
+                  handleRepostToggle(post._id, post.isReposted);
+                }}
               >
                 <Repeat2
                   className={`mr-2 h-4 w-4 ${post.isReposted ? "text-green-500" : ""
@@ -367,19 +404,21 @@ const SocialFeedEnhanced = () => {
               </div>
             )}
 
-            <div className="flex gap-2">
-              <Input
-                placeholder="Write a comment..."
-                value={commentInputs[post._id as string] || ""}
-                onChange={(e) => setCommentInputs({ ...commentInputs, [post._id as string]: e.target.value })}
-                onKeyPress={(e) => {
-                  if (e.key === "Enter") handleAddComment(post._id);
-                }}
-              />
-              <Button onClick={() => handleAddComment(post._id)} size="sm">
-                Comment
-              </Button>
-            </div>
+            {isAuthenticated && (
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Write a comment..."
+                  value={commentInputs[post._id as string] || ""}
+                  onChange={(e) => setCommentInputs({ ...commentInputs, [post._id as string]: e.target.value })}
+                  onKeyPress={(e) => {
+                    if (e.key === "Enter") handleAddComment(post._id);
+                  }}
+                />
+                <Button onClick={() => handleAddComment(post._id)} size="sm">
+                  Comment
+                </Button>
+              </div>
+            )}
           </CardContent>
         </Card>
       ))}

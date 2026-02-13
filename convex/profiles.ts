@@ -8,7 +8,7 @@ export const getProfile = query({
       .query("profiles")
       .withIndex("by_userId", (q) => q.eq("userId", args.userId))
       .first();
-    
+
     return profile;
   },
 });
@@ -25,27 +25,27 @@ export const createProfile = mutation({
   },
   handler: async (ctx, args) => {
     const now = Date.now();
-    
+
     // Check if profile already exists
     const existingProfile = await ctx.db
       .query("profiles")
       .withIndex("by_userId", (q) => q.eq("userId", args.userId))
       .first();
-    
+
     if (existingProfile) {
       throw new Error("Profile already exists");
     }
-    
+
     // Check if username is taken
     const existingUsername = await ctx.db
       .query("profiles")
       .withIndex("by_username", (q) => q.eq("username", args.username))
       .first();
-    
+
     if (existingUsername) {
       throw new Error("Username already taken");
     }
-    
+
     const profileId = await ctx.db.insert("profiles", {
       ...args,
       verified: false,
@@ -54,7 +54,7 @@ export const createProfile = mutation({
       created_at: now,
       updated_at: now,
     });
-    
+
     return profileId;
   },
 });
@@ -74,26 +74,26 @@ export const updateProfile = mutation({
       .query("profiles")
       .withIndex("by_userId", (q) => q.eq("userId", args.userId))
       .first();
-    
+
     if (!profile) {
       throw new Error("Profile not found");
     }
-    
+
     // Check if new username is taken (if provided)
     if (args.username && args.username !== profile.username) {
       const existingUsername = await ctx.db
         .query("profiles")
         .withIndex("by_username", (q) => q.eq("username", args.username))
         .first();
-      
+
       if (existingUsername) {
         throw new Error("Username already taken");
       }
     }
-    
+
     const now = Date.now();
     const updateData: any = { updated_at: now };
-    
+
     // Only update provided fields
     if (args.username !== undefined) updateData.username = args.username;
     if (args.full_name !== undefined) updateData.full_name = args.full_name;
@@ -101,9 +101,9 @@ export const updateProfile = mutation({
     if (args.bio !== undefined) updateData.bio = args.bio;
     if (args.location !== undefined) updateData.location = args.location;
     if (args.website !== undefined) updateData.website = args.website;
-    
+
     await ctx.db.patch(profile._id, updateData);
-    
+
     return profile._id;
   },
 });
@@ -115,8 +115,31 @@ export const getProfileByUsername = query({
       .query("profiles")
       .withIndex("by_username", (q) => q.eq("username", args.username))
       .first();
-    
+
     return profile;
+  },
+});
+
+export const getPublicProfile = query({
+  args: { userId: v.id("users") },
+  handler: async (ctx, args) => {
+    const profile = await ctx.db
+      .query("profiles")
+      .withIndex("by_userId", (q) => q.eq("userId", args.userId))
+      .first();
+
+    if (!profile) return null;
+
+    // Return only public fields
+    return {
+      userId: profile.userId,
+      username: profile.username,
+      full_name: profile.full_name,
+      avatar_url: profile.avatar_url,
+      bio: profile.bio,
+      location: profile.location,
+      verified: profile.verified,
+    };
   },
 });
 
@@ -127,16 +150,16 @@ export const setOnboarded = mutation({
       .query("profiles")
       .withIndex("by_userId", (q) => q.eq("userId", args.userId))
       .first();
-    
+
     if (!profile) {
       throw new Error("Profile not found");
     }
-    
+
     await ctx.db.patch(profile._id, {
       onboarded: true,
       updated_at: Date.now(),
     });
-    
+
     return profile._id;
   },
 });

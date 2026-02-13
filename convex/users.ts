@@ -17,10 +17,61 @@ export const getProfile = query({
 
         const profile = await ctx.db
             .query("profiles")
-            .withIndex("by_userId", (q) => q.eq("userId", userId!))
+            .withIndex("by_userId", (q) => q.eq("userId", userId))
             .unique();
 
-        return profile;
+        if (!profile) return null;
+
+        // Convert storage ID to URL if avatar_url is a storage ID
+        let avatarUrl = profile.avatar_url;
+        if (avatarUrl && avatarUrl.startsWith("kg")) {
+            // It's a storage ID, convert to URL
+            try {
+                avatarUrl = (await ctx.storage.getUrl(avatarUrl as any)) ?? undefined;
+            } catch (error) {
+                console.error("Error getting avatar URL:", error);
+                avatarUrl = undefined;
+            }
+        }
+
+        return {
+            ...profile,
+            avatar_url: avatarUrl,
+        };
+    },
+});
+
+export const getUserProfiles = query({
+    args: { userIds: v.array(v.id("users")) },
+    handler: async (ctx, args) => {
+        const profiles = await Promise.all(
+            args.userIds.map(async (userId) => {
+                const profile = await ctx.db
+                    .query("profiles")
+                    .withIndex("by_userId", (q) => q.eq("userId", userId))
+                    .unique();
+
+                if (!profile) return null;
+
+                // Convert storage ID to URL if avatar_url is a storage ID
+                let avatarUrl = profile.avatar_url;
+                if (avatarUrl && avatarUrl.startsWith("kg")) {
+                    try {
+                        avatarUrl = (await ctx.storage.getUrl(avatarUrl as any)) ?? undefined;
+                    } catch (error) {
+                        console.error("Error getting avatar URL:", error);
+                        avatarUrl = undefined;
+                    }
+                }
+
+                return {
+                    ...profile,
+                    avatar_url: avatarUrl,
+                };
+            })
+        );
+
+        return profiles.filter((p) => p !== null);
     },
 });
 
@@ -78,6 +129,10 @@ export const updateSettings = mutation({
 });
 
 export const getUploadUrl = mutation(async (ctx) => {
+    // Security: Require authentication for file uploads
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Unauthorized - Please login to upload files");
+
     return await ctx.storage.generateUploadUrl();
 });
 
@@ -209,8 +264,17 @@ export const searchUsers = query({
         const userId = await getAuthUserId(ctx);
         if (!userId) return [];
 
-        const searchTerm = args.query.toLowerCase();
-        if (!searchTerm) return [];
+        // Security: Validate and sanitize search input
+        if (args.query.length > 100) {
+            throw new Error("Search query too long");
+        }
+
+        const searchTerm = args.query
+            .replace(/[<>]/g, '')
+            .toLowerCase()
+            .trim();
+
+        if (!searchTerm || searchTerm.length < 2) return [];
 
         // Convex doesn't have a native full-text search index on profiles by default,
         // so we'll do a simple filter for now. For larger datasets, we should use search indexes.

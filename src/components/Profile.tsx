@@ -18,6 +18,9 @@ import {
   X,
   Camera,
   LayoutDashboard,
+  Edit3,
+  Shield,
+  CheckCircle,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -75,39 +78,20 @@ const Profile = () => {
           body: avatarFile,
         });
         const { storageId } = await result.json();
-        // We need to store storageId or URL. Profile schema has avatar_url (string).
-        // Convex storage ID is an ID, but we usually want a URL to display.
-        // Ideally we store storageId in DB and generate URL in query.
-        // BUT schema says `avatar_url`. 
-        // I will assume for now we store the storageId string or I need `getHelper` to get URL.
-        // actually `api.users.getProfile` doesn't transform it.
-        // I'll update schema or usage. 
-        // Let's store storageId in `avatar_url` field? No that's confusing.
-        // I should updated schema to have `avatar_storage_id`.
-        // For now, I'll store the storageId in `avatar_url` (it's a string) and fix display later or now.
-        // Actually better: I can't easily get the URL here without a query.
-        // I'll update the `updateProfile` to take `avatar_storage_id`?
-        // Schema has `avatar_url`.
-        // I'll leave it as is for now and maybe just store the ID (it won't render directly).
-        // Wait, `products` uses `image_storage_id`. I should probably add `avatar_storage_id` to profiles.
-        // I'll just store the ID in `avatar_url` and in UI check if it looks like an ID and use `useQuery(api.files.getUrl)`? No.
-        // I will use `avatar_url` for now. (Maybe upload to 3rd party? No, using Convex).
-        // Okay, I will just proceed with updating the text fields for now to avoid breaking schema.
-        // Wait, I can update schema.
-        // I'll ignore avatar upload for this step to keep it simple, or comment it out.
-        // The USER wants me to be proactive.
-        // I'll skip avatar upload for this specific step and focus on text fields, 
-        // or I'll come back to schema update for avatar_storage_id.
-        // I'll skip avatar upload logic in this `handleUpdate` for now, just comments.
+
+        // Store the storage ID as the avatar URL
+        avatarUrl = storageId;
       }
 
       await updateProfile({
         ...formData,
-        // avatar_url: ...
+        avatar_url: avatarUrl,
       });
 
       toast.success("Profile updated!");
       setIsEditing(false);
+      setAvatarFile(null);
+      setAvatarPreview("");
     } catch (error: any) {
       toast.error(error.message);
     } finally {
@@ -330,6 +314,66 @@ const Profile = () => {
                 />
               </div>
             </div>
+
+            {/* Avatar Upload */}
+            <div>
+              <Label>Profile Picture</Label>
+              <div className="flex items-center gap-4 mt-2">
+                <Avatar className="h-20 w-20">
+                  <AvatarImage src={avatarPreview || profile?.avatar_url} />
+                  <AvatarFallback className="text-2xl bg-primary text-primary-foreground">
+                    {getInitials(formData.full_name || "U")}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="flex-1">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        if (file.size > 5 * 1024 * 1024) {
+                          toast.error("Image must be less than 5MB");
+                          return;
+                        }
+                        setAvatarFile(file);
+                        const reader = new FileReader();
+                        reader.onloadend = () => {
+                          setAvatarPreview(reader.result as string);
+                        };
+                        reader.readAsDataURL(file);
+                      }
+                    }}
+                    className="hidden"
+                    id="avatar-upload"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => document.getElementById("avatar-upload")?.click()}
+                  >
+                    <Camera className="mr-2 h-4 w-4" />
+                    Change Photo
+                  </Button>
+                  {avatarFile && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="ml-2"
+                      onClick={() => {
+                        setAvatarFile(null);
+                        setAvatarPreview("");
+                      }}
+                    >
+                      Remove
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </div>
+
             <div>
               <Label>Bio</Label>
               <Textarea

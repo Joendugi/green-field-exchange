@@ -15,6 +15,9 @@ const Social = lazy(() => import("./pages/Social"));
 const AI = lazy(() => import("./pages/AI"));
 const Messages = lazy(() => import("./pages/Messages"));
 const UserProfile = lazy(() => import("./pages/UserProfile"));
+const About = lazy(() => import("./pages/About"));
+const Mission = lazy(() => import("./pages/Mission"));
+const Contact = lazy(() => import("./pages/Contact"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const Profile = lazy(() => import("./components/Profile"));
 const ProtectedRoute = lazy(() => import("./components/ProtectedRoute"));
@@ -23,7 +26,7 @@ const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       staleTime: 1000 * 60 * 5, // 5 minutes
-      gcTime: 1000 * 60 * 30, // 30 minutes (formerly cacheTime)
+      gcTime: 1000 * 60 * 30, // 30 minutes
       retry: 1,
       refetchOnWindowFocus: false,
     },
@@ -34,7 +37,7 @@ const queryClient = new QueryClient({
 const PageLoader = () => (
   <div className="min-h-screen flex items-center justify-center bg-background">
     <div className="flex flex-col items-center gap-4">
-      <div className="h-10 w-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+      <div className="h-12 w-12 border-4 border-primary border-t-transparent rounded-full animate-spin" />
       <p className="text-muted-foreground text-sm">Loading...</p>
     </div>
   </div>
@@ -51,26 +54,14 @@ const App = () => (
             <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/auth" element={<Auth />} />
-              <Route path="/dashboard" element={
-                <ProtectedRoute>
-                  <Dashboard />
-                </ProtectedRoute>
-              } />
+              <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/admin" element={
                 <ProtectedRoute>
                   <Admin />
                 </ProtectedRoute>
               } />
-              <Route path="/profile" element={
-                <ProtectedRoute>
-                  <Profile />
-                </ProtectedRoute>
-              } />
-              <Route path="/social" element={
-                <ProtectedRoute>
-                  <Social />
-                </ProtectedRoute>
-              } />
+              <Route path="/profile" element={<Profile />} />
+              <Route path="/social" element={<Social />} />
               <Route path="/ai" element={
                 <ProtectedRoute>
                   <AI />
@@ -81,12 +72,10 @@ const App = () => (
                   <Messages />
                 </ProtectedRoute>
               } />
-              <Route path="/profile/:userId" element={
-                <ProtectedRoute>
-                  <UserProfile />
-                </ProtectedRoute>
-              } />
-              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+              <Route path="/user/:userId" element={<UserProfile />} />
+              <Route path="/about" element={<About />} />
+              <Route path="/mission" element={<Mission />} />
+              <Route path="/contact" element={<Contact />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </Suspense>

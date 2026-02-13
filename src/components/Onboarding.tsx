@@ -33,7 +33,7 @@ const Onboarding = ({ open, onComplete, onDismiss }: OnboardingProps) => {
 
   const steps = [
     {
-      title: "Welcome to AgriConnect!",
+      title: "Welcome to AgriLink!",
       description: "Your one-stop platform for agricultural trade and community",
       icon: <Sparkles className="h-16 w-16 text-primary" />,
       content: "Connect with farmers, buyers, and the agricultural community. Let's get you started!",
@@ -89,7 +89,7 @@ const Onboarding = ({ open, onComplete, onDismiss }: OnboardingProps) => {
       if (typeof window !== "undefined") {
         window.localStorage.removeItem(STEP_STORAGE_KEY);
       }
-      toast.success("Welcome aboard! Enjoy exploring AgriConnect!");
+      toast.success("Welcome aboard! Enjoy exploring AgriLink!");
     } catch (error: any) {
       console.error("Error completing onboarding:", error);
       onComplete();

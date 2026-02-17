@@ -2,6 +2,7 @@ import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { Id } from "./_generated/dataModel";
+import { ensureAuthenticated } from "./helpers";
 
 export const getPosts = query({
   args: {
@@ -122,15 +123,20 @@ export const createPost = mutation({
     video_url: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) {
-      throw new Error("Unauthorized");
+    const userId = await ensureAuthenticated(ctx);
+
+    const content = args.content.trim();
+    if (content.length === 0 && !args.image_url && !args.video_url) {
+      throw new Error("Post cannot be empty");
+    }
+    if (content.length > 5000) {
+      throw new Error("Post content is too long (max 5000 characters)");
     }
 
     const now = Date.now();
     const postId = await ctx.db.insert("posts", {
       userId,
-      content: args.content,
+      content,
       image_url: args.image_url,
       video_url: args.video_url,
       created_at: now,
@@ -146,10 +152,7 @@ export const createPost = mutation({
 export const deletePost = mutation({
   args: { postId: v.id("posts") },
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) {
-      throw new Error("Unauthorized");
-    }
+    const userId = await ensureAuthenticated(ctx);
 
     const post = await ctx.db.get(args.postId);
     if (!post) {
@@ -169,10 +172,7 @@ export const deletePost = mutation({
 export const repostPost = mutation({
   args: { postId: v.id("posts") },
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) {
-      throw new Error("Unauthorized");
-    }
+    const userId = await ensureAuthenticated(ctx);
 
     // Check if already reposted
     const existingRepost = await ctx.db
@@ -200,10 +200,7 @@ export const repostPost = mutation({
 export const unrepostPost = mutation({
   args: { postId: v.id("posts") },
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) {
-      throw new Error("Unauthorized");
-    }
+    const userId = await ensureAuthenticated(ctx);
 
     const repost = await ctx.db
       .query("post_reposts")
@@ -243,8 +240,7 @@ export const isReposted = query({
 export const likePost = mutation({
   args: { postId: v.id("posts") },
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) throw new Error("Unauthorized");
+    const userId = await ensureAuthenticated(ctx);
 
     const existing = await ctx.db
       .query("post_likes")
@@ -271,8 +267,7 @@ export const likePost = mutation({
 export const unlikePost = mutation({
   args: { postId: v.id("posts") },
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) throw new Error("Unauthorized");
+    const userId = await ensureAuthenticated(ctx);
 
     const existing = await ctx.db
       .query("post_likes")
@@ -295,13 +290,20 @@ export const unlikePost = mutation({
 export const addComment = mutation({
   args: { postId: v.id("posts"), content: v.string() },
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) throw new Error("Unauthorized");
+    const userId = await ensureAuthenticated(ctx);
+
+    const content = args.content.trim();
+    if (content.length === 0) {
+      throw new Error("Comment cannot be empty");
+    }
+    if (content.length > 2000) {
+      throw new Error("Comment is too long (max 2000 characters)");
+    }
 
     await ctx.db.insert("post_comments", {
       userId,
       postId: args.postId,
-      content: args.content,
+      content,
       created_at: Date.now(),
     });
 

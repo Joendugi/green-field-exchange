@@ -1,6 +1,6 @@
 import { mutation } from "./_generated/server";
 import { v } from "convex/values";
-import { getAuthUserId } from "@convex-dev/auth/server";
+import { ensureAuthenticated } from "./helpers";
 
 /**
  * File upload validation utilities
@@ -32,8 +32,7 @@ export const validateFileUpload = mutation({
         uploadType: v.string(), // "avatar", "product", "post_image", "post_video"
     },
     handler: async (ctx, args) => {
-        const userId = await getAuthUserId(ctx);
-        if (!userId) throw new Error("Unauthorized");
+        await ensureAuthenticated(ctx);
 
         // Validate file type based on upload type
         let allowedTypes: string[];
@@ -92,8 +91,7 @@ export const verifyUploadedFile = mutation({
         expectedType: v.string(),
     },
     handler: async (ctx, args) => {
-        const userId = await getAuthUserId(ctx);
-        if (!userId) throw new Error("Unauthorized");
+        await ensureAuthenticated(ctx);
 
         // Get file metadata from storage
         const fileMetadata = await ctx.storage.getMetadata(args.storageId);

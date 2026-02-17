@@ -64,10 +64,18 @@ export const sendMessage = mutation({
         // Ensure the sender is part of this conversation
         await assertConversationParticipant(ctx, args.conversationId, userId);
 
+        const content = args.content.trim();
+        if (content.length === 0) {
+            throw new Error("Message cannot be empty");
+        }
+        if (content.length > 5000) {
+            throw new Error("Message is too long (max 5000 characters)");
+        }
+
         const msgId = await ctx.db.insert("messages", {
             conversationId: args.conversationId,
             senderId: userId,
-            content: args.content,
+            content,
             is_read: false,
             created_at: Date.now(),
         });

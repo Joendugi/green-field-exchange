@@ -40,6 +40,10 @@ const MyProducts = () => {
   const deleteProduct = useMutation(api.products.remove);
   const generateUploadUrl = useMutation(api.products.generateUploadUrl);
   const predictPriceAction = useAction(api.products.predictPrice);
+<<<<<<< HEAD
+=======
+  const requestVerificationMutation = useMutation(api.verification.createVerificationRequest);
+>>>>>>> 2b896f842ad9aec208b7ee406625f3307372737a
 
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Doc<"products"> | null>(null);
@@ -192,6 +196,29 @@ const MyProducts = () => {
     }
   };
 
+<<<<<<< HEAD
+=======
+  const handleToggleAvailability = async (product: any) => {
+    try {
+      await updateProduct({ 
+        id: product._id, 
+        changes: { is_available: !product.is_available } 
+      });
+      toast.success(`Product ${!product.is_available ? 'activated' : 'deactivated'} successfully!`);
+    } catch (error: any) {
+      toast.error(error.message);
+    }
+  };
+
+  // Skip bulk actions for now to simplify
+
+  const toggleProductSelection = (productId: string) => {
+    setSelectedProducts((prev) =>
+      prev.includes(productId) ? prev.filter((id) => id !== productId) : [...prev, productId]
+    );
+  };
+
+>>>>>>> 2b896f842ad9aec208b7ee406625f3307372737a
   const handleFieldChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
     setFormErrors((prev) => {
@@ -615,8 +642,7 @@ const MyProducts = () => {
             <div>
               <p className="text-sm text-muted-foreground">Active listings</p>
               <p className="text-2xl font-bold">
-                {/* {products.filter((product) => product.is_available).length} */}
-                {products.length} {/* is_available missing in schema */}
+                {products.filter((product) => product.is_available).length}
               </p>
             </div>
           </CardContent>
@@ -666,8 +692,8 @@ const MyProducts = () => {
             <CardHeader>
               <div className="flex items-center justify-between">
                 {/* Selection logic if needed */}
-                <Badge variant="default">
-                  Active {/* Placeholder for is_available */}
+                <Badge variant={product.is_available ? "default" : "secondary"}>
+                  {product.is_available ? "Active" : "Inactive"}
                 </Badge>
               </div>
               <div className="aspect-video bg-secondary rounded-lg mb-4 overflow-hidden">
@@ -726,15 +752,14 @@ const MyProducts = () => {
                 <Edit className="mr-2 h-4 w-4" />
                 Edit
               </Button>
-              {/* 
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => handleToggleAvailability(product)}
+                className={product.is_available ? "text-green-600 hover:text-green-700" : "text-gray-500 hover:text-gray-600"}
               >
-                <Switch checked={product.is_available} /> 
+                {product.is_available ? "Active" : "Inactive"}
               </Button>
-               */}
               <Button
                 variant="destructive"
                 size="sm"
@@ -752,12 +777,12 @@ const MyProducts = () => {
         <div className="text-center py-12">
           <Package className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
           <p className="text-lg text-muted-foreground">
-            {!isAuthenticated
+            {!profile
               ? "Sign in to manage your products and start selling!"
               : "No products yet. Add your first product!"}
           </p>
-          {!isAuthenticated && (
-            <Button onClick={() => navigate("/auth")} className="mt-4">
+          {!profile && (
+            <Button className="mt-4">
               Sign In to Start Selling
             </Button>
           )}
@@ -775,10 +800,14 @@ const MyProducts = () => {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={() => {
-              // requestVerificationMutation({});
-              toast.info("Verification request feature coming soon");
-              setVerificationDialogOpen(false);
+            <AlertDialogAction onClick={async () => {
+              try {
+                await requestVerificationMutation({});
+                toast.success("Verification request submitted successfully!");
+                setVerificationDialogOpen(false);
+              } catch (error: any) {
+                toast.error(error.message);
+              }
             }}>
               Request Verification
             </AlertDialogAction>

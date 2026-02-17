@@ -26,6 +26,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Users,
   Package,
@@ -50,6 +51,8 @@ import {
   Clock,
 } from "lucide-react";
 import { toast } from "sonner";
+import AdminPrivilegeManager from "./AdminPrivilegeManager";
+import VerificationRequestManager from "./VerificationRequestManager";
 import { exportToCSV } from "@/lib/dataExport";
 import { Id } from "../../convex/_generated/dataModel";
 
@@ -345,9 +348,10 @@ const AdminDashboard = () => {
       </div>
 
       <Tabs defaultValue="overview">
-        <TabsList className="grid w-full grid-cols-4 md:grid-cols-8 h-auto flex-wrap">
+        <TabsList className="grid w-full grid-cols-4 md:grid-cols-10 h-auto flex-wrap">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="users">Users</TabsTrigger>
+          <TabsTrigger value="privileges">Privileges</TabsTrigger>
           <TabsTrigger value="verification">Verification</TabsTrigger>
           <TabsTrigger value="moderation">Content</TabsTrigger>
           <TabsTrigger value="logs">Audit Logs</TabsTrigger>
@@ -431,7 +435,7 @@ const AdminDashboard = () => {
               <Sparkles className="h-5 w-5 text-purple-500" />
               <span className="text-xs font-semibold">AI Cleanup</span>
             </Button>
-            <Button variant="outline" className="h-auto py-4 flex-col gap-2 bg-card" onClick={() => navigate("/social")}>
+            <Button variant="outline" className="h-auto py-4 flex-col gap-2 bg-card">
               <Megaphone className="h-5 w-5 text-orange-500" />
               <span className="text-xs font-semibold">Market News</span>
             </Button>
@@ -536,28 +540,12 @@ const AdminDashboard = () => {
           </Card>
         </TabsContent>
 
+        <TabsContent value="privileges" className="space-y-4">
+          <AdminPrivilegeManager />
+        </TabsContent>
+
         <TabsContent value="verification" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Verification Requests</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {verificationRequests.map((request: any) => (
-                  <div key={request._id} className="flex justify-between p-4 border rounded-lg">
-                    <div>
-                      <p className="font-semibold">{request.profiles?.full_name}</p>
-                      <p className="text-sm">Requested: {new Date(request._creationTime).toLocaleDateString()}</p>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button size="sm" onClick={() => handleVerifyUser(request._id, request.userId, true)}>Approve</Button>
-                      <Button size="sm" variant="destructive" onClick={() => handleVerifyUser(request._id, request.userId, false)}>Reject</Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+          <VerificationRequestManager />
         </TabsContent>
 
         <TabsContent value="logs" className="space-y-4">

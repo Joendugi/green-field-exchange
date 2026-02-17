@@ -3,21 +3,43 @@ import { v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
 
 export const getProfile = query({
-    args: { userId: v.optional(v.id("users")) },
-    handler: async (ctx, args) => {
-        let userId = args.userId;
-
-        if (!userId) {
-            const authId = await getAuthUserId(ctx);
-            if (!authId) return null;
-            userId = authId;
-        }
-
+    args: {},
+    handler: async (ctx) => {
+        const userId = await getAuthUserId(ctx);
         if (!userId) return null;
 
         const profile = await ctx.db
             .query("profiles")
             .withIndex("by_userId", (q) => q.eq("userId", userId))
+            .unique();
+
+        if (!profile) return null;
+
+        // Convert storage ID to URL if avatar_url is a storage ID
+        let avatarUrl = profile.avatar_url;
+        if (avatarUrl && avatarUrl.startsWith("kg")) {
+            // It's a storage ID, convert to URL
+            try {
+                avatarUrl = (await ctx.storage.getUrl(avatarUrl as any)) ?? undefined;
+            } catch (error) {
+                console.error("Error getting avatar URL:", error);
+                avatarUrl = undefined;
+            }
+        }
+
+        return {
+            ...profile,
+            avatar_url: avatarUrl,
+        };
+    },
+});
+
+export const getUserProfile = query({
+    args: { userId: v.id("users") },
+    handler: async (ctx, args) => {
+        const profile = await ctx.db
+            .query("profiles")
+            .withIndex("by_userId", (q) => q.eq("userId", args.userId))
             .unique();
 
         if (!profile) return null;

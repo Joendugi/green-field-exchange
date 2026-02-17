@@ -132,7 +132,17 @@ const MyProducts = () => {
         });
         toast.success("Product updated successfully!");
       } else {
-        await createProduct(productData);
+        await createProduct({
+          name: productData.name,
+          description: productData.description,
+          price: productData.price,
+          quantity: productData.quantity,
+          unit: productData.unit,
+          location: productData.location,
+          category: productData.category,
+          image_url: productData.image_url,
+          image_storage_id: productData.image_storage_id,
+        });
         toast.success("Product added successfully!");
       }
 

@@ -16,8 +16,14 @@ const AI = lazy(() => import("./pages/AI"));
 const Messages = lazy(() => import("./pages/Messages"));
 const UserProfile = lazy(() => import("./pages/UserProfile"));
 const About = lazy(() => import("./pages/About"));
+const AboutUs = lazy(() => import("./pages/AboutUs"));
 const Mission = lazy(() => import("./pages/Mission"));
+const MissionVision = lazy(() => import("./pages/MissionVision"));
 const Contact = lazy(() => import("./pages/Contact"));
+const FarmerStories = lazy(() => import("./pages/FarmerStories"));
+const AIInsights = lazy(() => import("./pages/AIInsights"));
+const GlobalTrade = lazy(() => import("./pages/GlobalTrade"));
+const Careers = lazy(() => import("./pages/Careers"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const Profile = lazy(() => import("./components/Profile"));
 const ProtectedRoute = lazy(() => import("./components/ProtectedRoute"));
@@ -74,8 +80,14 @@ const App = () => (
               } />
               <Route path="/user/:userId" element={<UserProfile />} />
               <Route path="/about" element={<About />} />
+              <Route path="/about-us" element={<AboutUs />} />
               <Route path="/mission" element={<Mission />} />
+              <Route path="/mission-vision" element={<MissionVision />} />
               <Route path="/contact" element={<Contact />} />
+              <Route path="/farmer-stories" element={<FarmerStories />} />
+              <Route path="/ai-insights" element={<AIInsights />} />
+              <Route path="/global-trade" element={<GlobalTrade />} />
+              <Route path="/careers" element={<Careers />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </Suspense>

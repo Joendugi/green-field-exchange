@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import type { ChangeEvent, DragEvent, FormEvent } from "react";
 import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "../../convex/_generated/api";
-import { Id } from "../../convex/_generated/dataModel";
+import { Doc, Id } from "../../convex/_generated/dataModel";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,20 +11,27 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Plus, Edit, Trash2, Package, Lightbulb, BarChart3, Layers, DollarSign, Grid, Check, Upload, X } from "lucide-react";
+import { Plus, Edit, Trash2, Package, Lightbulb, BarChart3, Layers, DollarSign, Grid, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Switch } from "@/components/ui/switch";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Checkbox } from "@/components/ui/checkbox";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
+
+type PricePrediction = {
+  suggested_price?: number;
+  confidence?: string;
+};
 
 const MyProducts = () => {
+  const navigate = useNavigate();
+  const { isAuthenticated } = useAuth();
+
   // Convex Data
-  const profile = useQuery(api.users.getProfile);
+  const profile = useQuery(api.users.getProfile, {});
   // We need to handle the case where profile is loading or null.
   // If profile is not yet loaded, we might skip the products query or pass undefined (which Convex handles by skipping).
   const products = useQuery(api.products.list, profile ? { farmerId: profile.userId } : "skip") || [];
-  const orders = useQuery(api.orders.list, { role: "farmer" }) || [];
   const settings = useQuery(api.users.getSettings, {});
 
   // Mutations & Actions
@@ -32,24 +40,12 @@ const MyProducts = () => {
   const deleteProduct = useMutation(api.products.remove);
   const generateUploadUrl = useMutation(api.products.generateUploadUrl);
   const predictPriceAction = useAction(api.products.predictPrice);
-  const requestVerificationMutation = useMutation(api.admin.handleVerification); // We need a request function, admin.handleVerification is for admin processing.
-  // I need to create `requestVerification` in users.ts or similar. 
-  // For now I'll use a placeholder or create it.
-  // Actually, I can use `api.users.requestVerification` if I create it.
-  // Existing code used `databases.createDocument("verification_requests", ...)`.
-  // I should add `requestVerification` to `convex/users.ts`.
-  // I'll skip it for this file write and add it to users.ts later, or comment it out.
-  // Let's assume I'll add `api.users.requestVerification` in next step.
 
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const [editingProduct, setEditingProduct] = useState<any>(null);
-  const [pricePrediction, setPricePrediction] = useState<any>(null);
+  const [editingProduct, setEditingProduct] = useState<Doc<"products"> | null>(null);
+  const [pricePrediction, setPricePrediction] = useState<PricePrediction | null>(null);
   const [isLoadingPrediction, setIsLoadingPrediction] = useState(false);
   const [verificationDialogOpen, setVerificationDialogOpen] = useState(false);
-
-  // States merged
-  const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
-  const [bulkLoading, setBulkLoading] = useState(false);
 
   const [mediaFile, setMediaFile] = useState<File | null>(null);
   const [mediaPreview, setMediaPreview] = useState<string>("");
@@ -94,7 +90,7 @@ const MyProducts = () => {
     }
   };
 
-  const handleSubmit = async (e?: React.FormEvent) => {
+  const handleSubmit = async (e?: FormEvent) => {
     if (e) e.preventDefault();
 
     if (!profile) return;
@@ -106,7 +102,7 @@ const MyProducts = () => {
     }
 
     setIsUploading(true);
-    let storageId = undefined; // formData.image_storage_id;
+    let storageId: string | undefined = formData.image_storage_id || undefined;
     // We don't store storageId in formData usually, but we can.
 
     try {
@@ -155,8 +151,8 @@ const MyProducts = () => {
       });
       setFormErrors({});
       setCurrentStep(0);
-    } catch (error: any) {
-      toast.error("Error saving product: " + error.message);
+    } catch (error: unknown) {
+      toast.error(`Error saving product: ${error instanceof Error ? error.message : String(error)}`);
     } finally {
       setIsUploading(false);
     }
@@ -179,7 +175,7 @@ const MyProducts = () => {
       });
 
       setPricePrediction(prediction);
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast.error("Failed to get price prediction");
       console.error(error);
     } finally {
@@ -191,36 +187,9 @@ const MyProducts = () => {
     try {
       await deleteProduct({ id });
       toast.success("Product deleted successfully!");
-    } catch (error: any) {
-      toast.error(error.message);
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : String(error));
     }
-  };
-
-  const handleToggleAvailability = async (product: any) => {
-    // We don't have is_available in schema yet? 
-    // Schema in step 488: `products` table has `created_at`, `updated_at`, etc. but NO `is_available`.
-    // I need to add `is_available` to schema.
-    // For now I'll assume I add it.
-    // Wait, I should check schema again. Step 488.
-    // `products` table does NOT have `is_available`.
-    // I will add it to schema in next step.
-    // For now I will comment out or stub.
-
-    // toast.info("Toggle availability pending schema update");
-    // Assuming I will add it:
-    try {
-      // await updateProduct({ id: product._id, changes: { is_available: !product.is_available } }); // Typescript will error if not in schema?
-      // Actually updateProduct args are validated against schema.
-      // So I must update schema.
-    } catch (e) { }
-  };
-
-  // Skip bulk actions for now to simplify
-
-  const toggleProductSelection = (productId: string) => {
-    setSelectedProducts((prev) =>
-      prev.includes(productId) ? prev.filter((id) => id !== productId) : [...prev, productId]
-    );
   };
 
   const handleFieldChange = (field: string, value: string) => {
@@ -275,13 +244,13 @@ const MyProducts = () => {
     return Object.keys(errors).length === 0;
   };
 
-  const handleFormSubmit = async (e: React.FormEvent) => {
+  const handleFormSubmit = async (e: FormEvent) => {
     e.preventDefault();
     const isValid = validateStep(currentStep);
     if (!isValid) return;
 
     if (currentStep < steps.length - 1) {
-      setCurrentStep(currentStep + 1);
+      setCurrentStep((prev) => prev + 1);
       return;
     }
 
@@ -290,26 +259,26 @@ const MyProducts = () => {
 
   const handlePreviousStep = () => {
     if (currentStep === 0) return;
-    setCurrentStep(currentStep - 1);
+    setCurrentStep((prev) => prev - 1);
   };
 
-  const handleImageChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageChange = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
     await processImageFile(file);
   };
 
-  const handleDragOver = (event: React.DragEvent<HTMLDivElement>) => {
+  const handleDragOver = (event: DragEvent<HTMLDivElement>) => {
     event.preventDefault();
     setIsDragActive(true);
   };
 
-  const handleDragLeave = (event: React.DragEvent<HTMLDivElement>) => {
+  const handleDragLeave = (event: DragEvent<HTMLDivElement>) => {
     event.preventDefault();
     setIsDragActive(false);
   };
 
-  const handleDrop = async (event: React.DragEvent<HTMLDivElement>) => {
+  const handleDrop = async (event: DragEvent<HTMLDivElement>) => {
     event.preventDefault();
     setIsDragActive(false);
     const file = event.dataTransfer.files?.[0];
@@ -335,7 +304,7 @@ const MyProducts = () => {
     reader.readAsDataURL(file);
 
     // Clear URL if file selected
-    setFormData(prev => ({ ...prev, image_url: "" }));
+    setFormData((prev) => ({ ...prev, image_url: "" }));
   };
 
   const renderStepContent = () => {
@@ -501,10 +470,10 @@ const MyProducts = () => {
             {(mediaPreview || formData.image_url) && (
               <div className="rounded-lg border p-4 bg-muted/30">
                 <p className="text-sm font-semibold mb-2">Preview</p>
-                <div className="w-full max-h-64 bg-background/60 rounded-lg flex items-center justify-center overflow-hidden">
+                <div className="relative w-full max-h-64 bg-background/60 rounded-lg flex items-center justify-center overflow-hidden">
                   <img
                     src={mediaPreview || formData.image_url}
-                    alt="Product preview"
+                    alt={formData.name ? `Preview of ${formData.name}` : "Product preview"}
                     className="max-h-64 w-full object-contain"
                   />
                   {mediaPreview && (
@@ -513,6 +482,7 @@ const MyProducts = () => {
                       variant="destructive"
                       size="icon"
                       className="absolute top-2 right-2 h-8 w-8"
+                      aria-label="Remove selected image"
                       onClick={() => {
                         setMediaFile(null);
                         setMediaPreview("");
@@ -702,7 +672,7 @@ const MyProducts = () => {
               </div>
               <div className="aspect-video bg-secondary rounded-lg mb-4 overflow-hidden">
                 {product.image_url ? (
-                  <img src={product.image_url} alt={product.name} className="w-full h-full object-cover" />
+                  <img src={product.image_url} alt={product.name} className="w-full h-full object-cover" loading="lazy" />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center">
                     <Package className="h-12 w-12 text-muted-foreground" />
@@ -748,7 +718,7 @@ const MyProducts = () => {
                   });
                   setCurrentStep(0);
                   setMediaFile(null);
-                  setMediaPreview(product.image_url || null);
+                  setMediaPreview(product.image_url || "");
                   setFormErrors({});
                   setIsAddDialogOpen(true);
                 }}
@@ -768,6 +738,7 @@ const MyProducts = () => {
               <Button
                 variant="destructive"
                 size="sm"
+                aria-label={`Delete ${product.name}`}
                 onClick={() => handleDelete(product._id)}
               >
                 <Trash2 className="h-4 w-4" />

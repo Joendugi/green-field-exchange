@@ -14,6 +14,7 @@ import type * as advertisements from "../advertisements.js";
 import type * as auth from "../auth.js";
 import type * as fileValidation from "../fileValidation.js";
 import type * as follows from "../follows.js";
+import type * as helpers from "../helpers.js";
 import type * as http from "../http.js";
 import type * as loginAttempts from "../loginAttempts.js";
 import type * as messages from "../messages.js";
@@ -43,6 +44,7 @@ declare const fullApi: ApiFromModules<{
   auth: typeof auth;
   fileValidation: typeof fileValidation;
   follows: typeof follows;
+  helpers: typeof helpers;
   http: typeof http;
   loginAttempts: typeof loginAttempts;
   messages: typeof messages;

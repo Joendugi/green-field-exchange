@@ -40,10 +40,7 @@ const MyProducts = () => {
   const deleteProduct = useMutation(api.products.remove);
   const generateUploadUrl = useMutation(api.products.generateUploadUrl);
   const predictPriceAction = useAction(api.products.predictPrice);
-<<<<<<< HEAD
-=======
   const requestVerificationMutation = useMutation(api.verification.createVerificationRequest);
->>>>>>> 2b896f842ad9aec208b7ee406625f3307372737a
 
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Doc<"products"> | null>(null);
@@ -66,6 +63,8 @@ const MyProducts = () => {
     image_url: "",
     image_storage_id: "",
   });
+
+  const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
 
   const [currentStep, setCurrentStep] = useState(0);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
@@ -123,7 +122,7 @@ const MyProducts = () => {
         location: formData.location,
         category: formData.category,
         image_url: formData.image_url, // Keep URL if pasted
-        image_storage_id: storageId,
+        image_storage_id: storageId as Id<"_storage"> | undefined,
       };
 
       if (editingProduct) {
@@ -196,8 +195,6 @@ const MyProducts = () => {
     }
   };
 
-<<<<<<< HEAD
-=======
   const handleToggleAvailability = async (product: any) => {
     try {
       await updateProduct({ 
@@ -217,8 +214,6 @@ const MyProducts = () => {
       prev.includes(productId) ? prev.filter((id) => id !== productId) : [...prev, productId]
     );
   };
-
->>>>>>> 2b896f842ad9aec208b7ee406625f3307372737a
   const handleFieldChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
     setFormErrors((prev) => {

@@ -1,25 +1,13 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
-import { getAuthUserId } from "@convex-dev/auth/server";
-
-async function ensureAdmin(ctx: any) {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) throw new Error("Unauthorized");
-
-    const role = await ctx.db
-        .query("user_roles")
-        .withIndex("by_userId", (q: any) => q.eq("userId", userId))
-        .filter((q: any) => q.eq(q.field("role"), "admin"))
-        .unique();
-
-    if (!role) throw new Error("Admin privileges required");
-
-    return await ctx.db.get(userId);
-}
+import { ensureAdmin } from "./helpers";
 
 export const get = query({
     args: {},
     handler: async (ctx) => {
+        // Only admins can read admin settings
+        await ensureAdmin(ctx);
+
         // Return the single settings document
         const settings = await ctx.db.query("admin_settings").first();
         return settings;

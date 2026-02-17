@@ -1,5 +1,6 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
+import { ensureAuthenticated, ensureAdmin } from "./helpers";
 
 export const getProfile = query({
   args: { userId: v.id("users") },
@@ -70,6 +71,17 @@ export const updateProfile = mutation({
     website: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    const callerId = await ensureAuthenticated(ctx);
+
+    // Only allow users to update their own profile, unless caller is an admin.
+    if (callerId !== args.userId) {
+      const admin = await ensureAdmin(ctx);
+      // Admins can update any profile; non-admins cannot update others.
+      if (admin._id !== callerId) {
+        throw new Error("Unauthorized");
+      }
+    }
+
     const profile = await ctx.db
       .query("profiles")
       .withIndex("by_userId", (q) => q.eq("userId", args.userId))

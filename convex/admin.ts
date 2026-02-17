@@ -1,27 +1,6 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
-import { getAuthUserId } from "@convex-dev/auth/server";
-
-// Helper to ensure admin
-async function ensureAdmin(ctx: any) {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) throw new Error("Unauthorized");
-
-    const roleData = await ctx.db
-        .query("user_roles")
-        .withIndex("by_userId", (q: any) => q.eq("userId", userId))
-        .filter((q: any) => q.eq(q.field("role"), "admin"))
-        .unique();
-
-    if (!roleData) throw new Error("Admin privileges required");
-
-    // Sudo Mode check (require auth within last 15 mins for destructive mutations)
-    // We'll update this field on every 'admin login' (which we are refactoring to a profile button)
-    // For now, let's just use it as a placeholder for enhanced security.
-
-    const user = await ctx.db.get(userId);
-    return { user, roleId: roleData._id };
-}
+import { ensureAdmin } from "./helpers";
 
 // Global Audit Logger
 async function logAdminAction(ctx: any, adminId: any, action: string, targetId?: string, targetType: string = "system", details?: string) {
@@ -83,7 +62,7 @@ export const listUsers = query({
 export const banUser = mutation({
     args: { userId: v.id("users"), ban: v.boolean(), reason: v.optional(v.string()) },
     handler: async (ctx, args) => {
-        const { user: admin } = await ensureAdmin(ctx);
+        const admin = await ensureAdmin(ctx);
 
         // Update profile
         const profile = await ctx.db
@@ -113,7 +92,7 @@ export const banUser = mutation({
 export const updateRole = mutation({
     args: { userId: v.id("users"), role: v.string() },
     handler: async (ctx, args) => {
-        const { user: admin } = await ensureAdmin(ctx);
+        const admin = await ensureAdmin(ctx);
 
         // Security: Validate role against whitelist
         const VALID_ROLES = ["user", "farmer", "buyer", "admin"];

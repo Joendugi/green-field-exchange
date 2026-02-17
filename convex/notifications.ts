@@ -1,6 +1,7 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
+import { ensureAuthenticated, assertNotificationOwner } from "./helpers";
 
 export const list = query({
     args: {},
@@ -21,12 +22,11 @@ export const list = query({
 export const markRead = mutation({
     args: { notificationId: v.id("notifications") },
     handler: async (ctx, args) => {
-        const userId = await getAuthUserId(ctx);
-        if (!userId) throw new Error("Unauthorized");
+    const userId = await ensureAuthenticated(ctx);
 
-        // Verify ownership? 
-        // Ideally yes, but simpler for now.
-        await ctx.db.patch(args.notificationId, { is_read: true });
+    // Verify ownership before marking as read
+    await assertNotificationOwner(ctx, args.notificationId, userId);
+    await ctx.db.patch(args.notificationId, { is_read: true });
     },
 });
 export const markAllRead = mutation({

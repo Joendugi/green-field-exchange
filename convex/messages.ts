@@ -1,6 +1,7 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
+import { ensureAuthenticated, assertConversationParticipant } from "./helpers";
 
 export const getConversations = query({
     args: {},
@@ -44,6 +45,9 @@ export const getMessages = query({
         const userId = await getAuthUserId(ctx);
         if (!userId) return [];
 
+        // Ensure the requesting user is a participant in the conversation
+        await assertConversationParticipant(ctx, args.conversationId, userId);
+
         return await ctx.db
             .query("messages")
             .withIndex("by_conversationId", (q) => q.eq("conversationId", args.conversationId))
@@ -55,8 +59,10 @@ export const getMessages = query({
 export const sendMessage = mutation({
     args: { conversationId: v.id("conversations"), content: v.string() },
     handler: async (ctx, args) => {
-        const userId = await getAuthUserId(ctx);
-        if (!userId) throw new Error("Unauthorized");
+        const userId = await ensureAuthenticated(ctx);
+
+        // Ensure the sender is part of this conversation
+        await assertConversationParticipant(ctx, args.conversationId, userId);
 
         const msgId = await ctx.db.insert("messages", {
             conversationId: args.conversationId,
@@ -79,8 +85,10 @@ export const sendMessage = mutation({
 export const markAsRead = mutation({
     args: { conversationId: v.id("conversations") },
     handler: async (ctx, args) => {
-        const userId = await getAuthUserId(ctx);
-        if (!userId) throw new Error("Unauthorized");
+        const userId = await ensureAuthenticated(ctx);
+
+        // Ensure the user is allowed to mark messages in this conversation
+        await assertConversationParticipant(ctx, args.conversationId, userId);
 
         const unread = await ctx.db
             .query("messages")

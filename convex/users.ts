@@ -153,21 +153,29 @@ export const updateProfile = mutation({
 
         const { role, ...profileArgs } = args;
 
+        // Allow initial non-privileged role assignment (e.g. buyer/farmer) but
+        // prevent elevation or changes to existing roles. Admin-only paths
+        // (see admin.updateRole) handle privileged role management.
         if (role) {
+            const PUBLIC_ROLES = ["buyer", "farmer"] as const;
+
             const existingRole = await ctx.db
                 .query("user_roles")
                 .withIndex("by_userId", (q) => q.eq("userId", userId))
                 .unique();
 
-            if (existingRole) {
-                await ctx.db.patch(existingRole._id, { role });
-            } else {
+            if (!existingRole) {
+                if (!PUBLIC_ROLES.includes(role as (typeof PUBLIC_ROLES)[number])) {
+                    throw new Error("Invalid role");
+                }
+
                 await ctx.db.insert("user_roles", {
                     userId,
                     role,
                     created_at: Date.now(),
                 });
             }
+            // If a role already exists, updates must go through admin.updateRole.
         }
 
         const existingProfile = await ctx.db

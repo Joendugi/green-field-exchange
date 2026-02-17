@@ -1,15 +1,16 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
-import { getAuthUserId } from "@convex-dev/auth/server";
+import { ensureAdmin } from "./helpers";
 
 export const list = query({
   args: {},
   handler: async (ctx) => {
-    // Public can view active ads? Or just admin?
-    // Usually admin dashboard lists all.
-    // Let's allow public for now or check auth?
-    // For dashboard usage:
-    return await ctx.db.query("advertisements").order("desc").collect();
+    // Public: only show active advertisements
+    return await ctx.db
+      .query("advertisements")
+      .filter((q) => q.eq(q.field("status"), "active"))
+      .order("desc")
+      .collect();
   },
 });
 
@@ -24,11 +25,7 @@ export const upsert = mutation({
     budget: v.number(),
   },
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) throw new Error("Unauthorized");
-    // Add admin check here ideally?
-    // For now assuming caller is checking or we add ensureAdmin.
-    // Let's stick to auth check for now.
+    const admin = await ensureAdmin(ctx);
 
     if (args.id) {
       await ctx.db.patch(args.id, {
@@ -51,7 +48,7 @@ export const upsert = mutation({
         created_at: Date.now(),
         updated_at: Date.now(),
         start_date: Date.now(),
-        created_by: userId
+        created_by: admin._id
       });
     }
   }

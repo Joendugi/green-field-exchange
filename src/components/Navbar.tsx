@@ -15,6 +15,7 @@ import {
   Settings,
   LogOut,
   Shield,
+  BarChart3,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNavigate, useLocation } from "react-router-dom";
@@ -46,7 +47,7 @@ const Navbar = () => {
 
   // Convex Queries
   const profile = useQuery(api.users.getProfile);
-  const roleData = useQuery(api.users.getRole);
+  const roleData = useQuery(api.users.getRole, {});
   const notifications = useQuery(api.notifications.list) || [];
   const unreadMessagesCount = useQuery(api.messages.unreadCount) || 0;
 
@@ -66,6 +67,7 @@ const Navbar = () => {
       { path: "/messages", label: "Message", icon: MessageSquare, badge: unreadMessagesCount },
       { path: "/social", label: "Social", icon: Users },
       { path: "/ai", label: "AI Assistant", icon: Bot },
+      { path: "/meta-ads", label: "Meta Ads", icon: BarChart3 },
     ] : [
       { path: "/social", label: "Social", icon: Users }, // Social is public
     ]),

@@ -269,6 +269,15 @@ const Profile = () => {
             >
               {profile.verification_requested ? "Request submitted" : "Apply for verification"}
             </Button>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={() => navigate("/password-reset")}
+              className="text-muted-foreground"
+            >
+              <Mail className="w-4 h-4 mr-2" />
+              Forgot Password?
+            </Button>
           </CardContent>
         </Card>
       )}

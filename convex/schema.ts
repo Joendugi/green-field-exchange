@@ -253,6 +253,86 @@ const schema = defineSchema({
   })
     .index("by_key_action", ["key", "action"])
     .index("by_timestamp", ["timestamp"]),
+
+  password_reset_tokens: defineTable({
+    userId: v.id("users"),
+    token: v.string(),
+    expiresAt: v.number(),
+    createdAt: v.number(),
+  })
+    .index("by_token", ["token"])
+    .index("by_userId", ["userId"]),
+
+  meta_pixel_events: defineTable({
+    eventName: v.string(),
+    eventData: v.any(),
+    userId: v.optional(v.id("users")),
+    sessionId: v.optional(v.string()),
+    value: v.optional(v.number()),
+    currency: v.optional(v.string()),
+    timestamp: v.number(),
+    userAgent: v.string(),
+    ipAddress: v.string(),
+  })
+    .index("by_timestamp", ["timestamp"])
+    .index("by_userId", ["userId"])
+    .index("by_eventName", ["eventName"]),
+
+  meta_conversions: defineTable({
+    conversionType: v.string(),
+    conversionData: v.any(),
+    userId: v.optional(v.id("users")),
+    orderId: v.optional(v.id("orders")),
+    productId: v.optional(v.id("products")),
+    value: v.optional(v.number()),
+    currency: v.optional(v.string()),
+    timestamp: v.number(),
+    userAgent: v.string(),
+    ipAddress: v.string(),
+  })
+    .index("by_timestamp", ["timestamp"])
+    .index("by_userId", ["userId"])
+    .index("by_conversionType", ["conversionType"]),
+
+  meta_custom_audiences: defineTable({
+    audienceName: v.string(),
+    audienceDescription: v.string(),
+    audienceType: v.string(),
+    criteria: v.any(),
+    createdBy: v.id("users"),
+    createdAt: v.number(),
+    isActive: v.boolean(),
+  })
+    .index("by_createdBy", ["createdBy"])
+    .index("by_audienceType", ["audienceType"])
+    .index("by_isActive", ["isActive"]),
+
+  meta_ad_campaigns: defineTable({
+    campaignName: v.string(),
+    campaignObjective: v.string(),
+    budget: v.number(),
+    currency: v.string(),
+    startDate: v.number(),
+    endDate: v.optional(v.number()),
+    targetAudience: v.optional(v.id("meta_custom_audiences")),
+    creativeAssets: v.array(v.any()),
+    createdBy: v.id("users"),
+    status: v.string(),
+    createdAt: v.number(),
+    updatedAt: v.optional(v.number()),
+    metrics: v.object({
+      impressions: v.number(),
+      clicks: v.number(),
+      conversions: v.number(),
+      spend: v.number(),
+      ctr: v.number(),
+      cpc: v.number(),
+      cpm: v.number(),
+    }),
+  })
+    .index("by_createdBy", ["createdBy"])
+    .index("by_status", ["status"])
+    .index("by_created_at", ["createdAt"]),
 });
 
 export default schema;

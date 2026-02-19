@@ -11,14 +11,11 @@ export const sendPasswordResetEmail = action({
   handler: async (ctx, args) => {
     // In a real implementation, you would use an email service like SendGrid, Nodemailer, etc.
     // For now, we'll simulate email sending and return success
-    
+
     console.log(`📧 Sending password reset email to: ${args.email}`);
     console.log(`🔗 Reset link: ${args.resetLink}`);
     console.log(`👤 User name: ${args.userName || 'User'}`);
-    
-    // Simulate email sending delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
+
     // Log the email send for audit purposes
     await ctx.db.insert("admin_audit_logs", {
       adminId: "system", // System-generated action
@@ -28,7 +25,7 @@ export const sendPasswordResetEmail = action({
       details: `Password reset email sent to ${args.email} with link ${args.resetLink}`,
       timestamp: Date.now(),
     });
-    
+
     return {
       success: true,
       message: "Password reset email sent successfully",
@@ -50,10 +47,7 @@ export const sendWelcomeEmail = action({
     console.log(`📧 Sending welcome email to: ${args.email}`);
     console.log(`👤 User: ${args.userName}`);
     console.log(`🌾 Role: ${args.role}`);
-    
-    // Simulate email sending delay
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    
+
     // Log the email send
     await ctx.db.insert("admin_audit_logs", {
       adminId: "system",
@@ -63,7 +57,7 @@ export const sendWelcomeEmail = action({
       details: `Welcome email sent to ${args.email} for ${args.role} account`,
       timestamp: Date.now(),
     });
-    
+
     return {
       success: true,
       message: "Welcome email sent successfully",
@@ -84,10 +78,7 @@ export const sendVerificationConfirmation = action({
   handler: async (ctx, args) => {
     console.log(`📧 Sending verification confirmation to: ${args.email}`);
     console.log(`📄 Documents: ${args.documents?.length || 0} files`);
-    
-    // Simulate email sending delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
+
     // Log the email send
     await ctx.db.insert("admin_audit_logs", {
       adminId: "system",
@@ -97,7 +88,7 @@ export const sendVerificationConfirmation = action({
       details: `Verification confirmation sent to ${args.email} with ${args.documents?.length || 0} documents`,
       timestamp: Date.now(),
     });
-    
+
     return {
       success: true,
       message: "Verification confirmation sent successfully",
@@ -131,7 +122,7 @@ export const emailTemplates = {
       </div>
     `,
   },
-  
+
   welcome: {
     subject: "Welcome to AgriLink!",
     html: (userName: string, role: string) => `
@@ -154,7 +145,7 @@ export const emailTemplates = {
       </div>
     `,
   },
-  
+
   verificationConfirmation: {
     subject: "AgriLink - Verification Request Received",
     html: (userName: string, documentCount: number) => `

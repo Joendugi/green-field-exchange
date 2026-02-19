@@ -1,9 +1,13 @@
-import bcrypt from "bcryptjs";
+// import * as bcrypt from "bcryptjs";
 
-export const hashPassword = async (password: string) => {
-    return await bcrypt.hash(password, 10);
-};
+/**
+ * DEBUB MOCK: Temporarily using a simple mock to isolate "setTimeout" error in Convex.
+ * DO NOT use this in production.
+ */
+export async function hashPassword(password: string) {
+    return "p_hash:" + password;
+}
 
-export const verifyPassword = async (password: string, hash: string) => {
-    return await bcrypt.compare(password, hash);
-};
+export async function verifyPassword(password: string, hash: string) {
+    return hash === "p_hash:" + password;
+}

@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { useAction } from "convex/react";
+import { api } from "../../convex/_generated/api";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -15,34 +17,30 @@ const AIAssistant = () => {
   ]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const chatAction = useAction((api as any).ai.chat);
 
   const handleSendMessage = async () => {
     if (!input.trim()) return;
 
     const userMessage = { role: "user", content: input };
-    setMessages([...messages, userMessage]);
+    const updatedMessages = [...messages, userMessage];
+    setMessages(updatedMessages);
     setInput("");
     setIsLoading(true);
 
     try {
-      // Simulate AI response since original Appwrite Function is gone
-      await new Promise(resolve => setTimeout(resolve, 1500));
-
-      const responses = [
-        "That's a great question about crop rotation. For your region, I recommend alternating maize with legumes like soy to replenish nitrogen.",
-        "Market prices for coffee are currently on an upward trend. It might be a good time to hold some of your harvest if you can.",
-        "I recommend using organic compost to improve soil moisture retention during the upcoming dry season.",
-        "AgriLink connects you with verified buyers who are looking specifically for organic produce like yours."
-      ];
+      const response = await chatAction({
+        messages: updatedMessages.map(m => ({ role: m.role, content: m.content }))
+      });
 
       const assistantMessage = {
         role: "assistant",
-        content: responses[Math.floor(Math.random() * responses.length)],
+        content: response,
       };
 
       setMessages((prev) => [...prev, assistantMessage]);
     } catch (error: any) {
-      toast.error("Failed to get AI response");
+      toast.error("Failed to get AI response: " + error.message);
       console.error(error);
     } finally {
       setIsLoading(false);

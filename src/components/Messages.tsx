@@ -117,7 +117,7 @@ const Messages = () => {
                   <ScrollArea className="h-[300px] border rounded-md p-2">
                     {userSearchTerm.length > 0 ? (
                       <div className="space-y-2">
-                        {searchResults?.map((user) => (
+                        {searchResults?.filter(u => u.userId !== currentUser?._id).map((user) => (
                           <div
                             key={user._id}
                             className="flex items-center gap-3 p-2 hover:bg-muted rounded-md cursor-pointer transition-colors"

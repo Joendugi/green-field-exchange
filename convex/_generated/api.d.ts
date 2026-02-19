@@ -25,6 +25,7 @@ import type * as metaAds_fixed from "../metaAds_fixed.js";
 import type * as mutations from "../mutations.js";
 import type * as notifications from "../notifications.js";
 import type * as orders from "../orders.js";
+import type * as password from "../password.js";
 import type * as passwordReset from "../passwordReset.js";
 import type * as posts from "../posts.js";
 import type * as priceHistory from "../priceHistory.js";
@@ -63,6 +64,7 @@ declare const fullApi: ApiFromModules<{
   mutations: typeof mutations;
   notifications: typeof notifications;
   orders: typeof orders;
+  password: typeof password;
   passwordReset: typeof passwordReset;
   posts: typeof posts;
   priceHistory: typeof priceHistory;

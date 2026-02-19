@@ -1,6 +1,7 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
+import { checkRateLimit } from "./rateLimiting";
 
 export const getProfile = query({
     args: {},
@@ -206,6 +207,9 @@ export const updateProfile = mutation({
             .unique();
 
         if (existingProfile) {
+            // Rate limit profile updates
+            await checkRateLimit(ctx, `update_profile:${userId}`, "update_profile", 5, 60);
+
             await ctx.db.patch(existingProfile._id, {
                 ...profileArgs,
                 updated_at: Date.now(),

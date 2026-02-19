@@ -67,7 +67,7 @@ const Navbar = () => {
       { path: "/messages", label: "Message", icon: MessageSquare, badge: unreadMessagesCount },
       { path: "/social", label: "Social", icon: Users },
       { path: "/ai", label: "AI Assistant", icon: Bot },
-      { path: "/meta-ads", label: "Meta Ads", icon: BarChart3 },
+      ...(roleData?.role === "admin" ? [{ path: "/meta-ads", label: "Meta Ads", icon: BarChart3 }] : []),
     ] : [
       { path: "/social", label: "Social", icon: Users }, // Social is public
     ]),

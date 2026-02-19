@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "convex/react";
-import { api } from "../convex/_generated/api";
+import { api } from "../../convex/_generated/api";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,13 +10,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { 
-  Facebook, 
-  TrendingUp, 
-  Users, 
-  DollarSign, 
-  Target, 
-  Eye, 
+import {
+  Facebook,
+  TrendingUp,
+  Users,
+  DollarSign,
+  Target,
+  Eye,
   MousePointer,
   ShoppingCart,
   Plus,
@@ -30,7 +30,7 @@ import { useAuth } from "@/contexts/AuthContext";
 
 const MetaAds = () => {
   const { user } = useAuth();
-  
+
   // Queries
   const analytics = useQuery(api.metaAds.getMetaAnalytics, {
     dateRange: {
@@ -39,7 +39,7 @@ const MetaAds = () => {
     }
   });
   const campaigns = useQuery(api.metaAds.getMetaAdCampaigns, { limit: 10 });
-  const audiences = useQuery(api.metaAds.getMetaAudiences);
+  const audiences = useQuery(api.metaAds.getMetaAudiences, {});
 
   // Mutations
   const trackPixel = useMutation(api.metaAds.trackMetaPixel);
@@ -90,18 +90,21 @@ const MetaAds = () => {
 
   const handleCreateCampaign = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!user) {
       toast.error("Authentication required");
       return;
     }
 
     try {
-      await createCampaign({
+      const campaignData = {
         ...campaignForm,
-        userId: user._id
-      });
-      
+        userId: user._id,
+        targetAudience: campaignForm.targetAudience ? (campaignForm.targetAudience as any) : undefined
+      };
+
+      await createCampaign(campaignData);
+
       toast.success("Campaign created successfully!");
       setShowCampaignForm(false);
       setCampaignForm({
@@ -121,7 +124,7 @@ const MetaAds = () => {
 
   const handleCreateAudience = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!user) {
       toast.error("Authentication required");
       return;
@@ -132,7 +135,7 @@ const MetaAds = () => {
         ...audienceForm,
         userId: user._id
       });
-      
+
       toast.success("Audience created successfully!");
       setShowAudienceForm(false);
       setAudienceForm({
@@ -155,7 +158,7 @@ const MetaAds = () => {
         value,
         currency: "USD"
       });
-      
+
       toast.success("Conversion tracked successfully!");
     } catch (error: any) {
       toast.error("Failed to track conversion");
@@ -262,7 +265,7 @@ const MetaAds = () => {
                     </AlertDescription>
                   </Alert>
                   <div className="space-y-2">
-                    <Button 
+                    <Button
                       onClick={() => handleTrackConversion("page_view", 0)}
                       className="w-full"
                       variant="outline"
@@ -270,7 +273,7 @@ const MetaAds = () => {
                       <Eye className="w-4 h-4 mr-2" />
                       Track Page View
                     </Button>
-                    <Button 
+                    <Button
                       onClick={() => handleTrackConversion("add_to_cart", 50)}
                       className="w-full"
                       variant="outline"
@@ -278,7 +281,7 @@ const MetaAds = () => {
                       <ShoppingCart className="w-4 h-4 mr-2" />
                       Track Add to Cart
                     </Button>
-                    <Button 
+                    <Button
                       onClick={() => handleTrackConversion("purchase", 100)}
                       className="w-full"
                       variant="outline"
@@ -394,7 +397,7 @@ const MetaAds = () => {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  <Button 
+                  <Button
                     onClick={() => handleTrackConversion("signup", 0)}
                     className="w-full"
                     variant="outline"
@@ -402,7 +405,7 @@ const MetaAds = () => {
                     <Users className="w-4 h-4 mr-2" />
                     Track User Signup
                   </Button>
-                  <Button 
+                  <Button
                     onClick={() => handleTrackConversion("lead", 25)}
                     className="w-full"
                     variant="outline"
@@ -429,14 +432,14 @@ const MetaAds = () => {
                     <Label>Campaign Name</Label>
                     <Input
                       value={campaignForm.campaignName}
-                      onChange={(e) => setCampaignForm({...campaignForm, campaignName: e.target.value})}
+                      onChange={(e) => setCampaignForm({ ...campaignForm, campaignName: e.target.value })}
                       placeholder="Summer Sale Campaign"
                       required
                     />
                   </div>
                   <div>
                     <Label>Objective</Label>
-                    <Select value={campaignForm.campaignObjective} onValueChange={(value) => setCampaignForm({...campaignForm, campaignObjective: value})}>
+                    <Select value={campaignForm.campaignObjective} onValueChange={(value) => setCampaignForm({ ...campaignForm, campaignObjective: value })}>
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
@@ -454,7 +457,7 @@ const MetaAds = () => {
                       <Input
                         type="number"
                         value={campaignForm.budget}
-                        onChange={(e) => setCampaignForm({...campaignForm, budget: Number(e.target.value)})}
+                        onChange={(e) => setCampaignForm({ ...campaignForm, budget: Number(e.target.value) })}
                         placeholder="100"
                         required
                       />
@@ -465,7 +468,7 @@ const MetaAds = () => {
                         type="number"
                         value={Math.floor((campaignForm.endDate - campaignForm.startDate) / (24 * 60 * 60 * 1000))}
                         onChange={(e) => setCampaignForm({
-                          ...campaignForm, 
+                          ...campaignForm,
                           endDate: campaignForm.startDate + (Number(e.target.value) * 24 * 60 * 60 * 1000)
                         })}
                         placeholder="30"
@@ -498,7 +501,7 @@ const MetaAds = () => {
                     <Label>Audience Name</Label>
                     <Input
                       value={audienceForm.audienceName}
-                      onChange={(e) => setAudienceForm({...audienceForm, audienceName: e.target.value})}
+                      onChange={(e) => setAudienceForm({ ...audienceForm, audienceName: e.target.value })}
                       placeholder="Website Visitors"
                       required
                     />
@@ -507,14 +510,14 @@ const MetaAds = () => {
                     <Label>Description</Label>
                     <Textarea
                       value={audienceForm.audienceDescription}
-                      onChange={(e) => setAudienceForm({...audienceForm, audienceDescription: e.target.value})}
+                      onChange={(e) => setAudienceForm({ ...audienceForm, audienceDescription: e.target.value })}
                       placeholder="Users who visited the website in the last 30 days"
                       required
                     />
                   </div>
                   <div>
                     <Label>Audience Type</Label>
-                    <Select value={audienceForm.audienceType} onValueChange={(value) => setAudienceForm({...audienceForm, audienceType: value})}>
+                    <Select value={audienceForm.audienceType} onValueChange={(value) => setAudienceForm({ ...audienceForm, audienceType: value })}>
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>

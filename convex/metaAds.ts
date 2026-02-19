@@ -113,6 +113,22 @@ export const createMetaCustomAudience = mutation({
   },
 });
 
+// Get Meta custom audiences
+export const getMetaAudiences = query({
+  args: {
+    userId: v.optional(v.id("users")),
+  },
+  handler: async (ctx, args) => {
+    if (args.userId) {
+      return await ctx.db
+        .query("meta_custom_audiences")
+        .withIndex("by_createdBy", (q) => q.eq("createdBy", args.userId))
+        .collect();
+    }
+    return await ctx.db.query("meta_custom_audiences").collect();
+  },
+});
+
 // Get Meta ad campaigns
 export const getMetaAdCampaigns = query({
   args: {
@@ -121,16 +137,20 @@ export const getMetaAdCampaigns = query({
     limit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    let campaigns = ctx.db.query("meta_ad_campaigns");
-    
+    let campaigns;
+
     if (args.status) {
-      campaigns = campaigns.withIndex("by_status", (q) => q.eq("status", args.status));
+      campaigns = ctx.db
+        .query("meta_ad_campaigns")
+        .withIndex("by_status", (q) => q.eq("status", args.status));
+    } else {
+      campaigns = ctx.db.query("meta_ad_campaigns");
     }
-    
+
     if (args.limit) {
       return await campaigns.take(args.limit);
     }
-    
+
     return await campaigns.collect();
   },
 });
@@ -245,7 +265,7 @@ export const getMetaAnalytics = query({
       .collect();
 
     // Filter by date range
-    const pixelEvents = allPixelEvents.filter(event => 
+    const pixelEvents = allPixelEvents.filter(event =>
       event.timestamp >= dateRangeToUse.start && event.timestamp <= dateRangeToUse.end
     );
 
@@ -255,7 +275,7 @@ export const getMetaAnalytics = query({
       .collect();
 
     // Filter by date range
-    const conversions = allConversions.filter(conv => 
+    const conversions = allConversions.filter(conv =>
       conv.timestamp >= dateRangeToUse.start && conv.timestamp <= dateRangeToUse.end
     );
 
@@ -265,7 +285,7 @@ export const getMetaAnalytics = query({
       .collect();
 
     // Filter by date range
-    const campaigns = allCampaigns.filter(camp => 
+    const campaigns = allCampaigns.filter(camp =>
       camp.createdAt >= dateRangeToUse.start && camp.createdAt <= dateRangeToUse.end
     );
 

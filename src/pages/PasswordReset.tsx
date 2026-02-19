@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
-import { useMutation } from "convex/react";
-import { api } from "../convex/_generated/api";
+import { useMutation, useQuery } from "convex/react";
+import { api } from "../../convex/_generated/api";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,12 +9,13 @@ import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { CheckCircle, Mail, ArrowLeft, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
+import { checkPasswordStrength } from "@/lib/validation";
 
 const PasswordReset = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const token = searchParams.get("token");
-  
+
   const [isLoading, setIsLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [password, setPassword] = useState("");
@@ -23,23 +24,21 @@ const PasswordReset = () => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState("");
 
-  const verifyToken = useMutation(api.passwordReset.verifyResetToken);
+  const verifyTokenResult = useQuery(api.passwordReset.verifyResetToken, token ? { token } : "skip");
   const resetPassword = useMutation(api.passwordReset.resetPassword);
 
-  // Verify token on mount
+  // Verify token result
   useEffect(() => {
-    if (token) {
-      verifyToken({ token })
-        .then((result) => {
-          if (!result.valid) {
-            setError(result.message);
-          }
-        })
-        .catch((err) => {
-          setError("Invalid reset token");
-        });
+    if (verifyTokenResult) {
+      if (!verifyTokenResult.valid) {
+        setError(verifyTokenResult.message);
+      }
+    } else if (token && verifyTokenResult === undefined) {
+      // Loading state, do nothing
+    } else if (token && verifyTokenResult === null) {
+      // Technically null is not returned by convex useQuery unless generic matches, but safe to ignore
     }
-  }, [token, verifyToken]);
+  }, [verifyTokenResult, token]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -50,19 +49,20 @@ const PasswordReset = () => {
       return;
     }
 
-    if (password.length < 8) {
-      setError("Password must be at least 8 characters long");
+    const { score, feedback } = checkPasswordStrength(password);
+    if (score < 5) {
+      setError(feedback[0] || "Password is too weak");
       return;
     }
 
     setIsLoading(true);
     try {
       const result = await resetPassword({ token: token!, newPassword: password });
-      
+
       if (result.success) {
         setIsSuccess(true);
         toast.success("Password reset successfully!");
-        
+
         // Redirect to login after 3 seconds
         setTimeout(() => {
           navigate("/auth");
@@ -86,8 +86,8 @@ const PasswordReset = () => {
               <p className="text-gray-600 mb-6">
                 Your password has been reset successfully. You will be redirected to the login page.
               </p>
-              <Button 
-                onClick={() => navigate("/auth")} 
+              <Button
+                onClick={() => navigate("/auth")}
                 className="w-full"
               >
                 Go to Login
@@ -110,8 +110,8 @@ const PasswordReset = () => {
               <p className="text-gray-600 mb-6">
                 This password reset link is invalid or has expired. Please request a new password reset.
               </p>
-              <Button 
-                onClick={() => navigate("/auth")} 
+              <Button
+                onClick={() => navigate("/auth")}
                 variant="outline"
                 className="w-full"
               >
@@ -193,9 +193,9 @@ const PasswordReset = () => {
               </div>
             </div>
 
-            <Button 
-              type="submit" 
-              className="w-full" 
+            <Button
+              type="submit"
+              className="w-full"
               disabled={isLoading}
             >
               {isLoading ? "Resetting..." : "Reset Password"}

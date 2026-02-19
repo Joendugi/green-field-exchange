@@ -2,16 +2,16 @@ import { mutation } from "./_generated/server";
 import { v } from "convex/values";
 
 export const createFirstAdmin = mutation({
-  args: { 
+  args: {
     userEmail: v.string() // Email of the user to make admin
   },
   handler: async (ctx, args) => {
     // Find the user
     const user = await ctx.db
       .query("users")
-      .withIndex("by_email", (q) => q.eq("email", args.userEmail))
+      .filter((q) => q.eq(q.field("email"), args.userEmail))
       .first();
-    
+
     if (!user) {
       throw new Error(`User with email ${args.userEmail} not found. Please create the user account first.`);
     }

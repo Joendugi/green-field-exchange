@@ -1,6 +1,7 @@
 import { mutation, query, action } from "./_generated/server";
 import { v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
+import { checkRateLimit } from "./rateLimiting";
 
 // List all products with optional filters
 export const list = query({
@@ -142,6 +143,9 @@ export const create = mutation({
         const sanitizedName = args.name.replace(/[<>]/g, '').trim();
         const sanitizedDescription = args.description.replace(/[<>]/g, '').trim();
 
+        // Rate limiting
+        await checkRateLimit(ctx, `create_product:${userId}`, "create_product", 10, 60);
+
         const productId = await ctx.db.insert("products", {
             name: sanitizedName,
             description: sanitizedDescription,
@@ -191,6 +195,9 @@ export const update = mutation({
             // Check if admin? For now rigid ownership check.
             throw new Error("Unauthorized to edit this product");
         }
+
+        // Rate limiting for updates
+        await checkRateLimit(ctx, `update_product:${userId}`, "update_product", 20, 60);
 
         await ctx.db.patch(args.id, {
             ...args.changes,

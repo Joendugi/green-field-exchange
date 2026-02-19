@@ -14,6 +14,7 @@ import { Loader2, Sprout, AlertCircle, Mail } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
 import { useAuth } from "@/contexts/AuthContext";
+import { checkPasswordStrength } from "@/lib/validation";
 
 const Auth = () => {
   const navigate = useNavigate();
@@ -60,34 +61,14 @@ const Auth = () => {
     finalizeSignUp();
   }, [isAuthenticated, authLoading, navigate, updateProfile]);
 
+  // ... inside component ...
+
   const validatePassword = (pwd: string): boolean => {
-    const minLength = 8;
-    const hasUppercase = /[A-Z]/.test(pwd);
-    const hasLowercase = /[a-z]/.test(pwd);
-    const hasDigit = /\d/.test(pwd);
-    const hasSpecialChar = /[-_]/.test(pwd);
-
-    if (pwd.length < minLength) {
-      setPasswordError("Password must be at least 8 characters long");
+    const { score, feedback } = checkPasswordStrength(pwd);
+    if (score < 5) { // Assuming 5 is max score in validation.ts (length, upper, lower, digit, special)
+      setPasswordError(feedback[0] || "Password is too weak");
       return false;
     }
-    if (!hasUppercase) {
-      setPasswordError("Password must contain at least one uppercase letter");
-      return false;
-    }
-    if (!hasLowercase) {
-      setPasswordError("Password must contain at least one lowercase letter");
-      return false;
-    }
-    if (!hasDigit) {
-      setPasswordError("Password must contain at least one digit");
-      return false;
-    }
-    if (!hasSpecialChar) {
-      setPasswordError("Password must contain at least one special character (- or _)");
-      return false;
-    }
-
     setPasswordError("");
     return true;
   };
@@ -124,7 +105,7 @@ const Auth = () => {
 
   const handleForgotPassword = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!resetEmail) {
       toast.error("Please enter your email address");
       return;
@@ -132,8 +113,11 @@ const Auth = () => {
 
     setIsResetLoading(true);
     try {
-      const result = await requestPasswordReset({ email: resetEmail });
-      
+      const result = await requestPasswordReset({
+        email: resetEmail,
+        origin: window.location.origin
+      });
+
       if (result.success) {
         toast.success("Password reset link sent! Check your email.");
         setShowForgotPassword(false);

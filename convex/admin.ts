@@ -1,9 +1,10 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
+import { getAuthUserId } from "@convex-dev/auth/server";
 import { ensureAdmin } from "./helpers";
 
 // Global Audit Logger
-async function logAdminAction(ctx: any, adminId: any, action: string, targetId?: string, targetType: string = "system", details?: string) {
+async function logAdminAction(ctx: any, adminId: string, action: string, targetId?: string, targetType: string = "system", details?: string) {
     await ctx.db.insert("admin_audit_logs", {
         adminId,
         action,
@@ -149,7 +150,7 @@ export const listVerificationRequests = query({
 export const handleVerification = mutation({
     args: { requestId: v.id("verification_requests"), approve: v.boolean(), notes: v.optional(v.string()) },
     handler: async (ctx, args) => {
-        const { user: admin } = await ensureAdmin(ctx);
+        const admin = await ensureAdmin(ctx);
 
         const req = await ctx.db.get(args.requestId);
         if (!req) throw new Error("Request not found");
@@ -202,7 +203,7 @@ export const listProducts = query({
 export const broadcastNotification = mutation({
     args: { title: v.string(), message: v.string() },
     handler: async (ctx, args) => {
-        const { user: admin } = await ensureAdmin(ctx);
+        const admin = await ensureAdmin(ctx);
 
         // Input validation
         if (args.title.length < 3 || args.title.length > 200) {
@@ -248,13 +249,19 @@ export const listAuditLogs = query({
         const logs = await ctx.db.query("admin_audit_logs").order("desc").take(50);
 
         return await Promise.all(logs.map(async (log) => {
-            const admin = await ctx.db
-                .query("profiles")
-                .withIndex("by_userId", (q) => q.eq("userId", log.adminId))
-                .unique();
+            let adminName = "System";
+
+            if (log.adminId !== "system") {
+                const admin = await ctx.db
+                    .query("profiles")
+                    .withIndex("by_userId", (q) => q.eq("userId", log.adminId as any))
+                    .unique();
+                adminName = admin?.full_name || "Unknown Admin";
+            }
+
             return {
                 ...log,
-                adminName: admin?.full_name || "Unknown Admin"
+                adminName
             };
         }));
     }

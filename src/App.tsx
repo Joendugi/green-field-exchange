@@ -25,7 +25,10 @@ const FarmerStories = lazy(() => import("./pages/FarmerStories"));
 const AIInsights = lazy(() => import("./pages/AIInsights"));
 const GlobalTrade = lazy(() => import("./pages/GlobalTrade"));
 const Careers = lazy(() => import("./pages/Careers"));
+const AdminRoute = lazy(() => import("./components/AdminRoute"));
 const MetaAds = lazy(() => import("./pages/MetaAds"));
+const PrivacyPolicy = lazy(() => import("./pages/PrivacyPolicy"));
+const TermsOfService = lazy(() => import("./pages/TermsOfService"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const Profile = lazy(() => import("./components/Profile"));
 const ProtectedRoute = lazy(() => import("./components/ProtectedRoute"));
@@ -91,7 +94,13 @@ const App = () => (
               <Route path="/ai-insights" element={<AIInsights />} />
               <Route path="/global-trade" element={<GlobalTrade />} />
               <Route path="/careers" element={<Careers />} />
-              <Route path="/meta-ads" element={<MetaAds />} />
+              <Route path="/meta-ads" element={
+                <AdminRoute>
+                  <MetaAds />
+                </AdminRoute>
+              } />
+              <Route path="/privacy" element={<PrivacyPolicy />} />
+              <Route path="/terms" element={<TermsOfService />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </Suspense>

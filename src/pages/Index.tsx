@@ -26,6 +26,7 @@ import Marketplace from "@/components/Marketplace";
 import ThemeToggle from "@/components/ThemeToggle";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import Footer from "@/components/Footer";
 
 const Index = () => {
   const navigate = useNavigate();
@@ -336,85 +337,5 @@ const Index = () => {
     </div>
   );
 };
-
-const Footer = () => (
-  <footer className="bg-card border-t pt-20 pb-10">
-    <div className="container mx-auto px-4">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 mb-16">
-        <div>
-          <div className="flex items-center gap-3 mb-6">
-            <Sprout className="h-8 w-8 text-primary" />
-            <span className="text-2xl font-bold uppercase tracking-tighter">AgriLink</span>
-          </div>
-          <p className="text-muted-foreground mb-6 text-sm leading-relaxed">
-            Bridging the gap between farmers and consumers through technology, transparency, and sustainable trade.
-          </p>
-          <div className="space-y-4 mb-8 text-sm">
-            <p className="flex items-center gap-3 text-muted-foreground">
-              <Globe className="h-5 w-5 text-primary/60 shrink-0" />
-              <span>123 Innovation Way, San Jose, CA 95110</span>
-            </p>
-            <p className="flex items-center gap-3 text-muted-foreground">
-              <Mail className="h-5 w-5 text-primary/60 shrink-0" />
-              <span>support@agrilink.global</span>
-            </p>
-          </div>
-          <div className="flex gap-4">
-            <Button variant="ghost" size="icon" className="rounded-full hover:bg-primary/10 hover:text-primary"><Facebook className="h-5 w-5" /></Button>
-            <Button variant="ghost" size="icon" className="rounded-full hover:bg-primary/10 hover:text-primary"><Twitter className="h-5 w-5" /></Button>
-            <Button variant="ghost" size="icon" className="rounded-full hover:bg-primary/10 hover:text-primary"><Instagram className="h-5 w-5" /></Button>
-            <Button variant="ghost" size="icon" className="rounded-full hover:bg-primary/10 hover:text-primary"><Linkedin className="h-5 w-5" /></Button>
-          </div>
-        </div>
-
-        <div>
-          <h4 className="font-bold mb-6 uppercase text-xs tracking-[0.2em]">Platform</h4>
-          <ul className="space-y-4 text-sm">
-            <li><a href="#" className="text-muted-foreground hover:text-primary transition-colors">Marketplace</a></li>
-            <li><a href="#" className="text-muted-foreground hover:text-primary transition-colors">Farmer Stories</a></li>
-            <li><a href="#" className="text-muted-foreground hover:text-primary transition-colors">AI Insights</a></li>
-            <li><a href="#" className="text-muted-foreground hover:text-primary transition-colors">Global Trade</a></li>
-          </ul>
-        </div>
-
-        <div>
-          <h4 className="font-bold mb-6 uppercase text-xs tracking-[0.2em]">Company</h4>
-          <ul className="space-y-4 text-sm">
-            <li><a href="/about" className="text-muted-foreground hover:text-primary transition-colors">About Us</a></li>
-            <li><a href="/mission" className="text-muted-foreground hover:text-primary transition-colors">Mission & Vision</a></li>
-            <li><a href="/contact" className="text-muted-foreground hover:text-primary transition-colors">Contact</a></li>
-            <li><a href="#" className="text-muted-foreground hover:text-primary transition-colors">Careers</a></li>
-          </ul>
-        </div>
-
-        <div>
-          <h4 className="font-bold mb-6 uppercase text-xs tracking-[0.2em]">Newsletter</h4>
-          <p className="text-sm text-muted-foreground mb-4">Stay updated with latest harvests and insights.</p>
-          <div className="flex gap-2">
-            <div className="relative flex-1">
-              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <input
-                type="email"
-                placeholder="Email address"
-                className="w-full bg-secondary/50 border-border rounded-lg pl-10 pr-4 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
-              />
-            </div>
-            <Button size="sm">Join</Button>
-          </div>
-        </div>
-      </div>
-
-      <div className="border-t pt-8 flex flex-col md:flex-row justify-between items-center gap-4 text-xs text-muted-foreground uppercase tracking-wider font-medium">
-        <p>© 2026 AgriLink Global Inc. All rights reserved.</p>
-        <div className="flex gap-8">
-          <a href="#" className="hover:text-primary transition-colors">Privacy Policy</a>
-          <a href="#" className="hover:text-primary transition-colors">Terms of Service</a>
-          <a href="#" className="hover:text-primary transition-colors">Cookie Policy</a>
-        </div>
-      </div>
-    </div>
-  </footer>
-);
-
 export default Index;
 

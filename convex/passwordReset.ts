@@ -1,37 +1,41 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
-import { emailTemplates } from "./emailService";
-import { checkPasswordResetLimit } from "./rateLimiting";
+import { api } from "./_generated/api";
+import { checkRateLimit } from "./rateLimiting";
+import { hashPassword } from "./password";
 
 // Request password reset
 export const requestPasswordReset = mutation({
   args: {
     email: v.string(),
+    origin: v.optional(v.string()), // Accept origin from client
   },
   handler: async (ctx, args) => {
     // Check rate limit first
-    await checkPasswordResetLimit(ctx, { email: args.email });
-    
+    await checkRateLimit(ctx, `password_reset:${args.email}`, "password_reset_request");
+
     // Find user by email
     const user = await ctx.db
       .query("users")
-      .withIndex("by_email", (q) => q.eq("email", args.email))
+      .filter((q) => q.eq(q.field("email"), args.email))
       .first();
+
+    const origin = args.origin || process.env.SITE_URL || "http://localhost:5173";
 
     if (!user) {
       // Don't reveal if email exists or not for security
-      const resetLink = `https://your-domain.com/password-reset?token=dummy-token`;
-      
+      const resetLink = `${origin}/password-reset?token=dummy-token`;
+
       // Send email (simulated)
-      await ctx.scheduler.runAfter(0, emailService.sendPasswordResetEmail, {
+      await ctx.scheduler.runAfter(0, api.emailService.sendPasswordResetEmail, {
         email: args.email,
         resetLink,
-        userName: user.username || "User"
+        userName: "User"
       });
-      
-      return { 
-        success: true, 
-        message: "If an account with this email exists, a reset link has been sent." 
+
+      return {
+        success: true,
+        message: "If an account with this email exists, a reset link has been sent."
       };
     }
 
@@ -48,11 +52,11 @@ export const requestPasswordReset = mutation({
     });
 
     // Generate reset link
-    const resetLink = `https://your-domain.com/password-reset?token=${resetToken}`;
+    const resetLink = `${origin}/password-reset?token=${resetToken}`;
 
     // Log the action
     await ctx.db.insert("admin_audit_logs", {
-      adminId: "system",
+      adminId: user._id, // Using user ID since schema allows string now
       action: "send_password_reset_email",
       targetId: args.email,
       targetType: "email",
@@ -61,17 +65,16 @@ export const requestPasswordReset = mutation({
     });
 
     // Send reset email
-    await ctx.scheduler.runAfter(0, emailService.sendPasswordResetEmail, {
+    await ctx.scheduler.runAfter(0, api.emailService.sendPasswordResetEmail, {
       email: args.email,
       resetLink,
-      userName: user.username || "User"
+      userName: user.name || "User"
     });
 
-    return { 
-      success: true, 
+    return {
+      success: true,
       message: "Password reset link sent to your email",
       email: args.email,
-      resetLink
     };
   },
 });
@@ -103,18 +106,34 @@ export const resetPassword = mutation({
     }
 
     // Get user from token
-    const user = await ctx.db
-      .query("users")
-      .filter((q) => q.eq(q.field("_id"), resetToken.userId))
-      .first();
+    const user = await ctx.db.get(resetToken.userId);
 
     if (!user) {
       throw new Error("User not found");
     }
 
-    // Update user password (in production, use bcrypt)
-    await ctx.db.patch(user._id, {
-      password: args.newPassword, // In production: await bcrypt.hash(args.newPassword)
+    // Locate the authAccount for this user
+    // We filter manually since we are unsure of the indexing in the auth library
+    const authAccount = await ctx.db
+      .query("authAccounts")
+      .filter((q) =>
+        q.and(
+          q.eq(q.field("userId"), user._id),
+          q.eq(q.field("provider"), "password")
+        )
+      )
+      .first();
+
+    if (!authAccount) {
+      throw new Error("Auth account not found. Please contact support.");
+    }
+
+    // Hash the new password
+    const hashedPassword = await hashPassword(args.newPassword);
+
+    // Update the authAccount secret
+    await ctx.db.patch(authAccount._id, {
+      secret: hashedPassword,
     });
 
     // Delete used token
@@ -122,7 +141,7 @@ export const resetPassword = mutation({
 
     // Log the action
     await ctx.db.insert("admin_audit_logs", {
-      adminId: "system",
+      adminId: user._id,
       action: "password_reset_completed",
       targetId: user._id,
       targetType: "user",

@@ -83,7 +83,7 @@ const schema = defineSchema({
     .index("by_role", ["role"]),
 
   admin_audit_logs: defineTable({
-    adminId: v.id("users"),
+    adminId: v.string(),
     action: v.string(),
     targetId: v.optional(v.string()),
     targetType: v.string(), // "user", "product", "post", "settings"

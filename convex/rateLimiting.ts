@@ -14,10 +14,12 @@ export const checkPasswordResetLimit = mutation({
     const recentRequests = await ctx.db
       .query("admin_audit_logs")
       .withIndex("by_timestamp", (q) =>
+        q.gte("timestamp", oneHourAgo)
+      )
+      .filter((q) =>
         q.and(
-          q.eq("targetType", "email"),
-          q.eq("action", "send_password_reset_email"),
-          q.gte("timestamp", oneHourAgo)
+          q.eq(q.field("targetType"), "email"),
+          q.eq(q.field("action"), "send_password_reset_email")
         )
       )
       .collect();
@@ -56,12 +58,9 @@ export async function checkRateLimit(
   const recentRequests = await ctx.db
     .query("rate_limit_tracking")
     .withIndex("by_key_action", (q: any) =>
-      q.and(
-        q.eq("key", key),
-        q.eq("action", action),
-        q.gte("timestamp", timeAgo)
-      )
+      q.eq("key", key).eq("action", action)
     )
+    .filter((q) => q.gte(q.field("timestamp"), timeAgo))
     .collect();
 
   // Allow maximum requests per time window
@@ -110,7 +109,7 @@ export const cleanupRateLimits = mutation({
     // Delete old rate limit entries
     const oldEntries = await ctx.db
       .query("rate_limit_tracking")
-      .filter((q) => q.lt("timestamp", oneWeekAgo))
+      .filter((q) => q.lt(q.field("timestamp"), oneWeekAgo))
       .collect();
 
     for (const entry of oldEntries) {

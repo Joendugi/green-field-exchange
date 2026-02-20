@@ -18,7 +18,7 @@ const UserProfile = () => {
   const targetUserId = userId as Id<"users">;
 
   // Convex Queries
-  const profile = useQuery(api.users.getProfile, { userId: targetUserId });
+  const profile = useQuery(api.users.getUserProfile, { userId: targetUserId });
   const userRole = useQuery(api.users.getRole, { userId: targetUserId });
   const counts = useQuery(api.follows.getCounts, { userId: targetUserId });
   const followers = useQuery(api.follows.getFollowers, { userId: targetUserId });
@@ -116,7 +116,7 @@ const UserProfile = () => {
                   </div>
                 )}
               </div>
-              {currentUser?._id !== targetUserId && (
+              {currentUser?.userId !== targetUserId && (
                 <Button
                   variant={isFollowing ? "outline" : "default"}
                   onClick={handleFollowToggle}

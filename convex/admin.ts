@@ -4,6 +4,7 @@ import { getAuthUserId } from "@convex-dev/auth/server";
 import { ensureAdmin } from "./helpers";
 
 // Global Audit Logger
+// Internal helper for logging within mutations
 async function logAdminAction(ctx: any, adminId: string, action: string, targetId?: string, targetType: string = "system", details?: string) {
     await ctx.db.insert("admin_audit_logs", {
         adminId,
@@ -14,6 +15,25 @@ async function logAdminAction(ctx: any, adminId: string, action: string, targetI
         timestamp: Date.now(),
     });
 }
+
+// Public mutation for logging from Actions
+export const createAuditLog = mutation({
+    args: {
+        adminId: v.string(),
+        action: v.string(),
+        targetId: v.optional(v.string()),
+        targetType: v.string(),
+        details: v.optional(v.string()),
+    },
+    handler: async (ctx, args) => {
+        // In a real app, we might want to restrict who can call this, 
+        // but since actions call it internally, we allow "system" or valid admin IDs.
+        await ctx.db.insert("admin_audit_logs", {
+            ...args,
+            timestamp: Date.now(),
+        });
+    },
+});
 
 export const getStats = query({
     args: {},

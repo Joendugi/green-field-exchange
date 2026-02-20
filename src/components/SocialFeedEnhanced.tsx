@@ -304,7 +304,7 @@ const SocialFeedEnhanced = () => {
                   </CardDescription>
                 </div>
               </div>
-              {isAuthenticated && post.userId !== currentUser?._id && (
+              {isAuthenticated && post.userId !== currentUser?.userId && (
                 <Button
                   variant={followingUsers.has(post.userId) ? "outline" : "default"}
                   size="sm"

@@ -117,7 +117,7 @@ const Messages = () => {
                   <ScrollArea className="h-[300px] border rounded-md p-2">
                     {userSearchTerm.length > 0 ? (
                       <div className="space-y-2">
-                        {searchResults?.filter(u => u.userId !== currentUser?._id).map((user) => (
+                        {searchResults?.filter(u => u.userId !== currentUser?.userId).map((user) => (
                           <div
                             key={user._id}
                             className="flex items-center gap-3 p-2 hover:bg-muted rounded-md cursor-pointer transition-colors"
@@ -190,7 +190,7 @@ const Messages = () => {
                     </div>
                     {conversation.last_message && (
                       <p className="text-xs text-muted-foreground truncate pr-4">
-                        {conversation.last_sender_id === currentUser?._id ? "You: " : ""}{conversation.last_message}
+                        {conversation.last_sender_id === currentUser?.userId ? "You: " : ""}{conversation.last_message}
                       </p>
                     )}
                   </div>
@@ -231,29 +231,37 @@ const Messages = () => {
             <CardContent className="flex-1 overflow-hidden p-0 flex flex-col">
               <ScrollArea className="flex-1 p-4">
                 <div className="space-y-4 pr-4">
-                  {messages?.map((message, index) => (
-                    <div
-                      key={message._id}
-                      className={`flex ${message.senderId === currentUser?._id ? "justify-end" : "justify-start"
-                        }`}
-                    >
+                  {messages?.map((message, index) => {
+                    const isMe = message.senderId === currentUser?.userId;
+                    return (
                       <div
-                        className={`max-w-[80%] rounded-2xl px-4 py-2.5 shadow-sm text-sm ${message.senderId === currentUser?._id
-                          ? "bg-primary text-primary-foreground rounded-tr-none"
-                          : "bg-muted text-foreground rounded-tl-none"
-                          }`}
+                        key={message._id}
+                        className={`flex ${isMe ? "justify-end" : "justify-start"}`}
                       >
-                        <p>{message.content}</p>
-                        <div className={`text-[10px] mt-1 flex items-center gap-1 opacity-70 ${message.senderId === currentUser?._id ? "justify-end" : "justify-start"
-                          }`}>
-                          {new Date(message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                          {message.senderId === currentUser?._id && (
-                            <span>{message.is_read ? "✓✓" : "✓"}</span>
-                          )}
+                        <div
+                          className={`max-w-[85%] md:max-w-[70%] rounded-2xl px-4 py-2.5 shadow-sm text-sm relative transition-all hover:shadow-md ${isMe
+                            ? "bg-primary text-primary-foreground rounded-tr-none ml-12"
+                            : "bg-muted text-foreground rounded-tl-none mr-12 border border-border/50"
+                            }`}
+                        >
+                          <p className="leading-relaxed">{message.content}</p>
+                          <div className={`text-[10px] mt-1.5 flex items-center gap-1.5 opacity-70 ${isMe ? "justify-end" : "justify-start"
+                            }`}>
+                            {new Date(message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            {isMe && (
+                              <span className="flex items-center">
+                                {message.is_read ? (
+                                  <span className="text-blue-300 font-bold">✓✓</span>
+                                ) : (
+                                  <span>✓</span>
+                                )}
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                   <div ref={scrollRef} />
                 </div>
               </ScrollArea>

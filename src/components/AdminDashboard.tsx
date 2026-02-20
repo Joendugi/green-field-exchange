@@ -99,6 +99,34 @@ const AdminDashboard = () => {
     advertisements === undefined ||
     adminSettingsData === undefined;
 
+  // Mutations — MUST be called before any early return (Rules of Hooks)
+  const broadcastNotification = useMutation(api.admin.broadcastNotification);
+  const banUser = useMutation(api.admin.banUser);
+  const verifyUser = useMutation(api.admin.handleVerification);
+  const updateRole = useMutation(api.admin.updateRole);
+  const updateSettings = useMutation(api.adminSettings.update);
+  const upsertAd = useMutation(api.advertisements.upsert);
+
+  // State — MUST be called before any early return (Rules of Hooks)
+  const [searchQuery, setSearchQuery] = useState("");
+  const [showHiddenContent, setShowHiddenContent] = useState(false);
+  const [settingsSavingKey, setSettingsSavingKey] = useState<string | null>(null);
+  const [newAd, setNewAd] = useState({
+    title: "",
+    description: "",
+    image_url: "",
+    target_url: "",
+    status: "active",
+    budget: 100
+  });
+  const [adSaving, setAdSaving] = useState(false);
+  const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
+  const [banDialogOpen, setBanDialogOpen] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<any>(null);
+  const [banReason, setBanReason] = useState("");
+  const [broadcastTitle, setBroadcastTitle] = useState("");
+  const [broadcastMessage, setBroadcastMessage] = useState("");
+
   if (isLoading) {
     return <AdminDashboardSkeleton />;
   }
@@ -108,43 +136,10 @@ const AdminDashboard = () => {
     _id: adminSettingsData._id
   } : defaultAdminSettings;
 
-  // Mutations
+  // Helpers
   const getSystemExportData = async () => {
     return { users, products, orders: (stats as any).orders_list || [] };
   };
-  const broadcastNotification = useMutation(api.admin.broadcastNotification);
-  const banUser = useMutation(api.admin.banUser);
-  const verifyUser = useMutation(api.admin.handleVerification);
-  const updateRole = useMutation(api.admin.updateRole);
-  const updateSettings = useMutation(api.adminSettings.update);
-  const upsertAd = useMutation(api.advertisements.upsert);
-
-  // State
-  const [searchQuery, setSearchQuery] = useState("");
-  const [showHiddenContent, setShowHiddenContent] = useState(false);
-  const [settingsSavingKey, setSettingsSavingKey] = useState<string | null>(null);
-
-  // Ads
-  const [newAd, setNewAd] = useState({
-    title: "",
-    description: "", // Changed from body to description to match schema
-    image_url: "",
-    target_url: "", // Changed from cta_link/label to target_url/budget basically
-    status: "active",
-    budget: 100
-  });
-  const [adSaving, setAdSaving] = useState(false);
-
-  // Bulk Tools & Selection
-  const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
-
-  // Dialogs & Actions
-  const [banDialogOpen, setBanDialogOpen] = useState(false);
-  const [selectedUser, setSelectedUser] = useState<any>(null);
-  const [banReason, setBanReason] = useState("");
-  const [broadcastTitle, setBroadcastTitle] = useState("");
-  const [broadcastMessage, setBroadcastMessage] = useState("");
-
 
   // --- Handlers ---
 

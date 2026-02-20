@@ -20,6 +20,7 @@ import type * as follows from "../follows.js";
 import type * as helpers from "../helpers.js";
 import type * as http from "../http.js";
 import type * as loginAttempts from "../loginAttempts.js";
+import type * as maintenance from "../maintenance.js";
 import type * as messages from "../messages.js";
 import type * as metaAds from "../metaAds.js";
 import type * as metaAds_backup from "../metaAds_backup.js";
@@ -60,6 +61,7 @@ declare const fullApi: ApiFromModules<{
   helpers: typeof helpers;
   http: typeof http;
   loginAttempts: typeof loginAttempts;
+  maintenance: typeof maintenance;
   messages: typeof messages;
   metaAds: typeof metaAds;
   metaAds_backup: typeof metaAds_backup;

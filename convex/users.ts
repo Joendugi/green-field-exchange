@@ -12,7 +12,7 @@ export const getProfile = query({
         const profile = await ctx.db
             .query("profiles")
             .withIndex("by_userId", (q) => q.eq("userId", userId))
-            .unique();
+            .first();
 
         if (!profile) return null;
 
@@ -41,7 +41,7 @@ export const getUserProfile = query({
         const profile = await ctx.db
             .query("profiles")
             .withIndex("by_userId", (q) => q.eq("userId", args.userId))
-            .unique();
+            .first();
 
         if (!profile) return null;
 
@@ -72,7 +72,7 @@ export const getUserProfiles = query({
                 const profile = await ctx.db
                     .query("profiles")
                     .withIndex("by_userId", (q) => q.eq("userId", userId))
-                    .unique();
+                    .first();
 
                 if (!profile) return null;
 
@@ -107,7 +107,7 @@ export const getSettings = query({
         return await ctx.db
             .query("user_settings")
             .withIndex("by_userId", (q) => q.eq("userId", userId))
-            .unique();
+            .first();
     },
 });
 
@@ -127,7 +127,7 @@ export const updateSettings = mutation({
         const existing = await ctx.db
             .query("user_settings")
             .withIndex("by_userId", (q) => q.eq("userId", userId))
-            .unique();
+            .first();
 
         const now = Date.now();
         if (existing) {
@@ -185,7 +185,7 @@ export const updateProfile = mutation({
             const existingRole = await ctx.db
                 .query("user_roles")
                 .withIndex("by_userId", (q) => q.eq("userId", userId))
-                .unique();
+                .first();
 
             if (!existingRole) {
                 if (!PUBLIC_ROLES.includes(role as (typeof PUBLIC_ROLES)[number])) {
@@ -204,7 +204,7 @@ export const updateProfile = mutation({
         const existingProfile = await ctx.db
             .query("profiles")
             .withIndex("by_userId", (q) => q.eq("userId", userId))
-            .unique();
+            .first();
 
         if (existingProfile) {
             // Rate limit profile updates
@@ -244,7 +244,7 @@ export const getRole = query({
         return await ctx.db
             .query("user_roles")
             .withIndex("by_userId", (q) => q.eq("userId", userId))
-            .unique();
+            .first();
     },
 });
 
@@ -258,7 +258,7 @@ export const requestVerification = mutation({
             .query("verification_requests")
             .withIndex("by_userId", (q) => q.eq("userId", userId))
             .filter((q) => q.or(q.eq(q.field("status"), "pending"), q.eq(q.field("status"), "in_review")))
-            .unique();
+            .first();
 
         if (existing) throw new Error("Verification already pending");
 

@@ -1,18 +1,22 @@
-import { action, mutation } from "./_generated/server";
+import { query } from "./_generated/server";
 
-export const testSetTimeout = mutation({
+export const listAllRoles = query({
     args: {},
-    handler: async () => {
-        return await new Promise((resolve) => setTimeout(resolve, 100));
-    },
-});
+    handler: async (ctx) => {
+        const roles = await ctx.db.query("user_roles").collect();
+        const users = await ctx.db.query("users").collect();
+        const profiles = await ctx.db.query("profiles").collect();
 
-export const testSetTimeoutAction = action({
-    args: {},
-    handler: async () => {
-        console.log("Testing setTimeout in action...");
-        await new Promise((resolve) => setTimeout(resolve, 100));
-        console.log("Success!");
-        return "OK";
+        return {
+            roles: roles.map(role => {
+                const user = users.find(u => u._id === role.userId);
+                return { ...role, email: user?.email };
+            }),
+            profiles: profiles.map(p => ({
+                userId: p.userId,
+                count: profiles.filter(p2 => p2.userId === p.userId).length,
+                username: p.username
+            })).filter(p => p.count > 1)
+        };
     },
 });

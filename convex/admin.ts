@@ -89,7 +89,7 @@ export const banUser = mutation({
         const profile = await ctx.db
             .query("profiles")
             .withIndex("by_userId", (q) => q.eq("userId", args.userId))
-            .unique();
+            .first();
 
         if (profile) {
             await ctx.db.patch(profile._id, {
@@ -129,7 +129,7 @@ export const updateRole = mutation({
         const existingRole = await ctx.db
             .query("user_roles")
             .withIndex("by_userId", (q) => q.eq("userId", args.userId))
-            .unique();
+            .first();
 
         if (existingRole) {
             await ctx.db.patch(existingRole._id, { role: args.role });
@@ -159,7 +159,7 @@ export const listVerificationRequests = query({
             const profile = await ctx.db
                 .query("profiles")
                 .withIndex("by_userId", (q) => q.eq("userId", r.userId))
-                .unique();
+                .first();
             return { ...r, profiles: profile };
         }));
 
@@ -185,7 +185,7 @@ export const handleVerification = mutation({
             const profile = await ctx.db
                 .query("profiles")
                 .withIndex("by_userId", (q) => q.eq("userId", req.userId))
-                .unique();
+                .first();
             if (profile) {
                 await ctx.db.patch(profile._id, { verified: true });
             }
@@ -275,7 +275,7 @@ export const listAuditLogs = query({
                 const admin = await ctx.db
                     .query("profiles")
                     .withIndex("by_userId", (q) => q.eq("userId", log.adminId as any))
-                    .unique();
+                    .first();
                 adminName = admin?.full_name || "Unknown Admin";
             }
 

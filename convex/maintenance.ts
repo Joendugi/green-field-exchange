@@ -1,12 +1,20 @@
+/**
+ * MAINTENANCE SCRIPTS — CLI USE ONLY
+ *
+ * These mutations are designed to be run via the Convex CLI by an authenticated admin:
+ *   npx convex run --prod maintenance:deduplicateUserRoles
+ *   npx convex run --prod maintenance:deduplicateProfiles
+ *
+ * Auth is enforced — the caller must be a logged-in admin.
+ * Do NOT expose these via the frontend UI.
+ */
 import { mutation } from "./_generated/server";
-import { v } from "convex/values";
 import { ensureAdmin } from "./helpers";
 
 export const deduplicateUserRoles = mutation({
     args: {},
     handler: async (ctx) => {
-        // const admin = await ensureAdmin(ctx);
-        console.log(`Maintenance started via CLI`);
+        await ensureAdmin(ctx);
 
         const allRoles = await ctx.db.query("user_roles").collect();
         const userRoleMap = new Map<string, any[]>();
@@ -22,16 +30,14 @@ export const deduplicateUserRoles = mutation({
             if (roles.length > 1) {
                 console.log(`Found ${roles.length} roles for user ${userId}.`);
 
-                // Prioritize keeping "admin" role
-                const sortedRoles = [...roles].sort((a, b) => {
-                    // Admin role comes first
+                // Always keep the "admin" role; otherwise keep oldest
+                const sorted = [...roles].sort((a, b) => {
                     if (a.role === "admin" && b.role !== "admin") return -1;
                     if (a.role !== "admin" && b.role === "admin") return 1;
-                    // Otherwise oldest first
                     return a.created_at - b.created_at;
                 });
 
-                const [keep, ...toDelete] = sortedRoles;
+                const [keep, ...toDelete] = sorted;
                 console.log(`Keeping role: ${keep.role} (ID: ${keep._id})`);
 
                 for (const entry of toDelete) {
@@ -49,8 +55,7 @@ export const deduplicateUserRoles = mutation({
 export const deduplicateProfiles = mutation({
     args: {},
     handler: async (ctx) => {
-        // const admin = await ensureAdmin(ctx);
-        console.log(`Profile maintenance started via CLI`);
+        await ensureAdmin(ctx);
 
         const allProfiles = await ctx.db.query("profiles").collect();
         const profileMap = new Map<string, any[]>();
@@ -64,11 +69,9 @@ export const deduplicateProfiles = mutation({
         let deletedCount = 0;
         for (const [userId, ps] of profileMap.entries()) {
             if (ps.length > 1) {
-                console.log(`Found ${ps.length} profiles for user ${userId}. Keeping the newest one.`);
-                // Favor the newest profile as it's likely the one with more data
+                console.log(`Found ${ps.length} profiles for user ${userId}. Keeping the newest.`);
                 const sorted = [...ps].sort((a, b) => b.updated_at - a.updated_at);
-                const [keep, ...toDelete] = sorted;
-
+                const [, ...toDelete] = sorted;
                 for (const entry of toDelete) {
                     await ctx.db.delete(entry._id);
                     deletedCount++;

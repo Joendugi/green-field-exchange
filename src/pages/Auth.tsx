@@ -119,7 +119,11 @@ const Auth = () => {
       });
 
       if (result.success) {
-        toast.success("Password reset link sent! Check your email.");
+        toast.success("Security code sent! Check your email.");
+        // Redirect or show a message explaining how to use the code
+        setTimeout(() => {
+          navigate("/password-reset");
+        }, 1500);
         setShowForgotPassword(false);
         setResetEmail("");
       }
@@ -244,7 +248,7 @@ const Auth = () => {
 
                   <Button type="submit" className="w-full" disabled={isResetLoading}>
                     {isResetLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    Send Reset Link
+                    Send Reset Code
                   </Button>
 
                   <div className="mt-4 text-center">

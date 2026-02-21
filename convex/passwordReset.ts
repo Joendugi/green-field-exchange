@@ -20,84 +20,107 @@ export const requestPasswordReset = mutation({
       .filter((q) => q.eq(q.field("email"), args.email))
       .first();
 
-    const origin = args.origin || process.env.SITE_URL || "http://localhost:5173";
-
     if (!user) {
       // Don't reveal if email exists or not for security
-      const resetLink = `${origin}/password-reset?token=dummy-token`;
-
-      // Send email (simulated)
-      await ctx.scheduler.runAfter(0, api.emailService.sendPasswordResetEmail, {
-        email: args.email,
-        resetLink,
-        userName: "User"
-      });
-
+      // Even for non-existent users, we simulate sending (or just return success)
       return {
         success: true,
-        message: "If an account with this email exists, a reset link has been sent."
+        message: "If an account with this email exists, a reset code has been sent."
       };
     }
 
-    // Generate reset token
-    const resetToken = Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
+    // Generate 6-digit numeric OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
     const expiryTime = Date.now() + (60 * 60 * 1000); // 1 hour expiry
 
-    // Store reset token
+    // Delete any existing tokens for this user to keep it clean
+    const existingTokens = await ctx.db
+      .query("password_reset_tokens")
+      .withIndex("by_userId", (q) => q.eq("userId", user._id))
+      .collect();
+    for (const t of existingTokens) {
+      await ctx.db.delete(t._id);
+    }
+
+    // Store OTP as the token
     await ctx.db.insert("password_reset_tokens", {
       userId: user._id,
-      token: resetToken,
+      token: otp,
       expiresAt: expiryTime,
       createdAt: Date.now(),
     });
 
-    // Generate reset link
-    const resetLink = `${origin}/password-reset?token=${resetToken}`;
-
     // Log the action
     await ctx.db.insert("admin_audit_logs", {
-      adminId: user._id, // Using user ID since schema allows string now
-      action: "send_password_reset_email",
+      adminId: user._id,
+      action: "send_password_reset_otp",
       targetId: args.email,
       targetType: "email",
-      details: `Password reset email sent to ${args.email}`,
+      details: `Password reset OTP sent to ${args.email}`,
       timestamp: Date.now(),
     });
 
-    // Send reset email
+    // Send reset email with OTP
     await ctx.scheduler.runAfter(0, api.emailService.sendPasswordResetEmail, {
       email: args.email,
-      resetLink,
+      otp,
       userName: user.name || "User"
     });
 
     return {
       success: true,
-      message: "Password reset link sent to your email",
+      message: "Password reset code sent to your email",
       email: args.email,
     };
   },
 });
 
-// Reset password with token
+// Reset password with OTP or token
 export const resetPassword = mutation({
   args: {
-    token: v.string(),
+    email: v.optional(v.string()),
+    otp: v.optional(v.string()),
+    token: v.optional(v.string()), // For backward compatibility if needed
     newPassword: v.string(),
   },
   handler: async (ctx, args) => {
-    // Find valid reset token
-    const resetToken = await ctx.db
-      .query("password_reset_tokens")
-      .withIndex("by_token", (q) => q.eq("token", args.token))
-      .first();
+    let userId: any = null;
+    let tokenId: any = null;
 
-    if (!resetToken) {
-      throw new Error("Invalid or expired reset token");
-    }
+    if (args.token) {
+      // Token flow
+      const resetToken = await ctx.db
+        .query("password_reset_tokens")
+        .withIndex("by_token", (q) => q.eq("token", args.token!))
+        .first();
 
-    if (resetToken.expiresAt < Date.now()) {
-      throw new Error("Reset token has expired");
+      if (!resetToken || resetToken.expiresAt < Date.now()) {
+        throw new Error("Invalid or expired reset token");
+      }
+      userId = resetToken.userId;
+      tokenId = resetToken._id;
+    } else if (args.email && args.otp) {
+      // OTP flow
+      const user = await ctx.db
+        .query("users")
+        .filter((q) => q.eq(q.field("email"), args.email!))
+        .first();
+
+      if (!user) throw new Error("User not found");
+
+      const resetToken = await ctx.db
+        .query("password_reset_tokens")
+        .withIndex("by_userId", (q) => q.eq("userId", user._id))
+        .filter((q) => q.eq(q.field("token"), args.otp!))
+        .first();
+
+      if (!resetToken || resetToken.expiresAt < Date.now()) {
+        throw new Error("Invalid or expired reset code");
+      }
+      userId = user._id;
+      tokenId = resetToken._id;
+    } else {
+      throw new Error("Missing reset credentials");
     }
 
     // Validate new password
@@ -105,20 +128,15 @@ export const resetPassword = mutation({
       throw new Error("Password must be at least 8 characters long");
     }
 
-    // Get user from token
-    const user = await ctx.db.get(resetToken.userId);
-
-    if (!user) {
-      throw new Error("User not found");
-    }
+    const user = await ctx.db.get(userId);
+    if (!user) throw new Error("User not found");
 
     // Locate the authAccount for this user
-    // We filter manually since we are unsure of the indexing in the auth library
     const authAccount = await ctx.db
       .query("authAccounts")
       .filter((q) =>
         q.and(
-          q.eq(q.field("userId"), user._id),
+          q.eq(q.field("userId"), userId),
           q.eq(q.field("provider"), "password")
         )
       )
@@ -137,13 +155,13 @@ export const resetPassword = mutation({
     });
 
     // Delete used token
-    await ctx.db.delete(resetToken._id);
+    await ctx.db.delete(tokenId);
 
     // Log the action
     await ctx.db.insert("admin_audit_logs", {
-      adminId: user._id,
+      adminId: userId,
       action: "password_reset_completed",
-      targetId: user._id,
+      targetId: userId,
       targetType: "user",
       details: `Password reset completed for user ${user.email}`,
       timestamp: Date.now(),
@@ -153,7 +171,39 @@ export const resetPassword = mutation({
   },
 });
 
-// Verify reset token
+// Verify OTP
+export const verifyOTP = query({
+  args: {
+    email: v.string(),
+    otp: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const user = await ctx.db
+      .query("users")
+      .filter((q) => q.eq(q.field("email"), args.email))
+      .first();
+
+    if (!user) return { valid: false, message: "User not found" };
+
+    const resetToken = await ctx.db
+      .query("password_reset_tokens")
+      .withIndex("by_userId", (q) => q.eq("userId", user._id))
+      .filter((q) => q.eq(q.field("token"), args.otp))
+      .first();
+
+    if (!resetToken) {
+      return { valid: false, message: "Invalid reset code" };
+    }
+
+    if (resetToken.expiresAt < Date.now()) {
+      return { valid: false, message: "Reset code has expired" };
+    }
+
+    return { valid: true, message: "Code is valid" };
+  },
+});
+
+// Deprecated verifyResetToken (kept for link-based flow support)
 export const verifyResetToken = query({
   args: {
     token: v.string(),

@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { CheckCircle, Mail, ArrowLeft, Eye, EyeOff } from "lucide-react";
+import { CheckCircle, Mail, ArrowLeft, Eye, EyeOff, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { checkPasswordStrength } from "@/lib/validation";
 
@@ -18,6 +18,8 @@ const PasswordReset = () => {
 
   const [isLoading, setIsLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const [email, setEmail] = useState("");
+  const [otp, setOtp] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -27,18 +29,8 @@ const PasswordReset = () => {
   const verifyTokenResult = useQuery(api.passwordReset.verifyResetToken, token ? { token } : "skip");
   const resetPassword = useMutation(api.passwordReset.resetPassword);
 
-  // Verify token result
-  useEffect(() => {
-    if (verifyTokenResult) {
-      if (!verifyTokenResult.valid) {
-        setError(verifyTokenResult.message);
-      }
-    } else if (token && verifyTokenResult === undefined) {
-      // Loading state, do nothing
-    } else if (token && verifyTokenResult === null) {
-      // Technically null is not returned by convex useQuery unless generic matches, but safe to ignore
-    }
-  }, [verifyTokenResult, token]);
+  // If token is in URL, we could auto-fill or just use it.
+  // The system now prefers OTP, but we keep token support for links.
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -57,7 +49,12 @@ const PasswordReset = () => {
 
     setIsLoading(true);
     try {
-      const result = await resetPassword({ token: token!, newPassword: password });
+      const result = await resetPassword({
+        token: token || undefined,
+        email: email || undefined,
+        otp: otp || undefined,
+        newPassword: password
+      });
 
       if (result.success) {
         setIsSuccess(true);
@@ -77,18 +74,20 @@ const PasswordReset = () => {
 
   if (isSuccess) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4">
-        <Card className="w-full max-w-md">
-          <CardContent className="pt-6">
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 text-forest-900">
+        <Card className="w-full max-w-md border-forest-100 shadow-xl">
+          <CardContent className="pt-8">
             <div className="text-center">
-              <CheckCircle className="w-16 h-16 text-green-600 mx-auto mb-4" />
-              <h1 className="text-2xl font-bold text-gray-900 mb-2">Password Reset Successful</h1>
-              <p className="text-gray-600 mb-6">
-                Your password has been reset successfully. You will be redirected to the login page.
+              <div className="bg-green-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6">
+                <CheckCircle className="w-10 h-10 text-green-600" />
+              </div>
+              <h1 className="text-2xl font-bold mb-2">Success!</h1>
+              <p className="text-gray-600 mb-8">
+                Your password has been reset. You'll be redirected to login shortly.
               </p>
               <Button
                 onClick={() => navigate("/auth")}
-                className="w-full"
+                className="w-full bg-forest-600 hover:bg-forest-700"
               >
                 Go to Login
               </Button>
@@ -99,38 +98,13 @@ const PasswordReset = () => {
     );
   }
 
-  if (!token) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4">
-        <Card className="w-full max-w-md">
-          <CardContent className="pt-6">
-            <div className="text-center">
-              <Mail className="w-16 h-16 text-red-600 mx-auto mb-4" />
-              <h1 className="text-2xl font-bold text-gray-900 mb-2">Invalid Reset Link</h1>
-              <p className="text-gray-600 mb-6">
-                This password reset link is invalid or has expired. Please request a new password reset.
-              </p>
-              <Button
-                onClick={() => navigate("/auth")}
-                variant="outline"
-                className="w-full"
-              >
-                Back to Login
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <CardTitle className="text-2xl">Reset Password</CardTitle>
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-forest-50 to-white py-12 px-4">
+      <Card className="w-full max-w-md border-forest-100 shadow-2xl">
+        <CardHeader className="text-center pb-2">
+          <CardTitle className="text-2xl font-bold text-forest-900">Reset Password</CardTitle>
           <CardDescription>
-            Enter your new password below
+            {token ? "Create a new secure password" : "Enter your code and new password"}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -143,6 +117,37 @@ const PasswordReset = () => {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
+            {!token && (
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email Address</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="you@example.com"
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="otp">6-Digit Reset Code</Label>
+                  <Input
+                    id="otp"
+                    type="text"
+                    value={otp}
+                    onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").substring(0, 6))}
+                    placeholder="123456"
+                    className="text-center tracking-widest text-lg font-mono"
+                    required
+                  />
+                  <p className="text-xs text-muted-foreground text-center">
+                    Enter the code sent to your email
+                  </p>
+                </div>
+              </>
+            )}
+
             <div className="space-y-2">
               <Label htmlFor="password">New Password</Label>
               <div className="relative">
@@ -151,7 +156,7 @@ const PasswordReset = () => {
                   type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Enter new password"
+                  placeholder="At least 8 characters"
                   required
                   minLength={8}
                   className="pr-10"
@@ -176,7 +181,7 @@ const PasswordReset = () => {
                   type={showConfirmPassword ? "text" : "password"}
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="Confirm new password"
+                  placeholder="Repeat your password"
                   required
                   minLength={8}
                   className="pr-10"
@@ -195,18 +200,23 @@ const PasswordReset = () => {
 
             <Button
               type="submit"
-              className="w-full"
+              className="w-full bg-forest-600 hover:bg-forest-700 mt-2"
               disabled={isLoading}
             >
-              {isLoading ? "Resetting..." : "Reset Password"}
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Resetting...
+                </>
+              ) : "Update Password"}
             </Button>
           </form>
 
-          <div className="mt-6 text-center">
+          <div className="mt-8 text-center">
             <Button
               variant="ghost"
               onClick={() => navigate("/auth")}
-              className="text-sm"
+              className="text-sm text-forest-600 hover:text-forest-700 hover:bg-forest-50"
             >
               <ArrowLeft className="w-4 h-4 mr-2" />
               Back to Login

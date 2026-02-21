@@ -333,6 +333,19 @@ const schema = defineSchema({
     .index("by_createdBy", ["createdBy"])
     .index("by_status", ["status"])
     .index("by_created_at", ["createdAt"]),
+
+  email_logs: defineTable({
+    to: v.string(),
+    subject: v.string(),
+    type: v.string(), // "broadcast", "otp", "ban", "role_change", "order", "message", "verification"
+    status: v.string(), // "sent", "failed"
+    resendId: v.optional(v.string()),
+    error: v.optional(v.string()),
+    timestamp: v.number(),
+  })
+    .index("by_to", ["to"])
+    .index("by_type", ["type"])
+    .index("by_timestamp", ["timestamp"]),
 });
 
 export default schema;

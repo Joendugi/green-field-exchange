@@ -1,5 +1,6 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
+import { api } from "./_generated/api";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { ensureAuthenticated, assertConversationParticipant } from "./helpers";
 
@@ -81,10 +82,27 @@ export const sendMessage = mutation({
         });
 
         await ctx.db.patch(args.conversationId, {
-            last_message: args.content,
+            last_message: content,
             last_sender_id: userId,
             updated_at: Date.now(),
         });
+
+        // Email Notification
+        const conversation = await ctx.db.get(args.conversationId);
+        if (conversation) {
+            const recipientId = conversation.participant1_id === userId ? conversation.participant2_id : conversation.participant1_id;
+            const recipient = await ctx.db.get(recipientId);
+            const sender = await ctx.db.get(userId);
+
+            if (recipient?.email) {
+                await ctx.scheduler.runAfter(0, api.emailService.sendMessageNotificationEmail, {
+                    email: recipient.email,
+                    userName: recipient.name || "User",
+                    senderName: sender?.name || "Someone",
+                    messagePreview: content.substring(0, 100) + (content.length > 100 ? "..." : "")
+                });
+            }
+        }
 
         return msgId;
     },

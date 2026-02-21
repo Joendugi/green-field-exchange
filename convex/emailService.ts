@@ -3,15 +3,29 @@ import { v } from "convex/values";
 import { api } from "./_generated/api";
 
 // Helper function to send email via Resend API
-async function sendEmail(args: {
+async function sendEmail(ctx: any, args: {
   to: string | string[];
   subject: string;
   html: string;
+  type: string;
 }) {
   const RESEND_API_KEY = process.env.RESEND_API_KEY;
+  const timestamp = Date.now();
+  const to = Array.isArray(args.to) ? args.to.join(", ") : args.to;
+
   if (!RESEND_API_KEY) {
     console.warn("⚠️ RESEND_API_KEY is not set. Falling back to console logging.");
     console.log(`📧 [MOCK EMAIL] To: ${args.to}, Subject: ${args.subject}`);
+
+    // Log mock send
+    await ctx.runMutation(api.emailService.logEmail, {
+      to,
+      subject: args.subject,
+      type: args.type,
+      status: "sent (mock)",
+      timestamp,
+    });
+
     return { success: true, mock: true };
   }
 
@@ -23,7 +37,7 @@ async function sendEmail(args: {
         Authorization: `Bearer ${RESEND_API_KEY}`,
       },
       body: JSON.stringify({
-        from: "AgriLink <onboarding@resend.dev>", // Using Resend's default sender for initial integration
+        from: "AgriLink <noreply@agrilink.global>",
         to: Array.isArray(args.to) ? args.to : [args.to],
         subject: args.subject,
         html: args.html,
@@ -33,153 +47,269 @@ async function sendEmail(args: {
     if (!response.ok) {
       const error = await response.json();
       console.error("Resend API error:", error);
+
+      await ctx.runMutation(api.emailService.logEmail, {
+        to,
+        subject: args.subject,
+        type: args.type,
+        status: "failed",
+        error: JSON.stringify(error),
+        timestamp,
+      });
+
       return { success: false, error };
     }
 
     const data = await response.json();
+
+    await ctx.runMutation(api.emailService.logEmail, {
+      to,
+      subject: args.subject,
+      type: args.type,
+      status: "sent",
+      resendId: data.id,
+      timestamp,
+    });
+
     return { success: true, id: data.id };
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error sending email via Resend:", error);
+
+    await ctx.runMutation(api.emailService.logEmail, {
+      to,
+      subject: args.subject,
+      type: args.type,
+      status: "failed",
+      error: error.message || "Unknown error",
+      timestamp,
+    });
+
     return { success: false, error };
   }
 }
 
-// Send password reset email
+// Internal mutation for logging emails
+export const logEmail = mutation({
+  args: {
+    to: v.string(),
+    subject: v.string(),
+    type: v.string(),
+    status: v.string(),
+    resendId: v.optional(v.string()),
+    error: v.optional(v.string()),
+    timestamp: v.number(),
+  },
+  handler: async (ctx, args) => {
+    // In a real app, we might want to restrict this, but since actions call it internally:
+    await ctx.db.insert("email_logs", args);
+  },
+});
+
+// Send password reset email with OTP
 export const sendPasswordResetEmail = action({
   args: {
     email: v.string(),
-    resetLink: v.string(),
+    otp: v.string(),
     userName: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    console.log(`📧 Sending password reset email to: ${args.email}`);
+    console.log(`📧 Sending password reset (OTP) to: ${args.email}`);
 
-    const html = emailTemplates.passwordReset.html(args.resetLink, args.userName || "User");
-    const result = await sendEmail({
+    const html = emailTemplates.passwordReset.html(args.otp, args.userName || "User");
+    const result = await sendEmail(ctx, {
       to: args.email,
       subject: emailTemplates.passwordReset.subject,
-      html
-    });
-
-    // Log the email send for audit purposes
-    await ctx.runMutation(api.admin.createAuditLog, {
-      adminId: "system", // System-generated action
-      action: "send_password_reset_email",
-      targetId: args.email,
-      targetType: "email",
-      details: result.success
-        ? `Password reset email sent successfully (ID: ${result.id || 'MOCK'})`
-        : `Failed to send password reset email: ${JSON.stringify(result.error)}`,
+      html,
+      type: "otp"
     });
 
     return {
       success: result.success,
-      message: result.success ? "Password reset email sent successfully" : "Failed to send email",
-      email: args.email,
-      resetLink: args.resetLink,
-      timestamp: Date.now()
+      message: result.success ? "OTP sent successfully" : "Failed to send OTP",
     };
   },
 });
 
-// Send welcome email after account creation
-export const sendWelcomeEmail = action({
+// New simplified action for various templates
+export const sendBanNotification = action({
+  args: { email: v.string(), userName: v.string(), reason: v.optional(v.string()) },
+  handler: async (ctx, args) => {
+    const html = emailTemplates.ban.html(args.userName, args.reason);
+    return await sendEmail(ctx, {
+      to: args.email,
+      subject: emailTemplates.ban.subject,
+      html,
+      type: "ban"
+    });
+  }
+});
+
+export const sendRoleChangeNotification = action({
+  args: { email: v.string(), userName: v.string(), newRole: v.string() },
+  handler: async (ctx, args) => {
+    const html = emailTemplates.roleChange.html(args.userName, args.newRole);
+    return await sendEmail(ctx, {
+      to: args.email,
+      subject: emailTemplates.roleChange.subject,
+      html,
+      type: "role_change"
+    });
+  }
+});
+
+export const sendVerificationResult = action({
+  args: { email: v.string(), userName: v.string(), approved: v.boolean(), notes: v.optional(v.string()) },
+  handler: async (ctx, args) => {
+    const html = emailTemplates.verificationResult.html(args.userName, args.approved, args.notes);
+    return await sendEmail(ctx, {
+      to: args.email,
+      subject: args.approved ? "AgriLink - Verification Approved!" : "AgriLink - Verification Update",
+      html,
+      type: "verification"
+    });
+  }
+});
+
+export const sendBulkEmail = action({
+  args: { to: v.array(v.string()), subject: v.string(), message: v.string() },
+  handler: async (ctx, args) => {
+    const html = emailTemplates.broadcast.html(args.subject, args.message);
+    // Note: Resend batch API would be better here for large lists, but fetch loop or array is fine for MVP
+    return await sendEmail(ctx, {
+      to: args.to,
+      subject: args.subject,
+      html,
+      type: "broadcast"
+    });
+  }
+});
+
+export const sendOrderConfirmationEmail = action({
   args: {
     email: v.string(),
     userName: v.string(),
-    role: v.string(),
+    orderId: v.string(),
+    details: v.object({
+      productName: v.string(),
+      quantity: v.number(),
+      unit: v.string(),
+      currency: v.string(),
+      totalPrice: v.number(),
+    }),
+    isFarmer: v.boolean(),
   },
   handler: async (ctx, args) => {
-    console.log(`📧 Sending welcome email to: ${args.email}`);
-
-    const html = emailTemplates.welcome.html(args.userName, args.role);
-    const result = await sendEmail({
+    const subjectLine = emailTemplates.orderConfirmation.subject(args.isFarmer, args.orderId);
+    const html = emailTemplates.orderConfirmation.html(args.userName, args.orderId, args.details, args.isFarmer);
+    return await sendEmail(ctx, {
       to: args.email,
-      subject: emailTemplates.welcome.subject,
-      html
+      subject: subjectLine,
+      html,
+      type: "order"
     });
-
-    // Log the email send
-    await ctx.runMutation(api.admin.createAuditLog, {
-      adminId: "system",
-      action: "send_welcome_email",
-      targetId: args.email,
-      targetType: "email",
-      details: result.success
-        ? `Welcome email sent successfully (ID: ${result.id || 'MOCK'})`
-        : `Failed to send welcome email: ${JSON.stringify(result.error)}`,
-    });
-
-    return {
-      success: result.success,
-      message: result.success ? "Welcome email sent successfully" : "Failed to send email",
-      email: args.email,
-      role: args.role,
-      timestamp: Date.now()
-    };
-  },
+  }
 });
 
-// Send verification request confirmation
-export const sendVerificationConfirmation = action({
-  args: {
-    email: v.string(),
-    userName: v.string(),
-    documents: v.optional(v.array(v.string())),
-  },
+export const sendMessageNotificationEmail = action({
+  args: { email: v.string(), userName: v.string(), senderName: v.string(), messagePreview: v.string() },
   handler: async (ctx, args) => {
-    console.log(`📧 Sending verification confirmation to: ${args.email}`);
-
-    const html = emailTemplates.verificationConfirmation.html(args.userName, args.documents?.length || 0);
-    const result = await sendEmail({
+    const html = emailTemplates.messageNotification.html(args.userName, args.senderName, args.messagePreview);
+    return await sendEmail(ctx, {
       to: args.email,
-      subject: emailTemplates.verificationConfirmation.subject,
-      html
+      subject: emailTemplates.messageNotification.subject,
+      html,
+      type: "message"
     });
-
-    // Log the email send
-    await ctx.runMutation(api.admin.createAuditLog, {
-      adminId: "system",
-      action: "send_verification_confirmation",
-      targetId: args.email,
-      targetType: "email",
-      details: result.success
-        ? `Verification confirmation sent successfully (ID: ${result.id || 'MOCK'})`
-        : `Failed to send verification confirmation: ${JSON.stringify(result.error)}`,
-    });
-
-    return {
-      success: result.success,
-      message: result.success ? "Verification confirmation sent successfully" : "Failed to send email",
-      email: args.email,
-      documentsCount: args.documents?.length || 0,
-      timestamp: Date.now()
-    };
-  },
+  }
 });
+
 
 // Email templates for different purposes
 export const emailTemplates = {
   passwordReset: {
     subject: "Reset your AgriLink password",
-    html: (resetLink: string, userName: string) => `
+    html: (otp: string, userName: string) => `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f8f9fa;">
         <div style="background-color: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-          <h1 style="color: #2d3748; font-size: 24px; margin-bottom: 20px;">🔐 Password Reset Request</h1>
+          <h1 style="color: #2d3748; font-size: 24px; margin-bottom: 20px;">🔐 Password Reset Code</h1>
           <p style="color: #4a5568; font-size: 16px; margin-bottom: 20px;">Hello ${userName},</p>
-          <p style="color: #4a5568; font-size: 16px; margin-bottom: 20px;">We received a request to reset your AgriLink account password.</p>
-          <p style="color: #4a5568; font-size: 16px; margin-bottom: 30px;">Click the button below to reset your password:</p>
+          <p style="color: #4a5568; font-size: 16px; margin-bottom: 20px;">Use the following 6-digit code to reset your AgriLink password:</p>
           <div style="text-align: center; margin: 30px 0;">
-            <a href="${resetLink}" style="background-color: #22c55e; color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
-              Reset Password
-            </a>
+            <div style="background-color: #f0fdf4; border: 2px dashed #22c55e; color: #16a34a; padding: 20px; font-size: 32px; font-weight: bold; letter-spacing: 5px; display: inline-block; border-radius: 8px;">
+              ${otp}
+            </div>
           </div>
-          <p style="color: #6c757d; font-size: 14px; margin-top: 30px;">This link will expire in 1 hour for security reasons.</p>
-          <p style="color: #6c757d; font-size: 14px; margin-top: 10px;">If you didn't request this reset, please ignore this email.</p>
-          <p style="color: #6c757d; font-size: 14px; margin-top: 10px;">For support, contact us at support@agrilink.global</p>
+          <p style="color: #6c757d; font-size: 14px; margin-top: 30px;">This code will expire in 1 hour for security reasons.</p>
+          <p style="color: #6c757d; font-size: 14px; margin-top: 10px;">If you didn't request this code, please ignore this email.</p>
         </div>
       </div>
     `,
+  },
+
+  ban: {
+    subject: "Account Status Update - AgriLink",
+    html: (userName: string, reason?: string) => `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #fef2f2;">
+        <div style="background-color: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+          <h1 style="color: #dc2626; font-size: 24px; margin-bottom: 20px;">⚠️ Account Suspended</h1>
+          <p style="color: #4a5568; font-size: 16px;">Hello ${userName},</p>
+          <p style="color: #4a5568; font-size: 16px;">Your AgriLink account has been suspended by an administrator.</p>
+          ${reason ? `<div style="background-color: #fff1f2; padding: 15px; border-left: 4px solid #dc2626; margin: 20px 0; color: #991b1b;">Reason: ${reason}</div>` : ''}
+          <p style="color: #6c757d; font-size: 14px; margin-top: 30px;">If you believe this is a mistake, please contact support@agrilink.global</p>
+        </div>
+      </div>
+    `
+  },
+
+  roleChange: {
+    subject: "Role Updated - AgriLink",
+    html: (userName: string, newRole: string) => `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #eff6ff;">
+        <div style="background-color: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+          <h1 style="color: #2563eb; font-size: 24px; margin-bottom: 20px;">🛡️ Role Updated</h1>
+          <p style="color: #4a5568; font-size: 16px;">Hello ${userName},</p>
+          <p style="color: #4a5568; font-size: 16px;">Your account role has been updated to: <strong>${newRole}</strong></p>
+          <p style="color: #6c757d; font-size: 14px; margin-top: 30px;">AgriLink Administration Team</p>
+        </div>
+      </div>
+    `
+  },
+
+  verificationResult: {
+    html: (userName: string, approved: boolean, notes?: string) => `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f8f9fa;">
+        <div style="background-color: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+          <h1 style="color: ${approved ? '#16a34a' : '#2d3748'}; font-size: 24px; margin-bottom: 20px;">
+            ${approved ? '✅ Verification Approved!' : '📋 Verification Update'}
+          </h1>
+          <p style="color: #4a5568; font-size: 16px;">Hello ${userName},</p>
+          <p style="color: #4a5568; font-size: 16px;">
+            ${approved
+        ? 'Congratulations! Your account has been verified. You can now list products and enjoy full platform access.'
+        : 'Our team has reviewed your verification request and requires more information or has declined the submission.'}
+          </p>
+          ${notes ? `<div style="background-color: #f8fafc; padding: 15px; border-radius: 6px; margin: 20px 0;"><strong>Notes from Auditor:</strong><br/>${notes}</div>` : ''}
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="https://agrilink.global/profile" style="background-color: #22c55e; color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
+              Go to Profile
+            </a>
+          </div>
+        </div>
+      </div>
+    `
+  },
+
+  broadcast: {
+    html: (title: string, message: string) => `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f7fee7;">
+        <div style="background-color: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+          <h1 style="color: #16a34a; font-size: 24px; margin-bottom: 20px;">📣 ${title}</h1>
+          <div style="color: #4a5568; font-size: 16px; line-height: 1.6; white-space: pre-wrap;">${message}</div>
+          <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 30px 0;">
+          <p style="color: #94a3b8; font-size: 12px; text-align: center;">You are receiving this because you are a registered user of AgriLink.</p>
+        </div>
+      </div>
+    `
   },
 
   welcome: {

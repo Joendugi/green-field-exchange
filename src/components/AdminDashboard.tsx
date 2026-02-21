@@ -16,6 +16,7 @@ import VerificationRequestManager from "./VerificationRequestManager";
 import { UsersTab } from "./admin/UsersTab";
 import { LogsTab } from "./admin/LogsTab";
 import { BroadcastTab } from "./admin/BroadcastTab";
+import { EmailLogsTab } from "./admin/EmailLogsTab";
 import { SettingsTab } from "./admin/SettingsTab";
 import { AdsTab } from "./admin/AdsTab";
 import { ContentTab } from "./admin/ContentTab";
@@ -48,6 +49,7 @@ const AdminDashboard = () => {
   const advertisements = useQuery(api.advertisements.list);
   const adminSettingsData = useQuery(api.adminSettings.get);
   const auditLogs = useQuery(api.admin.listAuditLogs) ?? [];
+  const emailLogs = useQuery(api.admin.listEmailLogs);
 
   // ─── Mutations ──────────────────────────────────────────────────────────
   const broadcastNotification = useMutation(api.admin.broadcastNotification);
@@ -66,6 +68,7 @@ const AdminDashboard = () => {
   const [banReason, setBanReason] = useState("");
   const [broadcastTitle, setBroadcastTitle] = useState("");
   const [broadcastMessage, setBroadcastMessage] = useState("");
+  const [sendEmail, setSendEmail] = useState(false);
 
   // ─── Loading guard (AFTER all hooks) ────────────────────────────────────
   const isLoading =
@@ -137,12 +140,20 @@ const AdminDashboard = () => {
       toast.error("Please fill in both title and message");
       return;
     }
+    const loadingToast = toast.loading("Sending broadcast...");
     try {
-      await broadcastNotification({ title: broadcastTitle, message: broadcastMessage });
-      toast.success("Broadcast sent");
+      await broadcastNotification({
+        title: broadcastTitle,
+        message: broadcastMessage,
+        sendEmail: sendEmail
+      });
+      toast.dismiss(loadingToast);
+      toast.success("Broadcast sent successfully");
       setBroadcastTitle("");
       setBroadcastMessage("");
+      setSendEmail(false);
     } catch (e: any) {
+      toast.dismiss(loadingToast);
       toast.error(e.message);
     }
   };
@@ -229,6 +240,7 @@ const AdminDashboard = () => {
           <TabsTrigger value="verification">Verification</TabsTrigger>
           <TabsTrigger value="moderation">Content</TabsTrigger>
           <TabsTrigger value="logs">Audit Logs</TabsTrigger>
+          <TabsTrigger value="email-logs">Emails</TabsTrigger>
           <TabsTrigger value="broadcast">Broadcast</TabsTrigger>
           <TabsTrigger value="settings">Settings</TabsTrigger>
           <TabsTrigger value="ads">Ads</TabsTrigger>
@@ -326,12 +338,18 @@ const AdminDashboard = () => {
           <LogsTab auditLogs={auditLogs} />
         </TabsContent>
 
+        <TabsContent value="email-logs" className="space-y-4">
+          <EmailLogsTab logs={emailLogs} />
+        </TabsContent>
+
         <TabsContent value="broadcast" className="space-y-4">
           <BroadcastTab
             broadcastTitle={broadcastTitle}
             setBroadcastTitle={setBroadcastTitle}
             broadcastMessage={broadcastMessage}
             setBroadcastMessage={setBroadcastMessage}
+            sendEmail={sendEmail}
+            setSendEmail={setSendEmail}
             onSend={handleBroadcast}
           />
         </TabsContent>

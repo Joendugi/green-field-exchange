@@ -1,5 +1,6 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
+import { api } from "./_generated/api";
 import { getAuthUserId } from "@convex-dev/auth/server";
 
 // Create a new order
@@ -74,8 +75,7 @@ export const create = mutation({
                 created_at: Date.now(),
                 updated_at: Date.now(),
             });
-
-            // Notify Farmer
+            // Notify Farmer (In-app)
             await ctx.db.insert("notifications", {
                 userId: product.farmerId,
                 title: "New Order Received",
@@ -85,6 +85,40 @@ export const create = mutation({
                 link: "/orders",
                 type: "order",
             });
+
+            // Trigger Emails
+            const farmer = await ctx.db.get(product.farmerId);
+            if (farmer?.email) {
+                await ctx.scheduler.runAfter(0, api.emailService.sendOrderConfirmationEmail, {
+                    email: farmer.email,
+                    userName: farmer.name || "Farmer",
+                    orderId: orderId,
+                    details: {
+                        productName: product.name,
+                        quantity: args.quantity,
+                        unit: product.unit,
+                        currency: product.currency || "$",
+                        totalPrice: total_price
+                    },
+                    isFarmer: true
+                });
+            }
+
+            if (buyer.email) {
+                await ctx.scheduler.runAfter(0, api.emailService.sendOrderConfirmationEmail, {
+                    email: buyer.email,
+                    userName: buyer.name || "Buyer",
+                    orderId: orderId,
+                    details: {
+                        productName: product.name,
+                        quantity: args.quantity,
+                        unit: product.unit,
+                        currency: product.currency || "$",
+                        totalPrice: total_price
+                    },
+                    isFarmer: false
+                });
+            }
 
             return orderId;
         } catch (error) {

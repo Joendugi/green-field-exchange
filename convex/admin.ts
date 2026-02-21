@@ -1,6 +1,7 @@
-import { mutation, query } from "./_generated/server";
+import { mutation, query, action } from "./_generated/server";
 import { v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
+import { api } from "./_generated/api";
 import { ensureAdmin } from "./helpers";
 
 // Global Audit Logger
@@ -98,6 +99,8 @@ export const banUser = mutation({
                 verified: args.ban ? false : profile.verified,
             });
 
+            const targetUser = await ctx.db.get(args.userId);
+
             await logAdminAction(
                 ctx,
                 admin._id,
@@ -106,6 +109,14 @@ export const banUser = mutation({
                 "user",
                 `Reason: ${args.reason || "No reason provided"}`
             );
+
+            if (args.ban && targetUser?.email) {
+                await ctx.scheduler.runAfter(0, api.emailService.sendBanNotification, {
+                    email: targetUser.email,
+                    userName: targetUser.name || "User",
+                    reason: args.reason
+                });
+            }
         }
     }
 });
@@ -142,6 +153,15 @@ export const updateRole = mutation({
             });
         }
 
+        const targetUser = await ctx.db.get(args.userId);
+        if (targetUser?.email) {
+            await ctx.scheduler.runAfter(0, api.emailService.sendRoleChangeNotification, {
+                email: targetUser.email,
+                userName: targetUser.name || "User",
+                newRole: args.role
+            });
+        }
+
         await logAdminAction(ctx, admin._id, "update_role", args.userId, "user", `New role: ${args.role}`);
     }
 });
@@ -175,6 +195,9 @@ export const handleVerification = mutation({
         const req = await ctx.db.get(args.requestId);
         if (!req) throw new Error("Request not found");
 
+        const targetUser = await ctx.db.get(req.userId);
+        if (!targetUser) throw new Error("User not found");
+
         await ctx.db.patch(args.requestId, {
             status: args.approve ? "approved" : "rejected",
             admin_notes: args.notes,
@@ -199,6 +222,14 @@ export const handleVerification = mutation({
             "verification",
             args.notes
         );
+
+        // Schedule notification email
+        await ctx.scheduler.runAfter(0, api.emailService.sendVerificationResult, {
+            email: targetUser.email!,
+            userName: targetUser.name || "User",
+            approved: args.approve,
+            notes: args.notes
+        });
     }
 });
 
@@ -220,10 +251,12 @@ export const listProducts = query({
     }
 });
 
-export const broadcastNotification = mutation({
-    args: { title: v.string(), message: v.string() },
+// Refactored to action to support bulk email orchestration
+export const broadcastNotification = action({
+    args: { title: v.string(), message: v.string(), sendEmail: v.optional(v.boolean()) },
     handler: async (ctx, args) => {
-        const admin = await ensureAdmin(ctx);
+        const admin = await ctx.runQuery(api.helpers.getAdminUser);
+        if (!admin) throw new Error("Unauthorized: Admin access required");
 
         // Input validation
         if (args.title.length < 3 || args.title.length > 200) {
@@ -234,14 +267,37 @@ export const broadcastNotification = mutation({
             throw new Error("Message must be between 10 and 1000 characters");
         }
 
-        const users = await ctx.db.query("users").collect();
+        // 1. In-app notifications (mutation)
+        const emails = await ctx.runMutation(api.admin.createInAppBroadcast, {
+            title: args.title,
+            message: args.message
+        });
 
-        // Security: Limit broadcast size to prevent abuse
-        if (users.length > 100000) {
-            throw new Error("Too many users. Please use batch notification system.");
+        // 2. Email broadcast if requested
+        if (args.sendEmail && emails.length > 0) {
+            await ctx.runAction(api.emailService.sendBulkEmail, {
+                to: emails,
+                subject: args.title,
+                message: args.message
+            });
         }
 
-        // Performance: Use parallel inserts instead of sequential loop
+        await ctx.runMutation(api.admin.createAuditLog, {
+            adminId: admin._id,
+            action: "broadcast_notification",
+            targetType: "announcement",
+            details: `${args.title}${args.sendEmail ? " (with email)" : ""}`
+        });
+    }
+});
+
+// Internal helper for broadcast action
+export const createInAppBroadcast = mutation({
+    args: { title: v.string(), message: v.string() },
+    handler: async (ctx, args) => {
+        await ensureAdmin(ctx);
+        const users = await ctx.db.query("users").collect();
+
         const notifications = users.map(user => ({
             userId: user._id,
             title: args.title,
@@ -251,14 +307,13 @@ export const broadcastNotification = mutation({
             type: "announcement"
         }));
 
-        // Insert in parallel (much faster than sequential)
         await Promise.all(
             notifications.map(notification =>
                 ctx.db.insert("notifications", notification)
             )
         );
 
-        await logAdminAction(ctx, admin._id, "broadcast_notification", undefined, "announcement", args.title);
+        return users.map(u => u.email).filter(Boolean) as string[];
     }
 });
 
@@ -284,5 +339,13 @@ export const listAuditLogs = query({
                 adminName
             };
         }));
+    }
+});
+
+export const listEmailLogs = query({
+    args: {},
+    handler: async (ctx) => {
+        await ensureAdmin(ctx);
+        return await ctx.db.query("email_logs").order("desc").take(100);
     }
 });

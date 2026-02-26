@@ -9,7 +9,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { ShoppingCart, Users, MessageSquare, Sparkles, ChevronRight, ChevronLeft } from "lucide-react";
+import { ShoppingCart, Users, MessageSquare, Sparkles, ChevronRight, ChevronLeft, Bot, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import { Progress } from "@/components/ui/progress";
 import { useAuth } from "@/contexts/AuthContext";
@@ -23,46 +23,80 @@ interface OnboardingProps {
 const STEP_STORAGE_KEY = "onboarding:step";
 
 const Onboarding = ({ open, onComplete, onDismiss }: OnboardingProps) => {
-  const { user: currentUser } = useAuth();
+  const { user: currentUser, role } = useAuth();
   const updateProfile = useMutation(api.users.updateProfile);
+
+  const commonStart = [
+    {
+      title: "Welcome to AgriLink!",
+      description: "The future of sustainable agricultural trade",
+      icon: <Sparkles className="h-16 w-16 text-primary" />,
+      content: "AgriLink connects the entire supply chain. Let's show you how to make the most of your new account!",
+    }
+  ];
+
+  const farmerSteps = [
+    {
+      title: "List Your Harvest",
+      description: "Showcase your high-quality produce",
+      icon: <ShoppingCart className="h-16 w-16 text-primary" />,
+      content: "Easily add products, set competitive prices, and manage your inventory in real-time. Reach thousands of buyers instantly.",
+    },
+    {
+      title: "Secure Sales & Tracking",
+      description: "Manage your orders with confidence",
+      icon: <CheckCircle2 className="h-16 w-16 text-primary" />,
+      content: "Receive notifications for new orders, track payments, and manage your delivery schedule through your unified dashboard.",
+    },
+    {
+      title: "AI Farming Insights",
+      description: "Optimize your yield and pricing",
+      icon: <Bot className="h-16 w-16 text-primary" />,
+      content: "Use our AI assistant to get localized price predictions, crop advice, and market demand insights tailored to your region.",
+    }
+  ];
+
+  const buyerSteps = [
+    {
+      title: "Smart Marketplace",
+      description: "Find the freshest produce directly",
+      icon: <ShoppingCart className="h-16 w-16 text-primary" />,
+      content: "Browse verified listings from local farmers. Filter by region, category, and freshness to find exactly what you need.",
+    },
+    {
+      title: "Direct Secure Ordering",
+      description: "Order with complete transparency",
+      icon: <CheckCircle2 className="h-16 w-16 text-primary" />,
+      content: "Place orders directly with farmers. Every transaction is transparent, and you'll be notified at every step of the fulfillment process.",
+    },
+    {
+      title: "AI Shopping Recommendations",
+      description: "Personalized deals and insights",
+      icon: <Bot className="h-16 w-16 text-primary" />,
+      content: "Our AI helps you find the best value for your budget and recommends seasonal products based on your preferences.",
+    }
+  ];
+
+  const commonEnd = [
+    {
+      title: "Stay Connected",
+      description: "Direct community and messaging",
+      icon: <MessageSquare className="h-16 w-16 text-primary" />,
+      content: "Message farmers or buyers directly to negotiate deals, share agricultural updates on the Social feed, and build your network.",
+    }
+  ];
+
+  const steps = [
+    ...commonStart,
+    ...(role === "farmer" ? farmerSteps : buyerSteps),
+    ...commonEnd
+  ];
+
   const [step, setStep] = useState(() => {
     if (typeof window === "undefined") return 0;
     const stored = window.localStorage.getItem(STEP_STORAGE_KEY);
-    return stored ? Math.min(parseInt(stored, 10) || 0, 4) : 0;
+    return stored ? Math.min(parseInt(stored, 10) || 0, steps.length - 1) : 0;
   });
-
-  const steps = [
-    {
-      title: "Welcome to AgriLink!",
-      description: "Your one-stop platform for agricultural trade and community",
-      icon: <Sparkles className="h-16 w-16 text-primary" />,
-      content: "Connect with farmers, buyers, and the agricultural community. Let's get you started!",
-    },
-    {
-      title: "Browse the Marketplace",
-      description: "Find fresh products from verified farmers",
-      icon: <ShoppingCart className="h-16 w-16 text-primary" />,
-      content: "Explore a wide variety of agricultural products, compare prices, and place orders directly from farmers.",
-    },
-    {
-      title: "Join the Community",
-      description: "Share your experience and connect with others",
-      icon: <Users className="h-16 w-16 text-primary" />,
-      content: "Follow farmers, share posts, like and comment on community updates. Build your agricultural network!",
-    },
-    {
-      title: "AI-Powered Features",
-      description: "Get smart recommendations and price predictions",
-      icon: <Sparkles className="h-16 w-16 text-primary" />,
-      content: "Use our AI assistant for product recommendations, price predictions, and personalized farming advice.",
-    },
-    {
-      title: "Stay Connected",
-      description: "Message buyers and sellers directly",
-      icon: <MessageSquare className="h-16 w-16 text-primary" />,
-      content: "Communicate with other users through our messaging system. Negotiate deals and build relationships.",
-    },
-  ];
 
   useEffect(() => {
     if (!open || typeof window === "undefined") return;

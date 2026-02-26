@@ -62,6 +62,7 @@ const MyProducts = () => {
     location: "",
     image_url: "",
     image_storage_id: "",
+    expiry_date: "",
   });
 
   const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
@@ -121,8 +122,9 @@ const MyProducts = () => {
         unit: formData.unit,
         location: formData.location,
         category: formData.category,
-        image_url: formData.image_url, // Keep URL if pasted
+        image_url: formData.image_url,
         image_storage_id: storageId as Id<"_storage"> | undefined,
+        expiry_date: formData.expiry_date ? new Date(formData.expiry_date).getTime() : undefined,
       };
 
       if (editingProduct) {
@@ -142,6 +144,7 @@ const MyProducts = () => {
           category: productData.category,
           image_url: productData.image_url,
           image_storage_id: productData.image_storage_id,
+          expiry_date: formData.expiry_date ? new Date(formData.expiry_date).getTime() : undefined,
         });
         toast.success("Product added successfully!");
       }
@@ -161,6 +164,7 @@ const MyProducts = () => {
         location: "",
         image_url: "",
         image_storage_id: "",
+        expiry_date: "",
       });
       setFormErrors({});
       setCurrentStep(0);
@@ -207,9 +211,9 @@ const MyProducts = () => {
 
   const handleToggleAvailability = async (product: any) => {
     try {
-      await updateProduct({ 
-        id: product._id, 
-        changes: { is_available: !product.is_available } 
+      await updateProduct({
+        id: product._id,
+        changes: { is_available: !product.is_available }
       });
       toast.success(`Product ${!product.is_available ? 'activated' : 'deactivated'} successfully!`);
     } catch (error: any) {
@@ -434,6 +438,15 @@ const MyProducts = () => {
               />
               {formErrors.location && <p className="text-sm text-destructive mt-1">{formErrors.location}</p>}
             </div>
+            <div>
+              <Label>Expiry Date (Best Before/End of Sale)</Label>
+              <Input
+                type="date"
+                value={formData.expiry_date}
+                onChange={(e) => handleFieldChange("expiry_date", e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground mt-1">This product will be hidden from the marketplace after this date.</p>
+            </div>
 
             <div className="space-y-2">
               <div className="flex items-center justify-between">
@@ -478,7 +491,7 @@ const MyProducts = () => {
                 </Alert>
               )}
             </div>
-          </div>
+          </div >
         );
       case 2:
         return (
@@ -585,6 +598,7 @@ const MyProducts = () => {
                   location: "",
                   image_url: "",
                   image_storage_id: "",
+                  expiry_date: "",
                 });
                 setCurrentStep(0);
                 setMediaFile(null);
@@ -727,6 +741,14 @@ const MyProducts = () => {
                   <span className="text-muted-foreground">Location:</span>
                   <span>{product.location}</span>
                 </div>
+                {product.expiry_date && (
+                  <div className="flex justify-between text-destructive">
+                    <span className="text-muted-foreground">Expires:</span>
+                    <span className="font-medium underline decoration-dotted">
+                      {new Date(product.expiry_date).toLocaleDateString()}
+                    </span>
+                  </div>
+                )}
               </div>
             </CardContent>
             <CardFooter className="flex gap-2">
@@ -746,6 +768,7 @@ const MyProducts = () => {
                     location: product.location,
                     image_url: product.image_url || "",
                     image_storage_id: product.image_storage_id || "",
+                    expiry_date: product.expiry_date ? new Date(product.expiry_date).toISOString().split('T')[0] : "",
                   });
                   setCurrentStep(0);
                   setMediaFile(null);

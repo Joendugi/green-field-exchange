@@ -3,15 +3,17 @@ import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Package, CheckCircle, XCircle, MessageSquare, Clock3 } from "lucide-react";
+import { Package, CheckCircle, XCircle, MessageSquare, Clock3, ShieldCheck, Star, Undo2 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 
 interface MyOrdersProps {
   userRole?: string | null;
@@ -27,12 +29,49 @@ const MyOrders = ({ userRole: propRole }: MyOrdersProps) => {
   const orders = useQuery(api.orders.list, { role: userRole || undefined }) || [];
 
   const updateStatus = useMutation(api.orders.updateStatus);
+  const releasePayment = useMutation(api.escrow.releasePayment);
+  const submitReview = useMutation(api.reviews.submitRating);
 
   const [statusFilter, setStatusFilter] = useState("all");
   const [searchTerm, setSearchTerm] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
+  const [reviewOrder, setReviewOrder] = useState<any>(null);
+  const [rating, setRating] = useState(5);
+  const [comment, setComment] = useState("");
+
   const navigate = useNavigate();
+
+  const handleReleasePayment = async (orderId: Id<"orders">) => {
+    try {
+      if (!window.confirm("Confirm that you have received the items? This will release the funds to the farmer.")) return;
+      await releasePayment({ orderId });
+      toast.success("Payment released to the farmer!");
+    } catch (error: any) {
+      toast.error(error.message);
+    }
+  };
+
+  const handleSubmitReview = async () => {
+    if (!reviewOrder) return;
+    try {
+      await submitReview({
+        orderId: reviewOrder._id,
+        productId: reviewOrder.productId,
+        farmerId: reviewOrder.farmerId,
+        rating,
+        comment,
+      });
+      toast.success("Review submitted! Thank you.");
+      setIsReviewModalOpen(false);
+      setReviewOrder(null);
+      setRating(5);
+      setComment("");
+    } catch (error: any) {
+      toast.error(error.message);
+    }
+  };
 
   const filteredOrders = useMemo(() => {
     return orders.filter((order: any) => {
@@ -67,7 +106,6 @@ const MyOrders = ({ userRole: propRole }: MyOrdersProps) => {
           Order Progress Tracking
         </div>
         <div className="relative flex justify-between">
-          {/* Progress Line */}
           <div className="absolute top-4 left-0 w-full h-0.5 bg-muted z-0 hidden sm:block" />
           <div
             className="absolute top-4 left-0 h-0.5 bg-primary transition-all duration-500 z-0 hidden sm:block"
@@ -82,8 +120,8 @@ const MyOrders = ({ userRole: propRole }: MyOrdersProps) => {
               <div key={step.key} className="relative z-10 flex flex-col items-center gap-2 group sm:flex-1">
                 <div
                   className={`h-8 w-8 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300 border-2 ${isActive
-                      ? "border-primary bg-primary text-primary-foreground shadow-[0_0_10px_rgba(var(--primary),0.3)]"
-                      : "border-muted bg-background text-muted-foreground"
+                    ? "border-primary bg-primary text-primary-foreground"
+                    : "border-muted bg-background text-muted-foreground"
                     } ${isCurrent ? "scale-110" : ""}`}
                 >
                   {isActive ? <CheckCircle className="h-5 w-5" /> : index + 1}
@@ -92,21 +130,11 @@ const MyOrders = ({ userRole: propRole }: MyOrdersProps) => {
                   <p className={`text-xs font-bold transition-colors ${isActive ? "text-foreground" : "text-muted-foreground"}`}>
                     {step.label}
                   </p>
-                  <p className="text-[10px] text-muted-foreground/70 hidden md:block">
-                    {isActive
-                      ? (index === 0 ? new Date(order._creationTime).toLocaleDateString() : (order.updated_at ? new Date(order.updated_at).toLocaleDateString() : ""))
-                      : "Pending"}
-                  </p>
                 </div>
               </div>
             );
           })}
         </div>
-        {order.status === "cancelled" && (
-          <div className="mt-4 p-2 bg-destructive/10 text-destructive text-center rounded-lg text-xs font-semibold border border-destructive/20">
-            This order was cancelled.
-          </div>
-        )}
       </div>
     );
   };
@@ -116,9 +144,7 @@ const MyOrders = ({ userRole: propRole }: MyOrdersProps) => {
     navigate("/social", {
       state: {
         prefill: {
-          recipient, // Ideally pass ID, but existing logic used name?
-          // Convex messages likely need ID. existing 'social' page might rely on name search or ID pass.
-          // I should probably pass userId: userRole === "farmer" ? order.buyerId : order.farmerId
+          recipient,
           recipientId: userRole === "farmer" ? order.buyerId : order.farmerId,
           subject: `Regarding order #${order._id}`,
           body: `Hi ${recipient?.split(" ")[0] || "there"}, about ${order.product?.name}...`,
@@ -137,7 +163,20 @@ const MyOrders = ({ userRole: propRole }: MyOrdersProps) => {
     }
   };
 
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = (order: any) => {
+    const status = order.status;
+    const escrow = order.escrow_status;
+
+    if (escrow === "held") {
+      return <Badge className="bg-blue-500 hover:bg-blue-600"><ShieldCheck className="mr-1 h-3 w-3" /> Payment Held</Badge>;
+    }
+    if (escrow === "released") {
+      return <Badge className="bg-emerald-500 hover:bg-emerald-600 font-bold"><CheckCircle className="mr-1 h-3 w-3" /> Paid</Badge>;
+    }
+    if (escrow === "refunded") {
+      return <Badge variant="destructive"><Undo2 className="mr-1 h-3 w-3" /> Refunded</Badge>;
+    }
+
     const variants: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
       pending: "secondary",
       accepted: "default",
@@ -201,11 +240,11 @@ const MyOrders = ({ userRole: propRole }: MyOrdersProps) => {
 
       <div className="space-y-4">
         {filteredOrders.map((order: any) => (
-          <Card key={order._id}>
+          <Card key={order._id} className={order.escrow_status === 'held' ? "border-blue-200" : ""}>
             <CardHeader>
               <div className="flex items-center justify-between">
                 <CardTitle className="text-lg">{order.product?.name}</CardTitle>
-                {getStatusBadge(order.status)}
+                {getStatusBadge(order)}
               </div>
               <CardDescription>
                 {userRole === "farmer" ? `Buyer: ${order.buyer?.full_name}` : `Farmer: ${order.farmer?.full_name}`}
@@ -245,17 +284,22 @@ const MyOrders = ({ userRole: propRole }: MyOrdersProps) => {
                   <MessageSquare className="mr-2 h-4 w-4" />
                   Message {userRole === "farmer" ? "Buyer" : "Farmer"}
                 </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => window.open(`tel:${order.buyer?.phone || order.farmer?.phone || ""}`)} // Phone not in profile schema yet, removed or needs fix.
-                // Profiles schema didn't have phone. 
-                // I'll leave it as is, likely undefined.
-                >
-                  Call
-                </Button>
+
+                {/* Buyer Actions */}
+                {userRole !== "farmer" && order.escrow_status === "held" && (
+                  <Button size="sm" onClick={() => handleReleasePayment(order._id)} className="bg-emerald-600 hover:bg-emerald-700">
+                    <CheckCircle className="mr-2 h-4 w-4" /> Confirm Receipt & Pay
+                  </Button>
+                )}
+
+                {userRole !== "farmer" && order.escrow_status === "released" && (
+                  <Button size="sm" variant="secondary" onClick={() => { setReviewOrder(order); setIsReviewModalOpen(true); }}>
+                    <Star className="mr-2 h-4 w-4 fill-current" /> Review Product
+                  </Button>
+                )}
               </div>
 
+              {/* Farmer Actions */}
               {userRole === "farmer" && order.status === "pending" && (
                 <div className="flex gap-2">
                   <Button
@@ -292,6 +336,38 @@ const MyOrders = ({ userRole: propRole }: MyOrdersProps) => {
           </Card>
         ))}
       </div>
+
+      {/* Review Dialog */}
+      <Dialog open={isReviewModalOpen} onOpenChange={setIsReviewModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Rate the Product</DialogTitle>
+            <DialogDescription>
+              Your feedback helps the community choose high-quality items.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="flex items-center justify-center gap-2 mb-4">
+              {[1, 2, 3, 4, 5].map(i => (
+                <Star
+                  key={i}
+                  className={`h-8 w-8 cursor-pointer transition-colors ${i <= rating ? "text-yellow-500 fill-current" : "text-muted"}`}
+                  onClick={() => setRating(i)}
+                />
+              ))}
+            </div>
+            <div className="space-y-2">
+              <Label>Detailed Feedback</Label>
+              <Textarea
+                placeholder="How was the freshness and quality?"
+                value={comment}
+                onChange={(e) => setComment(e.target.value)}
+              />
+            </div>
+            <Button className="w-full" onClick={handleSubmitReview}>Submit Review</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {filteredOrders.length === 0 && (
         <div className="text-center py-12">

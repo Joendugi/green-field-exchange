@@ -51,10 +51,25 @@ export const list = query({
             products = await ctx.db.query("products").collect();
         }
 
-        // Filtering for public marketplace
+        // Filtering for public marketplace (stock availability, hidden status, and expiry)
         if (!args.farmerId && !args.includeHidden) {
-            products = products.filter((p) => (p.is_available !== false) && !p.is_hidden);
+            products = products.filter((p) =>
+                (p.is_available !== false) &&
+                !p.is_hidden &&
+                (!p.expiry_date || p.expiry_date > now)
+            );
         }
+
+        // Sort by featured status (ensure active duration) then by created_at
+        const now = Date.now();
+        products.sort((a, b) => {
+            const aFeatured = a.is_featured && (!a.featured_until || a.featured_until > now);
+            const bFeatured = b.is_featured && (!b.featured_until || b.featured_until > now);
+
+            if (aFeatured && !bFeatured) return -1;
+            if (!aFeatured && bFeatured) return 1;
+            return (b.created_at || 0) - (a.created_at || 0);
+        });
 
         // Generate image URLs and enhance with profile
         return await Promise.all(products.map(async (p) => {
@@ -99,6 +114,7 @@ export const create = mutation({
         location: v.string(),
         image_url: v.optional(v.string()),
         image_storage_id: v.optional(v.id("_storage")),
+        expiry_date: v.optional(v.number()), // Date when the product expires
     },
     handler: async (ctx, args) => {
         const userId = await getAuthUserId(ctx);
@@ -156,6 +172,7 @@ export const create = mutation({
             location: args.location,
             image_url: args.image_url,
             image_storage_id: args.image_storage_id,
+            expiry_date: args.expiry_date,
             farmerId: userId,
             is_available: true,
             is_hidden: false,
@@ -182,6 +199,7 @@ export const update = mutation({
             image_storage_id: v.optional(v.id("_storage")),
             is_available: v.optional(v.boolean()),
             is_hidden: v.optional(v.boolean()),
+            expiry_date: v.optional(v.number()),
         }),
     },
     handler: async (ctx, args) => {

@@ -141,6 +141,9 @@ const schema = defineSchema({
     image_storage_id: v.optional(v.id("_storage")),
     is_available: v.boolean(),
     is_hidden: v.optional(v.boolean()),
+    is_featured: v.optional(v.boolean()),
+    featured_until: v.optional(v.number()),
+    expiry_date: v.optional(v.number()), // Date when the product expires/spoils
     created_at: v.number(),
     updated_at: v.number(),
   })
@@ -159,6 +162,7 @@ const schema = defineSchema({
     quantity: v.number(),
     total_price: v.number(),
     status: v.string(), // pending, accepted, completed, cancelled
+    escrow_status: v.optional(v.string()), // pending, held, released, refunded
     payment_type: v.string(),
     delivery_address: v.string(),
     created_at: v.number(),
@@ -337,7 +341,7 @@ const schema = defineSchema({
   email_logs: defineTable({
     to: v.string(),
     subject: v.string(),
-    type: v.string(), // "broadcast", "otp", "ban", "role_change", "order", "message", "verification"
+    type: v.string(), // "broadcast", "otp", "ban", "role_change", "order", "message", "verification", "announcement"
     status: v.string(), // "sent", "failed"
     resendId: v.optional(v.string()),
     error: v.optional(v.string()),
@@ -353,6 +357,34 @@ const schema = defineSchema({
     content: v.string(),
     created_at: v.number(),
   }).index("by_userId", ["userId"]),
+
+  search_logs: defineTable({
+    query: v.string(),
+    category: v.optional(v.string()),
+    location: v.optional(v.string()),
+    userId: v.optional(v.id("users")),
+    timestamp: v.number(),
+  })
+    .index("by_category", ["category"])
+    .index("by_location", ["location"])
+    .index("by_timestamp", ["timestamp"]),
+
+  offers: defineTable({
+    productId: v.id("products"),
+    buyerId: v.id("users"),
+    farmerId: v.id("users"),
+    quantity: v.number(),
+    amount_per_unit: v.number(),
+    status: v.string(), // "pending", "accepted", "rejected", "cancelled"
+    last_offered_by: v.id("users"),
+    message: v.optional(v.string()),
+    created_at: v.number(),
+    updated_at: v.number(),
+  })
+    .index("by_productId", ["productId"])
+    .index("by_buyerId", ["buyerId"])
+    .index("by_farmerId", ["farmerId"])
+    .index("by_status", ["status"]),
 });
 
 export default schema;

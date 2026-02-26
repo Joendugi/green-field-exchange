@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
@@ -7,15 +7,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { ShoppingCart, MapPin, Search, Sparkles, Loader2 } from "lucide-react";
+import { ShoppingCart, MapPin, Search, Sparkles, Loader2, Handshake, Gavel } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
-
 import { useAuth } from "@/contexts/AuthContext";
-
 const Marketplace = () => {
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
@@ -26,18 +24,63 @@ const Marketplace = () => {
   const [orderQuantity, setOrderQuantity] = useState("");
   const [deliveryAddress, setDeliveryAddress] = useState("");
 
+  // Offer States
+  const [offerPrice, setOfferPrice] = useState("");
+  const [offerQuantity, setOfferQuantity] = useState("");
+  const [offerMessage, setOfferMessage] = useState("");
+
   // Convex Queries
   const products = useQuery(api.products.list, {
     category: categoryFilter,
     search: searchQuery
   });
   const recommendations = useQuery(api.products.listRecommendations);
-
   // Convex Mutations
   const createOrder = useMutation(api.orders.create);
+  const logSearch = useMutation(api.analytics.logSearch);
+  const createOffer = useMutation(api.offers.createOffer);
+
+  const handleMakeOffer = async (product: any) => {
+    try {
+      if (!isAuthenticated) {
+        toast.error("Please sign in to make an offer");
+        navigate("/auth");
+        return;
+      }
+
+      await createOffer({
+        productId: product._id,
+        quantity: parseFloat(offerQuantity),
+        amount_per_unit: parseFloat(offerPrice),
+        message: offerMessage,
+      });
+
+      toast.success("Offer sent successfully!");
+      setOfferPrice("");
+      setOfferQuantity("");
+      setOfferMessage("");
+    } catch (error: any) {
+      toast.error(error.message);
+    }
+  };
 
   const isLoadingProducts = products === undefined;
   const isLoadingRecommendations = recommendations === undefined;
+
+  // Log searches for analytics (with debounce)
+  useEffect(() => {
+    if (!searchQuery && categoryFilter === 'all') return;
+
+    const timeout = setTimeout(() => {
+      logSearch({
+        query: searchQuery,
+        category: categoryFilter,
+        location: profile?.location // Use buyer's location if available
+      });
+    }, 1500); // 1.5s debounce to avoid spamming search logs while typing
+
+    return () => clearTimeout(timeout);
+  }, [searchQuery, categoryFilter, logSearch, profile?.location]);
 
   const handlePlaceOrder = async () => {
     try {
@@ -172,6 +215,11 @@ const Marketplace = () => {
                       <ShoppingCart className="h-12 w-12 text-muted-foreground" />
                     </div>
                   )}
+                  {product.expiry_date && (product.expiry_date - Date.now() < 48 * 60 * 60 * 1000) && (
+                    <Badge className="absolute top-2 right-2 bg-red-500 text-white border-none animate-pulse">
+                      Expiring Soon!
+                    </Badge>
+                  )}
                 </div>
                 <CardTitle>{product.name}</CardTitle>
                 <CardDescription>{product.description}</CardDescription>
@@ -193,6 +241,11 @@ const Marketplace = () => {
                 <div className="text-sm">
                   <span className="font-semibold">Available:</span> {product.quantity} {product.unit}
                 </div>
+                {product.expiry_date && (
+                  <div className="text-sm text-amber-600 flex items-center gap-1">
+                    <span className="font-semibold">Best Before:</span> {new Date(product.expiry_date).toLocaleDateString()}
+                  </div>
+                )}
               </CardContent>
               <CardFooter>
                 {product.farmerId === profile?.userId ? (
@@ -205,11 +258,70 @@ const Marketplace = () => {
                   </Button>
                 ) : (
                   <Dialog>
-                    <DialogTrigger asChild>
-                      <Button className="w-full" onClick={() => setSelectedProduct(product)}>
+                    <div className="flex gap-2">
+                      <Button
+                        className="flex-1"
+                        onClick={() => setSelectedProduct(product)}
+                      >
                         Place Order
                       </Button>
-                    </DialogTrigger>
+                      <Dialog>
+                        <DialogTrigger asChild>
+                          <Button variant="outline" className="flex-1 bg-primary/5 hover:bg-primary/10 border-primary/20 text-primary">
+                            <Handshake className="mr-2 h-4 w-4" /> Bargain
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                          <DialogHeader>
+                            <DialogTitle>Make a Price Offer</DialogTitle>
+                            <DialogDescription>
+                              Suggest a different price for {product.name}. The farmer can accept, reject, or counter.
+                            </DialogDescription>
+                          </DialogHeader>
+                          <div className="space-y-4 py-4">
+                            <div className="grid grid-cols-2 gap-4">
+                              <div className="space-y-2">
+                                <Label>Quantity ({product.unit})</Label>
+                                <Input
+                                  type="number"
+                                  value={offerQuantity}
+                                  onChange={(e) => setOfferQuantity(e.target.value)}
+                                  placeholder="1"
+                                />
+                              </div>
+                              <div className="space-y-2">
+                                <Label>Your Price (per {product.unit})</Label>
+                                <div className="relative">
+                                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+                                  <Input
+                                    type="number"
+                                    className="pl-7"
+                                    value={offerPrice}
+                                    onChange={(e) => setOfferPrice(e.target.value)}
+                                    placeholder={product.price.toString()}
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                            <div className="space-y-2">
+                              <Label>Message to Farmer (Optional)</Label>
+                              <Textarea
+                                placeholder="e.g. I'm buying in bulk, can we do a discount?"
+                                value={offerMessage}
+                                onChange={(e) => setOfferMessage(e.target.value)}
+                              />
+                            </div>
+                            <Button
+                              className="w-full"
+                              onClick={() => handleMakeOffer(product)}
+                              disabled={!offerPrice || !offerQuantity}
+                            >
+                              Send Offer
+                            </Button>
+                          </div>
+                        </DialogContent>
+                      </Dialog>
+                    </div>
                     <DialogContent>
                       <DialogHeader>
                         <DialogTitle>Place Order</DialogTitle>

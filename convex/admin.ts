@@ -349,3 +349,106 @@ export const listEmailLogs = query({
         return await ctx.db.query("email_logs").order("desc").take(100);
     }
 });
+export const toggleFeatured = mutation({
+    args: { productId: v.id("products"), featured: v.boolean(), durationDays: v.optional(v.number()) },
+    handler: async (ctx, args) => {
+        const admin = await ensureAdmin(ctx);
+        const product = await ctx.db.get(args.productId);
+        if (!product) throw new Error("Product not found");
+
+        const featured_until = args.featured
+            ? Date.now() + (args.durationDays || 7) * 24 * 60 * 60 * 1000
+            : undefined;
+
+        await ctx.db.patch(args.productId, {
+            is_featured: args.featured,
+            featured_until,
+        });
+
+        await logAdminAction(
+            ctx,
+            admin._id,
+            args.featured ? "feature_product" : "unfeature_product",
+            args.productId,
+            "product",
+            `Duration: ${args.durationDays || 7} days`
+        );
+    }
+});
+
+export const sendMarketingMessage = action({
+    args: {
+        userIds: v.optional(v.array(v.id("users"))), // Optional: send to specific users or all
+        title: v.string(),
+        message: v.string(),
+        link: v.optional(v.string())
+    },
+    handler: async (ctx, args) => {
+        const admin = await ctx.runQuery(api.helpers.getAdminUser);
+        if (!admin) throw new Error("Unauthorized");
+
+        // 1. Get recipients
+        let targetUserIds: any[] = args.userIds || [];
+        if (!args.userIds) {
+            const users = await ctx.runQuery(api.admin.listAllUserIdsForMarketing);
+            targetUserIds = users;
+        }
+
+        // 2. Send in-app notifications & emails via internal mutation
+        await ctx.runMutation(api.admin.createMarketingNotifications, {
+            userIds: targetUserIds,
+            title: args.title,
+            message: args.message,
+            link: args.link
+        });
+
+        // 3. Audit log
+        await ctx.runMutation(api.admin.createAuditLog, {
+            adminId: admin._id,
+            action: "marketing_push",
+            targetType: "system",
+            details: `Marketing: ${args.title} to ${targetUserIds.length} users`
+        });
+    }
+});
+
+export const listAllUserIdsForMarketing = query({
+    args: {},
+    handler: async (ctx) => {
+        await ensureAdmin(ctx);
+        const users = await ctx.db.query("users").collect();
+        return users.map(u => u._id);
+    }
+});
+
+export const createMarketingNotifications = mutation({
+    args: { userIds: v.array(v.id("users")), title: v.string(), message: v.string(), link: v.optional(v.string()) },
+    handler: async (ctx, args) => {
+        await ensureAdmin(ctx);
+        const now = Date.now();
+
+        for (const userId of args.userIds) {
+            await ctx.db.insert("notifications", {
+                userId,
+                title: args.title,
+                message: args.message,
+                link: args.link,
+                is_read: false,
+                created_at: now,
+                type: "marketing"
+            });
+
+            // Also send email if user has one
+            const user = await ctx.db.get(userId);
+            if (user?.email) {
+                await ctx.scheduler.runAfter(0, api.emailService.sendMarketingEmail, {
+                    email: user.email,
+                    userName: user.name || "Valued User",
+                    subject: args.title,
+                    message: args.message,
+                    link: args.link
+                });
+            }
+        }
+    }
+});

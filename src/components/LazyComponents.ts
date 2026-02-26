@@ -11,4 +11,5 @@ export const MyOrders = lazy(() => import('./MyOrders'));
 export const Onboarding = lazy(() => import('./Onboarding'));
 export const Profile = lazy(() => import('./Profile'));
 export const Settings = lazy(() => import('./Settings'));
-
+export const FarmerAnalytics = lazy(() => import('./FarmerAnalytics'));
+export const OffersManager = lazy(() => import('./OffersManager'));

@@ -224,8 +224,46 @@ export const sendMessageNotificationEmail = action({
 });
 
 
+export const sendMarketingEmail = action({
+  args: { email: v.string(), userName: v.string(), subject: v.string(), message: v.string(), link: v.optional(v.string()) },
+  handler: async (ctx, args) => {
+    const html = emailTemplates.marketing.html(args.userName, args.subject, args.message, args.link);
+    return await sendEmail(ctx, {
+      to: args.email,
+      subject: args.subject,
+      html,
+      type: "announcement"
+    });
+  }
+});
+
 // Email templates for different purposes
 export const emailTemplates = {
+  marketing: {
+    html: (userName: string, title: string, message: string, link?: string) => `
+      <div style="font-family: 'Inter', sans-serif; max-width: 600px; margin: 0 auto; padding: 40px 20px; background-color: #f0fdf4;">
+        <div style="background-color: #ffffff; padding: 40px; border-radius: 20px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);">
+          <div style="text-align: center; margin-bottom: 30px;">
+            <span style="font-size: 48px;">🚀</span>
+            <h1 style="color: #065f46; font-size: 24px; font-weight: 800; margin-top: 10px;">${title}</h1>
+          </div>
+          <p style="color: #374151; font-size: 16px; line-height: 1.6;">Hello <strong>${userName}</strong>,</p>
+          <div style="color: #4b5563; font-size: 16px; line-height: 1.8; margin-bottom: 30px;">
+            ${message}
+          </div>
+          ${link ? `
+          <div style="text-align: center;">
+            <a href="${link}" style="background-color: #10b981; color: white; padding: 14px 30px; text-decoration: none; border-radius: 12px; font-weight: 700; display: inline-block;">
+              Learn More
+            </a>
+          </div>` : ''}
+          <div style="margin-top: 40px; text-align: center; color: #9ca3af; font-size: 12px;">
+            AgriLink Global Services — Empowering the Agricultural Community
+          </div>
+        </div>
+      </div>
+    `
+  },
   passwordReset: {
     subject: "Reset your AgriLink password",
     html: (otp: string, userName: string) => `

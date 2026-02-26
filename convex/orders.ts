@@ -70,6 +70,7 @@ export const create = mutation({
                 quantity: args.quantity,
                 total_price,
                 status: "pending",
+                escrow_status: "held", // Mark funds as held by platform
                 payment_type: args.payment_type.toLowerCase(),
                 delivery_address: sanitizedAddress,
                 created_at: Date.now(),
@@ -232,6 +233,7 @@ export const updateStatus = mutation({
 
         await ctx.db.patch(args.orderId, {
             status: args.status,
+            escrow_status: args.status === "cancelled" ? "refunded" : order.escrow_status,
             updated_at: Date.now(),
         });
 

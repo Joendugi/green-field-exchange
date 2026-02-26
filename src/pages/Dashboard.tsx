@@ -10,12 +10,13 @@ import {
   MyOrders,
   MyProducts,
   Onboarding,
-  AIAssistant
+  AIAssistant,
+  FarmerAnalytics,
+  OffersManager
 } from "@/components/LazyComponents";
-import Profile from "@/components/Profile"; // Keep Profile direct as it's the default tab
+import Profile from "@/components/Profile";
 import Settings from "@/components/Settings";
 
-// Loading wrapper
 const LazyLoader = ({ children }: { children: React.ReactNode }) => (
   <Suspense fallback={<DashboardSkeleton />}>
     {children}
@@ -34,8 +35,8 @@ const Dashboard = () => {
     if (urlTab) return urlTab;
     if (typeof window !== "undefined") {
       const saved = window.localStorage.getItem(TAB_STORAGE_KEY);
-      if (saved === "admin" && role !== "admin") return "profile"; // Safety
-      return saved || (isAuthenticated ? "profile" : "products"); // Default to products for guest
+      if (saved === "admin" && role !== "admin") return "profile";
+      return saved || (isAuthenticated ? "profile" : "products");
     }
     return isAuthenticated ? "profile" : "products";
   });
@@ -67,7 +68,6 @@ const Dashboard = () => {
   }
 
   useEffect(() => {
-    // Check onboarding logic - we can check user.onboarded
     if (!loading && isAuthenticated && user && !user.onboarded) {
       setShowOnboarding(true);
     }
@@ -86,10 +86,14 @@ const Dashboard = () => {
           <DashboardSkeleton />
         ) : (
           <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-            <TabsList className={`grid w-full ${isAuthenticated ? (role === "admin" ? "grid-cols-5" : "grid-cols-4") : "grid-cols-1"} mb-6`}>
+            <TabsList className={`grid w-full ${isAuthenticated ?
+              (role === "admin" ? "grid-cols-7" : (role === "farmer" ? "grid-cols-6" : "grid-cols-5"))
+              : "grid-cols-1"} mb-6`}>
               {isAuthenticated && <TabsTrigger value="profile">Profile</TabsTrigger>}
               {isAuthenticated && <TabsTrigger value="orders">Orders</TabsTrigger>}
               <TabsTrigger value="products">My Products</TabsTrigger>
+              {role === "farmer" && <TabsTrigger value="insights">Insights</TabsTrigger>}
+              {isAuthenticated && <TabsTrigger value="negotiations">Offers</TabsTrigger>}
               {isAuthenticated && <TabsTrigger value="settings">Settings</TabsTrigger>}
               {role === "admin" && <TabsTrigger value="admin">Admin</TabsTrigger>}
             </TabsList>
@@ -107,6 +111,18 @@ const Dashboard = () => {
             <TabsContent value="products">
               <LazyLoader>
                 <MyProducts />
+              </LazyLoader>
+            </TabsContent>
+
+            <TabsContent value="insights">
+              <LazyLoader>
+                <FarmerAnalytics />
+              </LazyLoader>
+            </TabsContent>
+
+            <TabsContent value="negotiations">
+              <LazyLoader>
+                <OffersManager />
               </LazyLoader>
             </TabsContent>
 
@@ -144,48 +160,12 @@ const ProfileSkeleton = () => (
       <div className="flex-1 space-y-2">
         <Skeleton className="h-6 w-40" />
         <Skeleton className="h-4 w-32" />
-        <Skeleton className="h-4 w-24" />
       </div>
-    </div>
-    <div className="grid grid-cols-2 gap-4">
-      {Array.from({ length: 4 }).map((_, idx) => (
-        <Skeleton key={idx} className="h-10 w-full" />
-      ))}
     </div>
   </div>
 );
 
-const OrdersSkeleton = () => (
-  <div className="rounded-lg border bg-card p-6 space-y-4">
-    <Skeleton className="h-6 w-32" />
-    {Array.from({ length: 2 }).map((_, idx) => (
-      <div key={idx} className="rounded-lg border p-4 space-y-3">
-        <Skeleton className="h-5 w-40" />
-        <Skeleton className="h-4 w-full" />
-        <div className="grid grid-cols-2 gap-3">
-          <Skeleton className="h-4 w-full" />
-          <Skeleton className="h-4 w-full" />
-        </div>
-      </div>
-    ))}
-  </div>
-);
-
-const ProductsSkeleton = () => (
-  <div className="rounded-lg border bg-card p-6 space-y-4">
-    <Skeleton className="h-6 w-40" />
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-      {Array.from({ length: 2 }).map((_, idx) => (
-        <div key={idx} className="rounded-lg border p-4 space-y-3">
-          <Skeleton className="h-32 w-full" />
-          <Skeleton className="h-5 w-3/4" />
-          <Skeleton className="h-4 w-1/2" />
-          <Skeleton className="h-4 w-full" />
-          <Skeleton className="h-10 w-full" />
-        </div>
-      ))}
-    </div>
-  </div>
-);
+const OrdersSkeleton = () => <Skeleton className="h-40 w-full" />;
+const ProductsSkeleton = () => <Skeleton className="h-40 w-full" />;
 
 export default Dashboard;

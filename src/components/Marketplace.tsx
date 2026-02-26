@@ -227,9 +227,14 @@ const Marketplace = () => {
               <CardContent className="space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="text-2xl font-bold text-primary">
-                    ${product.price}/{product.unit}
+                    {product.currency || "$"}{product.price}/{product.unit}
                   </span>
                   <Badge variant="secondary">{product.category}</Badge>
+                  {product.is_featured && (
+                    <Badge variant="default" className="bg-amber-500 hover:bg-amber-600 gap-1">
+                      <Sparkles className="h-3 w-3" /> Featured
+                    </Badge>
+                  )}
                 </div>
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <MapPin className="h-4 w-4" />
@@ -292,7 +297,7 @@ const Marketplace = () => {
                               <div className="space-y-2">
                                 <Label>Your Price (per {product.unit})</Label>
                                 <div className="relative">
-                                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+                                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">{product.currency || "$"}</span>
                                   <Input
                                     type="number"
                                     className="pl-7"

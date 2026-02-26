@@ -163,7 +163,7 @@ export const resetPassword = mutation({
       action: "password_reset_completed",
       targetId: userId,
       targetType: "user",
-      details: `Password reset completed for user ${user.email}`,
+      details: `Password reset completed for user ${(user as any).email || 'unknown'}`,
       timestamp: Date.now(),
     });
 
@@ -223,5 +223,20 @@ export const verifyResetToken = query({
     }
 
     return { valid: true, message: "Token is valid" };
+  },
+});
+
+export const cleanupExpiredTokens = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const expired = await ctx.db
+      .query("password_reset_tokens")
+      .filter((q) => q.lt(q.field("expiresAt"), Date.now()))
+      .collect();
+
+    for (const token of expired) {
+      await ctx.db.delete(token._id);
+    }
+    return expired.length;
   },
 });

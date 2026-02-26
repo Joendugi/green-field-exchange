@@ -17,6 +17,7 @@ import { toast } from "sonner";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import VerificationRequestDialog from "./VerificationRequestDialog";
 
 type PricePrediction = {
   suggested_price?: number;
@@ -63,6 +64,7 @@ const MyProducts = () => {
     image_url: "",
     image_storage_id: "",
     expiry_date: "",
+    currency: "$",
   });
 
   const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
@@ -145,6 +147,7 @@ const MyProducts = () => {
           image_url: productData.image_url,
           image_storage_id: productData.image_storage_id,
           expiry_date: formData.expiry_date ? new Date(formData.expiry_date).getTime() : undefined,
+          currency: formData.currency,
         });
         toast.success("Product added successfully!");
       }
@@ -165,6 +168,7 @@ const MyProducts = () => {
         image_url: "",
         image_storage_id: "",
         expiry_date: "",
+        currency: "$",
       });
       setFormErrors({});
       setCurrentStep(0);
@@ -410,6 +414,21 @@ const MyProducts = () => {
                 {formErrors.price && <p className="text-sm text-destructive mt-1">{formErrors.price}</p>}
               </div>
               <div>
+                <Label>Currency</Label>
+                <Select value={formData.currency} onValueChange={(value) => handleFieldChange("currency", value)}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="$">$ (USD)</SelectItem>
+                    <SelectItem value="UGX">UGX</SelectItem>
+                    <SelectItem value="KES">KES</SelectItem>
+                    <SelectItem value="€">€ (EUR)</SelectItem>
+                    <SelectItem value="£">£ (GBP)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
                 <Label>Quantity</Label>
                 <Input
                   type="number"
@@ -599,6 +618,7 @@ const MyProducts = () => {
                   image_url: "",
                   image_storage_id: "",
                   expiry_date: "",
+                  currency: "$",
                 });
                 setCurrentStep(0);
                 setMediaFile(null);
@@ -769,6 +789,7 @@ const MyProducts = () => {
                     image_url: product.image_url || "",
                     image_storage_id: product.image_storage_id || "",
                     expiry_date: product.expiry_date ? new Date(product.expiry_date).toISOString().split('T')[0] : "",
+                    currency: product.currency || "$",
                   });
                   setCurrentStep(0);
                   setMediaFile(null);
@@ -817,31 +838,10 @@ const MyProducts = () => {
         </div>
       )}
 
-      <AlertDialog open={verificationDialogOpen} onOpenChange={setVerificationDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Product Limit Reached</AlertDialogTitle>
-            <AlertDialogDescription>
-              You've reached the limit of 5 products for unverified users.
-              Request verification to add unlimited products.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={async () => {
-              try {
-                await requestVerificationMutation({});
-                toast.success("Verification request submitted successfully!");
-                setVerificationDialogOpen(false);
-              } catch (error: any) {
-                toast.error(error.message);
-              }
-            }}>
-              Request Verification
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <VerificationRequestDialog
+        open={verificationDialogOpen}
+        onOpenChange={setVerificationDialogOpen}
+      />
     </div>
   );
 };

@@ -36,6 +36,17 @@ export const createAuditLog = mutation({
     },
 });
 
+export const checkAdmin = query({
+    args: {},
+    handler: async (ctx) => {
+        try {
+            return await ensureAdmin(ctx);
+        } catch {
+            return null;
+        }
+    }
+});
+
 export const getStats = query({
     args: {},
     handler: async (ctx) => {
@@ -180,7 +191,22 @@ export const listVerificationRequests = query({
                 .query("profiles")
                 .withIndex("by_userId", (q) => q.eq("userId", r.userId))
                 .first();
-            return { ...r, profiles: profile };
+
+            let documentUrls: string[] = [];
+            if (r.documents) {
+                documentUrls = await Promise.all(
+                    r.documents.map(async (id) => {
+                        try {
+                            const url = await ctx.storage.getUrl(id);
+                            return url || id;
+                        } catch {
+                            return id;
+                        }
+                    })
+                );
+            }
+
+            return { ...r, profiles: profile, documentUrls };
         }));
 
         return enriched;
@@ -251,11 +277,54 @@ export const listProducts = query({
     }
 });
 
+export const hidePost = mutation({
+    args: { postId: v.id("posts"), hide: v.boolean() },
+    handler: async (ctx, args) => {
+        const admin = await ensureAdmin(ctx);
+        const post = await ctx.db.get(args.postId);
+        if (!post) throw new Error("Post not found");
+
+        await ctx.db.patch(args.postId, {
+            is_hidden: args.hide
+        });
+
+        await logAdminAction(
+            ctx,
+            admin._id,
+            args.hide ? "hide_post" : "unhide_post",
+            args.postId,
+            "post"
+        );
+    }
+});
+
+export const hideProduct = mutation({
+    args: { productId: v.id("products"), hide: v.boolean() },
+    handler: async (ctx, args) => {
+        const admin = await ensureAdmin(ctx);
+        const product = await ctx.db.get(args.productId);
+        if (!product) throw new Error("Product not found");
+
+        await ctx.db.patch(args.productId, {
+            is_hidden: args.hide
+        });
+
+        await logAdminAction(
+            ctx,
+            admin._id,
+            args.hide ? "hide_product" : "unhide_product",
+            args.productId,
+            "product"
+        );
+    }
+});
+
+
 // Refactored to action to support bulk email orchestration
 export const broadcastNotification = action({
     args: { title: v.string(), message: v.string(), sendEmail: v.optional(v.boolean()) },
     handler: async (ctx, args) => {
-        const admin = await ctx.runQuery(api.helpers.getAdminUser);
+        const admin = await ctx.runQuery(api.admin.checkAdmin);
         if (!admin) throw new Error("Unauthorized: Admin access required");
 
         // Input validation
@@ -384,7 +453,7 @@ export const sendMarketingMessage = action({
         link: v.optional(v.string())
     },
     handler: async (ctx, args) => {
-        const admin = await ctx.runQuery(api.helpers.getAdminUser);
+        const admin = await ctx.runQuery(api.admin.checkAdmin);
         if (!admin) throw new Error("Unauthorized");
 
         // 1. Get recipients
@@ -450,5 +519,47 @@ export const createMarketingNotifications = mutation({
                 });
             }
         }
+    }
+});
+
+export const generateDailyReport = mutation({
+    args: {},
+    handler: async (ctx) => {
+        const yesterday = Date.now() - (24 * 60 * 60 * 1000);
+
+        const newUsers = await ctx.db
+            .query("users")
+            .filter((q) => q.gt(q.field("_creationTime"), yesterday))
+            .collect();
+
+        const newOrders = await ctx.db
+            .query("orders")
+            .filter((q) => q.gt(q.field("created_at"), yesterday))
+            .collect();
+
+        const totalRevenue = newOrders.reduce((acc, order) => acc + (order.total_price || 0), 0);
+
+        // Find admins to notify
+        const admins = await ctx.db
+            .query("user_roles")
+            .withIndex("by_role", (q) => q.eq("role", "admin"))
+            .collect();
+
+        for (const admin of admins) {
+            await ctx.db.insert("notifications", {
+                userId: admin.userId,
+                title: "Daily Platform Report",
+                message: `Yesterday's Summary: ${newUsers.length} new users, ${newOrders.length} orders, Total Revenue: $${totalRevenue.toFixed(2)}`,
+                is_read: false,
+                created_at: Date.now(),
+                type: "system"
+            });
+        }
+
+        return {
+            users: newUsers.length,
+            orders: newOrders.length,
+            revenue: totalRevenue
+        };
     }
 });

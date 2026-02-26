@@ -22,7 +22,11 @@ const schema = defineSchema({
     onboarding_completed: v.optional(v.boolean()),
   })
     .index("by_userId", ["userId"])
-    .index("by_username", ["username"]),
+    .index("by_username", ["username"])
+    .searchIndex("search_profiles", {
+      searchField: "username",
+      filterFields: ["full_name"],
+    }),
 
   admin_settings: defineTable({
     force_dark_mode: v.boolean(),
@@ -41,6 +45,7 @@ const schema = defineSchema({
     video_url: v.optional(v.string()),
     likes_count: v.optional(v.number()),
     comments_count: v.optional(v.number()),
+    is_hidden: v.optional(v.boolean()),
     created_at: v.number(),
     updated_at: v.number(),
   })
@@ -144,6 +149,7 @@ const schema = defineSchema({
     is_featured: v.optional(v.boolean()),
     featured_until: v.optional(v.number()),
     expiry_date: v.optional(v.number()), // Date when the product expires/spoils
+    currency: v.optional(v.string()), // e.g., "$", "€", "£", "UGX", "KES"
     created_at: v.number(),
     updated_at: v.number(),
   })
@@ -161,6 +167,7 @@ const schema = defineSchema({
     productId: v.id("products"),
     quantity: v.number(),
     total_price: v.number(),
+    currency: v.string(), // e.g., "$", "UGX" - Inherited from product at checkout
     status: v.string(), // pending, accepted, completed, cancelled
     escrow_status: v.optional(v.string()), // pending, held, released, refunded
     payment_type: v.string(),

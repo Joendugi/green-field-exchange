@@ -72,7 +72,7 @@ const AIAssistant = () => {
             <div className="flex items-center gap-2">
               <CardTitle>AI Assistant</CardTitle>
               {history && history.length > 0 && (
-                <History className="h-4 w-4 text-muted-foreground" title="Long-term memory enabled" />
+                <History className="h-4 w-4 text-muted-foreground" />
               )}
             </div>
             <CardDescription>

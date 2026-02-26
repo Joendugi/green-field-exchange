@@ -39,7 +39,7 @@ export const createOffer = mutation({
         await ctx.db.insert("notifications", {
             userId: product.farmerId,
             title: "New Price Offer Received 🤝",
-            message: `A buyer offered $${args.amount_per_unit} per unit for ${product.name}. Check your offers to respond.`,
+            message: `A buyer offered ${product.currency || "$"}${args.amount_per_unit} per unit for ${product.name}. Check your offers to respond.`,
             is_read: false,
             type: "order",
             link: "/dashboard?tab=offers",
@@ -134,6 +134,8 @@ export const respond = mutation({
         } else if (args.status === "countered") {
             if (!args.amount_per_unit) throw new Error("Counter amount required");
 
+            const product = await ctx.db.get(offer.productId);
+
             await ctx.db.patch(args.offerId, {
                 amount_per_unit: args.amount_per_unit,
                 last_offered_by: userId,
@@ -146,7 +148,7 @@ export const respond = mutation({
             await ctx.db.insert("notifications", {
                 userId: recipientId,
                 title: "Counter-Offer Received 🔄",
-                message: `${isFarmer ? "Farmer" : "Buyer"} countered with $${args.amount_per_unit} per unit.`,
+                message: `${isFarmer ? "Farmer" : "Buyer"} countered with ${product?.currency || "$"}${args.amount_per_unit} per unit.`,
                 is_read: false,
                 type: "order",
                 link: "/dashboard?tab=offers",
@@ -183,6 +185,7 @@ export const finalizeCheckout = mutation({
             productId: offer.productId,
             quantity: offer.quantity,
             total_price: offer.quantity * offer.amount_per_unit,
+            currency: product.currency || "$",
             status: "pending",
             escrow_status: "held",
             payment_type: "negotiated_agreement",

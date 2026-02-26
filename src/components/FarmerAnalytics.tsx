@@ -7,8 +7,8 @@ import { DollarSign, TrendingUp, Map, Search, Package, ArrowUpRight, Loader2 } f
 import { useAuth } from "@/contexts/AuthContext";
 
 const FarmerAnalytics = () => {
-    const { userId } = useAuth();
-    const analytics = useQuery(api.analytics.getFarmerAnalytics, userId ? { farmerId: userId } : "skip");
+    const { user } = useAuth();
+    const analytics = useQuery(api.analytics.getFarmerAnalytics, user?.userId ? { farmerId: user.userId } : "skip");
 
     if (!analytics) {
         return (

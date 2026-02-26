@@ -310,18 +310,13 @@ export const searchUsers = query({
 
         if (!searchTerm || searchTerm.length < 2) return [];
 
-        // Convex doesn't have a native full-text search index on profiles by default,
-        // so we'll do a simple filter for now. For larger datasets, we should use search indexes.
-        const profiles = await ctx.db
+        const results = await ctx.db
             .query("profiles")
-            .collect();
-
-        return profiles
-            .filter((p) =>
-                p.userId !== userId &&
-                (p.full_name?.toLowerCase().includes(searchTerm) ||
-                    p.username.toLowerCase().includes(searchTerm))
+            .withSearchIndex("search_profiles", (q) =>
+                q.search("username", searchTerm)
             )
-            .slice(0, 10);
+            .take(10);
+
+        return results.filter(p => p.userId !== userId);
     },
 });

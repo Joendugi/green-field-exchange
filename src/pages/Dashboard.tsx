@@ -68,7 +68,7 @@ const Dashboard = () => {
   }
 
   useEffect(() => {
-    if (!loading && isAuthenticated && user && !user.onboarded) {
+    if (!loading && isAuthenticated && user && !user.onboarding_completed) {
       setShowOnboarding(true);
     }
   }, [loading, isAuthenticated, user]);

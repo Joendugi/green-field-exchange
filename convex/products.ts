@@ -2,6 +2,7 @@ import { mutation, query, action } from "./_generated/server";
 import { v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { checkRateLimit } from "./rateLimiting";
+import { Id, Doc } from "./_generated/dataModel";
 
 // List all products with optional filters
 export const list = query({
@@ -115,6 +116,7 @@ export const create = mutation({
         image_url: v.optional(v.string()),
         image_storage_id: v.optional(v.id("_storage")),
         expiry_date: v.optional(v.number()), // Date when the product expires
+        currency: v.optional(v.string()), // Optional currency symbol
     },
     handler: async (ctx, args) => {
         const userId = await getAuthUserId(ctx);
@@ -173,6 +175,7 @@ export const create = mutation({
             image_url: args.image_url,
             image_storage_id: args.image_storage_id,
             expiry_date: args.expiry_date,
+            currency: args.currency || "$",
             farmerId: userId,
             is_available: true,
             is_hidden: false,
@@ -277,5 +280,43 @@ export const predictPrice = action({
             confidence: "High",
             reasoning: `Based on current market trends in ${location} for ${category}, prices are stable with a slight upward trend due to seasonal demand.`
         };
+    }
+});
+
+export const listAll = query({
+    args: { limit: v.optional(v.number()) },
+    handler: async (ctx, args) => {
+        return await ctx.db
+            .query("products")
+            .filter((q) => q.eq(q.field("is_available"), true))
+            .take(args.limit || 100);
+    }
+});
+
+export const getByIds = query({
+    args: { ids: v.array(v.string()) },
+    handler: async (ctx, args) => {
+        const results = [];
+        for (const id of args.ids) {
+            try {
+                const product = await ctx.db.get(id as Id<"products">);
+                if (product && "unit" in product) {
+                    const p = product as Doc<"products">;
+                    const profile = await ctx.db
+                        .query("profiles")
+                        .withIndex("by_userId", (q) => q.eq("userId", p.farmerId))
+                        .first();
+
+                    results.push({
+                        ...p,
+                        image_url: p.image_storage_id ? await ctx.storage.getUrl(p.image_storage_id) : p.image_url,
+                        profiles: profile,
+                    });
+                }
+            } catch {
+                // Ignore invalid IDs
+            }
+        }
+        return results;
     }
 });

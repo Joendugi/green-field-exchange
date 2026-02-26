@@ -74,7 +74,7 @@ export const chat = action({
             // Save the user's latest message to history
             const latestUserMessage = args.messages[args.messages.length - 1];
             if (latestUserMessage && latestUserMessage.role === "user") {
-                await ctx.runMutation(api.ai.saveMessage, {
+                await ctx.runMutation(internal.ai.saveMessage, {
                     userId,
                     role: "user",
                     content: latestUserMessage.content,
@@ -112,7 +112,7 @@ export const chat = action({
 
         // Save assistant response to history
         if (userId) {
-            await ctx.runMutation(api.ai.saveMessage, {
+            await ctx.runMutation(internal.ai.saveMessage, {
                 userId,
                 role: "assistant",
                 content: assistantContent,

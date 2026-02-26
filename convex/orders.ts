@@ -69,8 +69,9 @@ export const create = mutation({
                 productId: args.productId,
                 quantity: args.quantity,
                 total_price,
+                currency: product.currency || "$",
                 status: "pending",
-                escrow_status: "held", // Mark funds as held by platform
+                escrow_status: args.payment_type.toLowerCase() === "cash" ? "pending" : "awaiting_payment",
                 payment_type: args.payment_type.toLowerCase(),
                 delivery_address: sanitizedAddress,
                 created_at: Date.now(),
@@ -251,4 +252,62 @@ export const updateStatus = mutation({
             type: "order"
         });
     },
+});
+
+export const payOrder = mutation({
+    args: { orderId: v.id("orders") },
+    handler: async (ctx, args) => {
+        const userId = await getAuthUserId(ctx);
+        if (!userId) throw new Error("Unauthorized");
+
+        const order = await ctx.db.get(args.orderId);
+        if (!order) throw new Error("Order not found");
+
+        if (order.buyerId !== userId) throw new Error("Unauthorized");
+        if (order.status !== "pending") throw new Error("Order is not in pending state");
+
+        // In a real app, this is where we'd wait for Stripe/PayPal confirmation.
+        // For this implementation, we'll mark it as paid.
+        await ctx.db.patch(args.orderId, {
+            escrow_status: "held",
+            updated_at: Date.now(),
+        });
+
+        await ctx.db.insert("notifications", {
+            userId: order.farmerId,
+            title: "Order Paid",
+            message: `Order #${order._id} has been paid. You can now prepare for shipment.`,
+            is_read: false,
+            created_at: Date.now(),
+            link: "/orders",
+            type: "order"
+        });
+    }
+});
+
+
+export const sendOrderReminders = mutation({
+    args: {},
+    handler: async (ctx) => {
+        const twentyFourHoursAgo = Date.now() - (24 * 60 * 60 * 1000);
+
+        const pendingOrders = await ctx.db
+            .query("orders")
+            .withIndex("by_status", (q) => q.eq("status", "pending"))
+            .filter((q) => q.lt(q.field("updated_at"), twentyFourHoursAgo))
+            .collect();
+
+        for (const order of pendingOrders) {
+            await ctx.db.insert("notifications", {
+                userId: order.farmerId,
+                title: "Pending Order Reminder",
+                message: `You have a pending order #${order._id} from ${twentyFourHoursAgo > order.created_at ? 'yesterday' : 'earlier'}. Please accept or reject it.`,
+                is_read: false,
+                created_at: Date.now(),
+                link: "/orders",
+                type: "order"
+            });
+        }
+        return pendingOrders.length;
+    }
 });

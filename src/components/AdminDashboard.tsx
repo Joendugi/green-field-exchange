@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQuery, useMutation } from "convex/react";
+import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -52,12 +52,15 @@ const AdminDashboard = () => {
   const emailLogs = useQuery(api.admin.listEmailLogs);
 
   // ─── Mutations ──────────────────────────────────────────────────────────
-  const broadcastNotification = useMutation(api.admin.broadcastNotification);
+  const broadcastNotification = useAction(api.admin.broadcastNotification);
   const banUser = useMutation(api.admin.banUser);
   const verifyUser = useMutation(api.admin.handleVerification);
   const updateRole = useMutation(api.admin.updateRole);
   const updateSettings = useMutation(api.adminSettings.update);
   const upsertAd = useMutation(api.advertisements.upsert);
+  const toggleFeaturedP = useMutation(api.admin.toggleFeatured);
+  const hidePostM = useMutation(api.admin.hidePost);
+  const hideProductM = useMutation(api.admin.hideProduct);
 
   // ─── State ──────────────────────────────────────────────────────────────
   const [searchQuery, setSearchQuery] = useState("");
@@ -194,11 +197,30 @@ const AdminDashboard = () => {
   };
 
   const handleHidePost = async (postId: Id<"posts">, hide: boolean) => {
-    toast.info("Post moderation coming soon");
+    try {
+      await hidePostM({ postId, hide });
+      toast.success(hide ? "Post hidden" : "Post restored");
+    } catch (e: any) {
+      toast.error(e.message);
+    }
   };
 
   const handleHideProduct = async (productId: Id<"products">, hide: boolean) => {
-    toast.info("Product moderation coming soon");
+    try {
+      await hideProductM({ productId, hide });
+      toast.success(hide ? "Product hidden" : "Product restored");
+    } catch (e: any) {
+      toast.error(e.message);
+    }
+  };
+
+  const handleToggleFeatured = async (productId: Id<"products">, featured: boolean) => {
+    try {
+      await toggleFeaturedP({ productId, featured });
+      toast.success(featured ? "Product featured" : "Product unfeatured");
+    } catch (e: any) {
+      toast.error(e.message);
+    }
   };
 
   // ─── Render ─────────────────────────────────────────────────────────────
@@ -331,6 +353,7 @@ const AdminDashboard = () => {
             onToggleShowHidden={() => setShowHiddenContent((p) => !p)}
             onHidePost={handleHidePost}
             onHideProduct={handleHideProduct}
+            onToggleFeatured={handleToggleFeatured}
           />
         </TabsContent>
 

@@ -9,12 +9,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { CheckCircle, XCircle, Eye, MessageSquare, Calendar, User, MapPin, Shield } from "lucide-react";
+import { CheckCircle, XCircle, Eye, MessageSquare, Calendar, User, MapPin, Shield, FileText, Image as ImageIcon, ExternalLink } from "lucide-react";
+import { AspectRatio } from "@/components/ui/aspect-ratio";
 
 const VerificationRequestManager = () => {
   const verificationRequests = useQuery(api.admin.listVerificationRequests) || [];
   const handleVerification = useMutation(api.admin.handleVerification);
-  
+
   const [selectedRequest, setSelectedRequest] = useState<any>(null);
   const [notesDialogOpen, setNotesDialogOpen] = useState(false);
   const [notes, setNotes] = useState("");
@@ -118,14 +119,40 @@ const VerificationRequestManager = () => {
                   </div>
                 </div>
 
-                {request.documents && (
+                {(request.documentUrls && request.documentUrls.length > 0) || request.documents ? (
                   <div className="mb-4">
-                    <Label className="text-sm font-medium">Supporting Documents</Label>
-                    <div className="mt-1 p-2 bg-muted rounded text-sm">
-                      {request.documents}
+                    <Label className="text-sm font-medium mb-2 block">Supporting Documents</Label>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                      {request.documentUrls?.map((url: string, idx: number) => {
+                        const isImage = url.match(/\.(jpg|jpeg|png|webp|gif|svg)$|storage/i);
+                        return (
+                          <div key={idx} className="group relative rounded-lg border bg-card overflow-hidden transition-all hover:ring-2 hover:ring-primary">
+                            <AspectRatio ratio={1 / 1}>
+                              {isImage ? (
+                                <img src={url} alt={`Doc ${idx + 1}`} className="h-full w-full object-cover" />
+                              ) : (
+                                <div className="flex h-full w-full items-center justify-center bg-muted">
+                                  <FileText className="h-8 w-8 text-muted-foreground" />
+                                </div>
+                              )}
+                            </AspectRatio>
+                            <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                              <Button size="icon" variant="ghost" className="text-white" asChild>
+                                <a href={url} target="_blank" rel="noopener noreferrer">
+                                  <ExternalLink className="h-4 w-4" />
+                                </a>
+                              </Button>
+                            </div>
+                          </div>
+                        );
+                      }) || (
+                          <div className="p-3 bg-muted rounded-md text-sm italic col-span-full">
+                            {request.documents ? "Legacy document text: " + request.documents : "No documents provided"}
+                          </div>
+                        )}
                     </div>
                   </div>
-                )}
+                ) : null}
 
                 <div className="flex gap-2">
                   <Dialog open={notesDialogOpen && selectedRequest?._id === request._id} onOpenChange={(open) => {

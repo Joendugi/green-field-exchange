@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Package, CheckCircle, XCircle, MessageSquare, Clock3, ShieldCheck, Star, Undo2 } from "lucide-react";
+import { Package, CheckCircle, XCircle, MessageSquare, Clock3, ShieldCheck, Star, Undo2, DollarSign } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -29,6 +29,7 @@ const MyOrders = ({ userRole: propRole }: MyOrdersProps) => {
   const orders = useQuery(api.orders.list, { role: userRole || undefined }) || [];
 
   const updateStatus = useMutation(api.orders.updateStatus);
+  const payOrderM = useMutation(api.orders.payOrder);
   const releasePayment = useMutation(api.escrow.releasePayment);
   const submitReview = useMutation(api.reviews.submitRating);
 
@@ -49,6 +50,20 @@ const MyOrders = ({ userRole: propRole }: MyOrdersProps) => {
       await releasePayment({ orderId });
       toast.success("Payment released to the farmer!");
     } catch (error: any) {
+      toast.error(error.message);
+    }
+  };
+
+  const handlePayOrder = async (orderId: Id<"orders">) => {
+    const loadingToast = toast.loading("Processing payment...");
+    try {
+      // Simulate external payment gateway latency
+      await new Promise(r => setTimeout(r, 1500));
+      await payOrderM({ orderId });
+      toast.dismiss(loadingToast);
+      toast.success("Payment successful! Funds are now in escrow.");
+    } catch (error: any) {
+      toast.dismiss(loadingToast);
       toast.error(error.message);
     }
   };
@@ -167,6 +182,9 @@ const MyOrders = ({ userRole: propRole }: MyOrdersProps) => {
     const status = order.status;
     const escrow = order.escrow_status;
 
+    if (escrow === "awaiting_payment") {
+      return <Badge variant="outline" className="text-amber-600 border-amber-600"><Clock3 className="mr-1 h-3 w-3" /> Awaiting Payment</Badge>;
+    }
     if (escrow === "held") {
       return <Badge className="bg-blue-500 hover:bg-blue-600"><ShieldCheck className="mr-1 h-3 w-3" /> Payment Held</Badge>;
     }
@@ -286,6 +304,12 @@ const MyOrders = ({ userRole: propRole }: MyOrdersProps) => {
                 </Button>
 
                 {/* Buyer Actions */}
+                {userRole !== "farmer" && order.escrow_status === "awaiting_payment" && (
+                  <Button size="sm" onClick={() => handlePayOrder(order._id)} className="bg-amber-600 hover:bg-amber-700">
+                    <DollarSign className="mr-2 h-4 w-4" /> Pay Now
+                  </Button>
+                )}
+
                 {userRole !== "farmer" && order.escrow_status === "held" && (
                   <Button size="sm" onClick={() => handleReleasePayment(order._id)} className="bg-emerald-600 hover:bg-emerald-700">
                     <CheckCircle className="mr-2 h-4 w-4" /> Confirm Receipt & Pay

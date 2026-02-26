@@ -29,9 +29,9 @@ import { Id } from "../../convex/_generated/dataModel";
 const Profile = () => {
   // Queries
   const profile = useQuery(api.users.getProfile);
-  const userRole = useQuery(api.users.getRole);
+  const userRole = useQuery(api.users.getRole, {});
   const notifications = useQuery(api.notifications.list) || [];
-  const followerCount = useQuery(api.users.getFollowersCount); // Defaults to auth user
+  const followerCount = useQuery(api.users.getFollowersCount, {}); // Defaults to auth user
   const navigate = useNavigate();
 
   // Mutations
@@ -269,9 +269,9 @@ const Profile = () => {
             >
               {profile.verification_requested ? "Request submitted" : "Apply for verification"}
             </Button>
-            <Button 
-              variant="ghost" 
-              size="sm" 
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={() => navigate("/password-reset")}
               className="text-muted-foreground"
             >

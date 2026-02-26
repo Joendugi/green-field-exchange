@@ -10,6 +10,7 @@ interface ContentTabProps {
     onToggleShowHidden: () => void;
     onHidePost: (postId: Id<"posts">, hide: boolean) => Promise<void>;
     onHideProduct: (productId: Id<"products">, hide: boolean) => Promise<void>;
+    onToggleFeatured: (productId: Id<"products">, featured: boolean) => Promise<void>;
 }
 
 export const ContentTab = ({
@@ -19,6 +20,7 @@ export const ContentTab = ({
     onToggleShowHidden,
     onHidePost,
     onHideProduct,
+    onToggleFeatured,
 }: ContentTabProps) => {
     const visiblePosts = showHidden ? posts : posts.filter((p: any) => !p.is_hidden);
     const visibleProducts = showHidden ? products : products.filter((p: any) => !p.is_hidden);
@@ -61,9 +63,14 @@ export const ContentTab = ({
                         {visibleProducts.map((product: any) => (
                             <div key={product._id} className="p-3 border rounded-lg">
                                 <p className="font-medium mb-2">{product.name} — ${product.price}</p>
-                                <Button size="sm" variant="ghost" onClick={() => onHideProduct(product._id, !product.is_hidden)}>
-                                    {product.is_hidden ? "Restore" : "Hide"}
-                                </Button>
+                                <div className="flex gap-2">
+                                    <Button size="sm" variant="ghost" onClick={() => onHideProduct(product._id, !product.is_hidden)}>
+                                        {product.is_hidden ? "Restore" : "Hide"}
+                                    </Button>
+                                    <Button size="sm" variant={product.is_featured ? "default" : "outline"} onClick={() => onToggleFeatured(product._id, !product.is_featured)}>
+                                        {product.is_featured ? "Featured" : "Feature"}
+                                    </Button>
+                                </div>
                             </div>
                         ))}
                     </CardContent>

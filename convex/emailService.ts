@@ -37,7 +37,7 @@ async function sendEmail(ctx: any, args: {
         Authorization: `Bearer ${RESEND_API_KEY}`,
       },
       body: JSON.stringify({
-        from: "AgriLink <noreply@agrilink.global>",
+        from: process.env.EMAIL_FROM || "AgriLink <onboarding@resend.dev>",
         to: Array.isArray(args.to) ? args.to : [args.to],
         subject: args.subject,
         html: args.html,

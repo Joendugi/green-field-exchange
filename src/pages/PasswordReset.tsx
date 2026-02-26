@@ -15,22 +15,53 @@ const PasswordReset = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const token = searchParams.get("token");
+  const emailParam = searchParams.get("email");
 
   const [isLoading, setIsLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState(emailParam || "");
   const [otp, setOtp] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState("");
+  const [step, setStep] = useState(token || emailParam ? 2 : 1);
+  const [isRequesting, setIsRequesting] = useState(false);
 
   const verifyTokenResult = useQuery(api.passwordReset.verifyResetToken, token ? { token } : "skip");
   const resetPassword = useMutation(api.passwordReset.resetPassword);
+  const requestResetCode = useMutation(api.passwordReset.requestPasswordReset);
 
-  // If token is in URL, we could auto-fill or just use it.
-  // The system now prefers OTP, but we keep token support for links.
+  useEffect(() => {
+    if (emailParam) {
+      setEmail(emailParam);
+      setStep(2);
+    }
+  }, [emailParam]);
+
+  const handleRequestCode = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email) {
+      setError("Please enter your email address");
+      return;
+    }
+
+    setIsRequesting(true);
+    setError("");
+
+    try {
+      const result = await requestResetCode({ email });
+      if (result.success) {
+        toast.success(result.message);
+        setStep(2);
+      }
+    } catch (err: any) {
+      setError(err.message || "Failed to send reset code");
+    } finally {
+      setIsRequesting(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -116,20 +147,60 @@ const PasswordReset = () => {
             </Alert>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {!token && (
-              <>
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email Address</Label>
+          {step === 1 ? (
+            <form onSubmit={handleRequestCode} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="email">Email Address</Label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
                     id="email"
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="you@example.com"
+                    className="pl-10"
                     required
                   />
                 </div>
+                <p className="text-xs text-muted-foreground">
+                  We'll send a 6-digit verification code to this email.
+                </p>
+              </div>
+              <Button
+                type="submit"
+                className="w-full bg-forest-600 hover:bg-forest-700"
+                disabled={isRequesting}
+              >
+                {isRequesting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Sending Code...
+                  </>
+                ) : "Send Reset Code"}
+              </Button>
+            </form>
+          ) : (
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="email">Email Address</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={email}
+                  disabled
+                  className="bg-gray-50 text-gray-500"
+                />
+                <button
+                  type="button"
+                  onClick={() => setStep(1)}
+                  className="text-xs text-forest-600 hover:underline"
+                >
+                  Change email
+                </button>
+              </div>
+
+              {!token && (
                 <div className="space-y-2">
                   <Label htmlFor="otp">6-Digit Reset Code</Label>
                   <Input
@@ -141,76 +212,86 @@ const PasswordReset = () => {
                     className="text-center tracking-widest text-lg font-mono"
                     required
                   />
-                  <p className="text-xs text-muted-foreground text-center">
-                    Enter the code sent to your email
-                  </p>
+                  <div className="flex justify-between items-center">
+                    <p className="text-xs text-muted-foreground">
+                      Check your inbox for the code
+                    </p>
+                    <button
+                      type="button"
+                      onClick={handleRequestCode}
+                      disabled={isRequesting}
+                      className="text-xs text-forest-600 hover:underline disabled:opacity-50"
+                    >
+                      Resend code
+                    </button>
+                  </div>
                 </div>
-              </>
-            )}
+              )}
 
-            <div className="space-y-2">
-              <Label htmlFor="password">New Password</Label>
-              <div className="relative">
-                <Input
-                  id="password"
-                  type={showPassword ? "text" : "password"}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="At least 8 characters"
-                  required
-                  minLength={8}
-                  className="pr-10"
-                />
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                  onClick={() => setShowPassword(!showPassword)}
-                >
-                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </Button>
+              <div className="space-y-2">
+                <Label htmlFor="password">New Password</Label>
+                <div className="relative">
+                  <Input
+                    id="password"
+                    type={showPassword ? "text" : "password"}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="At least 8 characters"
+                    required
+                    minLength={8}
+                    className="pr-10"
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                    onClick={() => setShowPassword(!showPassword)}
+                  >
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </Button>
+                </div>
               </div>
-            </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="confirmPassword">Confirm Password</Label>
-              <div className="relative">
-                <Input
-                  id="confirmPassword"
-                  type={showConfirmPassword ? "text" : "password"}
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="Repeat your password"
-                  required
-                  minLength={8}
-                  className="pr-10"
-                />
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                >
-                  {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </Button>
+              <div className="space-y-2">
+                <Label htmlFor="confirmPassword">Confirm Password</Label>
+                <div className="relative">
+                  <Input
+                    id="confirmPassword"
+                    type={showConfirmPassword ? "text" : "password"}
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    placeholder="Repeat your password"
+                    required
+                    minLength={8}
+                    className="pr-10"
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  >
+                    {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </Button>
+                </div>
               </div>
-            </div>
 
-            <Button
-              type="submit"
-              className="w-full bg-forest-600 hover:bg-forest-700 mt-2"
-              disabled={isLoading}
-            >
-              {isLoading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Resetting...
-                </>
-              ) : "Update Password"}
-            </Button>
-          </form>
+              <Button
+                type="submit"
+                className="w-full bg-forest-600 hover:bg-forest-700 mt-2"
+                disabled={isLoading}
+              >
+                {isLoading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Updating...
+                  </>
+                ) : "Update Password"}
+              </Button>
+            </form>
+          )}
 
           <div className="mt-8 text-center">
             <Button

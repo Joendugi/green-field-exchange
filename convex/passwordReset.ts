@@ -11,6 +11,7 @@ export const requestPasswordReset = mutation({
     origin: v.optional(v.string()), // Accept origin from client
   },
   handler: async (ctx, args) => {
+    console.log(`🔑 Password reset requested for: ${args.email}`);
     // Check rate limit first
     await checkRateLimit(ctx, `password_reset:${args.email}`, "password_reset_request");
 
@@ -60,6 +61,7 @@ export const requestPasswordReset = mutation({
       timestamp: Date.now(),
     });
 
+    console.log(`✉️ Scheduling reset email for ${args.email} with OTP ${otp}`);
     // Send reset email with OTP
     await ctx.scheduler.runAfter(0, api.emailService.sendPasswordResetEmail, {
       email: args.email,

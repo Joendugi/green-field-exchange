@@ -122,7 +122,7 @@ const Auth = () => {
         toast.success("Security code sent! Check your email.");
         // Redirect or show a message explaining how to use the code
         setTimeout(() => {
-          navigate("/password-reset");
+          navigate(`/password-reset?email=${encodeURIComponent(resetEmail)}`);
         }, 1500);
         setShowForgotPassword(false);
         setResetEmail("");

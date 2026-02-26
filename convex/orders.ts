@@ -16,8 +16,8 @@ export const create = mutation({
         if (!userId) throw new Error("Unauthorized");
 
         // Input validation
-        if (args.quantity <= 0 || args.quantity > 10000) {
-            throw new Error("Invalid quantity. Must be between 1 and 10,000");
+        if (args.quantity <= 0 || args.quantity > 1000000) {
+            throw new Error("Invalid quantity. Must be between 1 and 1,000,000");
         }
 
         if (!Number.isInteger(args.quantity)) {
@@ -25,14 +25,15 @@ export const create = mutation({
         }
 
         // Validate payment type
-        const validPaymentTypes = ["cash", "card", "mobile_money", "bank_transfer"];
-        if (!validPaymentTypes.includes(args.payment_type.toLowerCase())) {
+        const validPaymentTypes = ["cash", "card", "mobile_money", "bank_transfer", "cash_on_delivery"];
+        const normalizedPaymentType = args.payment_type.toLowerCase();
+        if (!validPaymentTypes.includes(normalizedPaymentType)) {
             throw new Error("Invalid payment type");
         }
 
         // Validate delivery address
-        if (args.delivery_address.length < 10 || args.delivery_address.length > 500) {
-            throw new Error("Delivery address must be between 10 and 500 characters");
+        if (args.delivery_address.length < 3 || args.delivery_address.length > 500) {
+            throw new Error("Delivery address must be between 3 and 500 characters");
         }
 
         // Sanitize delivery address (basic XSS prevention)
@@ -71,8 +72,8 @@ export const create = mutation({
                 total_price,
                 currency: product.currency || "$",
                 status: "pending",
-                escrow_status: args.payment_type.toLowerCase() === "cash" ? "pending" : "awaiting_payment",
-                payment_type: args.payment_type.toLowerCase(),
+                escrow_status: (normalizedPaymentType === "cash" || normalizedPaymentType === "cash_on_delivery") ? "pending" : "awaiting_payment",
+                payment_type: normalizedPaymentType,
                 delivery_address: sanitizedAddress,
                 created_at: Date.now(),
                 updated_at: Date.now(),

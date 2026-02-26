@@ -14,6 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/contexts/AuthContext";
+import { useAction } from "convex/react";
 const Marketplace = () => {
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
@@ -28,6 +29,27 @@ const Marketplace = () => {
   const [offerPrice, setOfferPrice] = useState("");
   const [offerQuantity, setOfferQuantity] = useState("");
   const [offerMessage, setOfferMessage] = useState("");
+
+  const aiMatches = useAction(api.matching.getAUMatching);
+  const [smartMatches, setSmartMatches] = useState<any[]>([]);
+  const [isMatching, setIsMatching] = useState(false);
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      const getMatches = async () => {
+        setIsMatching(true);
+        try {
+          const result = await aiMatches({ limit: 4 });
+          setSmartMatches(result);
+        } catch (e) {
+          console.error("AI Matching failed:", e);
+        } finally {
+          setIsMatching(false);
+        }
+      };
+      getMatches();
+    }
+  }, [isAuthenticated, aiMatches]);
 
   // Convex Queries
   const products = useQuery(api.products.list, {
@@ -48,10 +70,22 @@ const Marketplace = () => {
         return;
       }
 
+      const quantity = parseFloat(offerQuantity);
+      const price = parseFloat(offerPrice);
+
+      if (isNaN(quantity) || quantity <= 0) {
+        toast.error("Please enter a valid quantity");
+        return;
+      }
+      if (isNaN(price) || price <= 0) {
+        toast.error("Please enter a valid price");
+        return;
+      }
+
       await createOffer({
         productId: product._id,
-        quantity: parseFloat(offerQuantity),
-        amount_per_unit: parseFloat(offerPrice),
+        quantity,
+        amount_per_unit: price,
         message: offerMessage,
       });
 
@@ -140,18 +174,76 @@ const Marketplace = () => {
 
   return (
     <div className="space-y-6">
+      {/* AI Smart Match Section */}
+      {isAuthenticated && (isMatching || smartMatches.length > 0) && (
+        <Card className="bg-gradient-to-br from-indigo-50 via-white to-purple-50 border-indigo-200 shadow-lg overflow-hidden relative">
+          <div className="absolute top-0 right-0 p-4 opacity-10 pointer-events-none">
+            <Sparkles className="h-32 w-32 text-indigo-500 rotate-12" />
+          </div>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-indigo-900">
+              <Sparkles className="h-5 w-5 text-indigo-600 animate-pulse" />
+              AI Smart Matches
+            </CardTitle>
+            <CardDescription className="text-indigo-700/70">
+              Personalized picks based on your farm location and profile
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex gap-4 overflow-x-auto pb-4 custom-scrollbar">
+              {isMatching ? (
+                [1, 2, 3, 4].map(i => (
+                  <Skeleton key={i} className="min-w-[280px] h-[120px] rounded-xl bg-indigo-100/50" />
+                ))
+              ) : (
+                smartMatches.map((product) => (
+                  <Card
+                    key={product._id}
+                    className="min-w-[280px] border-indigo-100 hover:border-indigo-300 hover:shadow-md transition-all cursor-pointer group"
+                    onClick={() => {
+                      setSearchQuery(product.name);
+                      setCategoryFilter(product.category);
+                    }}
+                  >
+                    <CardContent className="p-4 flex gap-4">
+                      <div className="h-16 w-16 rounded-lg bg-indigo-100 flex-shrink-0 flex items-center justify-center overflow-hidden">
+                        {product.image_url ? (
+                          <img src={product.image_url} alt="" className="h-full w-full object-cover group-hover:scale-110 transition-transform" />
+                        ) : (
+                          <Package className="h-8 w-8 text-indigo-400" />
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h4 className="font-bold text-indigo-900 truncate">{product.name}</h4>
+                        <p className="text-xs text-indigo-600 font-medium mb-1">{product.category}</p>
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm font-bold text-indigo-700">${product.price}</span>
+                          <span className="text-[10px] text-indigo-500/70 flex items-center gap-1">
+                            <MapPin className="h-2 w-2" /> {product.location}
+                          </span>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Recommendations Section */}
       {!isLoadingRecommendations && recommendations.length > 0 && (
         <Card className="bg-gradient-to-r from-primary/5 to-secondary/5 border-primary/20">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Sparkles className="h-5 w-5 text-primary" />
-              Recommended For You
+              <TrendingUp className="h-5 w-5 text-primary" />
+              Trending Near You
             </CardTitle>
-            <CardDescription>Based on your browsing history</CardDescription>
+            <CardDescription>Popular agricultural produce in your region</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="flex gap-4 overflow-x-auto pb-2">
+            <div className="flex gap-4 overflow-x-auto pb-2 custom-scrollbar">
               {recommendations.map((product) => (
                 <Card key={product._id} className="min-w-[250px] hover:shadow-md transition-shadow">
                   <CardHeader className="p-4">

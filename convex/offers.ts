@@ -17,6 +17,10 @@ export const createOffer = mutation({
         const product = await ctx.db.get(args.productId);
         if (!product) throw new Error("Product not found");
 
+        if (args.quantity <= 0) throw new Error("Quantity must be positive");
+        if (args.amount_per_unit <= 0) throw new Error("Price must be positive");
+        if (args.quantity > product.quantity) throw new Error(`Only ${product.quantity} units available`);
+
         if (product.farmerId === userId) {
             throw new Error("You cannot negotiate with yourself!");
         }

@@ -79,7 +79,7 @@ export const list = query({
             const profile = await ctx.db
                 .query("profiles")
                 .withIndex("by_userId", (q) => q.eq("userId", p.farmerId))
-                .unique();
+                .first();
 
             return {
                 ...p,

@@ -65,7 +65,7 @@ export const list = query({
         }
 
         // Sort by featured status (ensure active duration) then by created_at
-        products.sort((a, b) => {
+        const sortedProducts = [...products].sort((a, b) => {
             const aFeatured = a.is_featured && (!a.featured_until || a.featured_until > now);
             const bFeatured = b.is_featured && (!b.featured_until || b.featured_until > now);
 
@@ -75,7 +75,7 @@ export const list = query({
         });
 
         // Generate image URLs and enhance with profile
-        return await Promise.all(products.map(async (p) => {
+        return await Promise.all(sortedProducts.map(async (p) => {
             const profile = await ctx.db
                 .query("profiles")
                 .withIndex("by_userId", (q) => q.eq("userId", p.farmerId))

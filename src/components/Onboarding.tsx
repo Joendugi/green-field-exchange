@@ -56,26 +56,6 @@ const Onboarding = ({ open, onComplete, onDismiss }: OnboardingProps) => {
     }
   ];
 
-  const buyerSteps = [
-    {
-      title: "Smart Marketplace",
-      description: "Find the freshest produce directly",
-      icon: <ShoppingCart className="h-16 w-16 text-primary" />,
-      content: "Browse verified listings from local farmers. Filter by region, category, and freshness to find exactly what you need.",
-    },
-    {
-      title: "Direct Secure Ordering",
-      description: "Order with complete transparency",
-      icon: <CheckCircle2 className="h-16 w-16 text-primary" />,
-      content: "Place orders directly with farmers. Every transaction is transparent, and you'll be notified at every step of the fulfillment process.",
-    },
-    {
-      title: "AI Shopping Recommendations",
-      description: "Personalized deals and insights",
-      icon: <Bot className="h-16 w-16 text-primary" />,
-      content: "Our AI helps you find the best value for your budget and recommends seasonal products based on your preferences.",
-    }
-  ];
 
   const commonEnd = [
     {
@@ -88,7 +68,7 @@ const Onboarding = ({ open, onComplete, onDismiss }: OnboardingProps) => {
 
   const steps = [
     ...commonStart,
-    ...(role === "farmer" ? farmerSteps : buyerSteps),
+    ...farmerSteps,
     ...commonEnd
   ];
 

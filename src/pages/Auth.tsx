@@ -27,7 +27,7 @@ const Auth = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
-  const [role, setRole] = useState<"farmer" | "buyer">("buyer");
+  const [role, setRole] = useState<"farmer">("farmer");
   const [passwordError, setPasswordError] = useState("");
   const [loginAttempts, setLoginAttempts] = useState(0);
   const [isLocked, setIsLocked] = useState(false);
@@ -181,7 +181,7 @@ const Auth = () => {
           </div>
           <CardTitle className="text-2xl font-bold">AgriLink</CardTitle>
           <CardDescription>
-            Connect farmers directly with buyers
+            Direct platform for farmers and sustainable agriculture
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -316,15 +316,9 @@ const Auth = () => {
                     Must contain uppercase, lowercase, digit, and special character (- or _)
                   </p>
                 </div>
-                <div className="space-y-2">
+                <div className="hidden">
                   <Label>I am a</Label>
                   <RadioGroup value={role} onValueChange={(value: any) => setRole(value)}>
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="buyer" id="buyer" />
-                      <Label htmlFor="buyer" className="font-normal cursor-pointer">
-                        Buyer
-                      </Label>
-                    </div>
                     <div className="flex items-center space-x-2">
                       <RadioGroupItem value="farmer" id="farmer" />
                       <Label htmlFor="farmer" className="font-normal cursor-pointer">

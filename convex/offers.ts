@@ -54,29 +54,29 @@ export const createOffer = mutation({
     },
 });
 
-export const listByRole = query({
-    args: { role: v.string() }, // "buyer" or "farmer"
-    handler: async (ctx, args) => {
+export const listForUser = query({
+    args: {},
+    handler: async (ctx) => {
         const userId = await getAuthUserId(ctx);
-        console.log(`Querying offers for user: ${userId}, role: ${args.role}`);
         if (!userId) return [];
 
-        let offers;
-        if (args.role === "farmer") {
-            offers = await ctx.db
-                .query("offers")
-                .withIndex("by_farmerId", (q) => q.eq("farmerId", userId))
-                .collect();
-        } else {
-            offers = await ctx.db
-                .query("offers")
-                .withIndex("by_buyerId", (q) => q.eq("buyerId", userId))
-                .collect();
-        }
+        const asFarmer = await ctx.db
+            .query("offers")
+            .withIndex("by_farmerId", (q) => q.eq("farmerId", userId))
+            .collect();
+
+        const asBuyer = await ctx.db
+            .query("offers")
+            .withIndex("by_buyerId", (q) => q.eq("buyerId", userId))
+            .collect();
+
+        // Combine and deduplicate
+        const allOffers = [...asFarmer, ...asBuyer];
+        const uniqueOffers = Array.from(new Map(allOffers.map(o => [o._id, o])).values());
 
         // Enhance with details
         return await Promise.all(
-            offers.map(async (offer) => {
+            uniqueOffers.map(async (offer) => {
                 const product = await ctx.db.get(offer.productId);
                 const buyer = await ctx.db
                     .query("profiles")

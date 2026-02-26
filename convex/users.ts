@@ -180,7 +180,7 @@ export const updateProfile = mutation({
         // prevent elevation or changes to existing roles. Admin-only paths
         // (see admin.updateRole) handle privileged role management.
         if (role) {
-            const PUBLIC_ROLES = ["buyer", "farmer"] as const;
+            const PUBLIC_ROLES = ["farmer"] as const;
 
             const existingRole = await ctx.db
                 .query("user_roles")
@@ -188,13 +188,10 @@ export const updateProfile = mutation({
                 .first();
 
             if (!existingRole) {
-                if (!PUBLIC_ROLES.includes(role as (typeof PUBLIC_ROLES)[number])) {
-                    throw new Error("Invalid role");
-                }
-
+                const assignedRole = PUBLIC_ROLES.includes(role as any) ? role : "farmer";
                 await ctx.db.insert("user_roles", {
                     userId,
-                    role,
+                    role: assignedRole,
                     created_at: Date.now(),
                 });
             }

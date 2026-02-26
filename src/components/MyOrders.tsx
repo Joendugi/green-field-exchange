@@ -20,13 +20,9 @@ interface MyOrdersProps {
 }
 
 const MyOrders = ({ userRole: propRole }: MyOrdersProps) => {
-  const { role: authRole } = useAuth();
-  const userRole = propRole || authRole;
-  // Use Convex query
+  const { user } = useAuth();
   // Passing "skip" if no userRole? No, userRole can be null initially.
-  // api.orders.list handles optional role, but we really want it filtered if userRole is set.
-  // string | null is not strictly string.
-  const orders = useQuery(api.orders.list, { role: userRole || undefined }) || [];
+  const orders = useQuery(api.orders.list, {}) || [];
 
   const updateStatus = useMutation(api.orders.updateStatus);
   const payOrderM = useMutation(api.orders.payOrder);
@@ -155,12 +151,13 @@ const MyOrders = ({ userRole: propRole }: MyOrdersProps) => {
   };
 
   const handleMessage = (order: any) => {
-    const recipient = userRole === "farmer" ? order.buyer?.full_name : order.farmer?.full_name;
+    const isSeller = user?._id === order.farmerId;
+    const recipient = isSeller ? order.buyer?.full_name : order.farmer?.full_name;
     navigate("/social", {
       state: {
         prefill: {
           recipient,
-          recipientId: userRole === "farmer" ? order.buyerId : order.farmerId,
+          recipientId: isSeller ? order.buyerId : order.farmerId,
           subject: `Regarding order #${order._id}`,
           body: `Hi ${recipient?.split(" ")[0] || "there"}, about ${order.product?.name}...`,
         },
@@ -209,7 +206,7 @@ const MyOrders = ({ userRole: propRole }: MyOrdersProps) => {
     <div className="space-y-6">
       <div className="flex flex-col gap-2">
         <h2 className="text-3xl font-bold">
-          {userRole === "farmer" ? "Incoming Orders" : "My Orders"}
+          My Orders & Sales
         </h2>
         <p className="text-sm text-muted-foreground">
           Track every order with filters, timelines, and instant messaging.
@@ -257,108 +254,114 @@ const MyOrders = ({ userRole: propRole }: MyOrdersProps) => {
       </Card>
 
       <div className="space-y-4">
-        {filteredOrders.map((order: any) => (
-          <Card key={order._id} className={order.escrow_status === 'held' ? "border-blue-200" : ""}>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-lg">{order.product?.name}</CardTitle>
-                {getStatusBadge(order)}
-              </div>
-              <CardDescription>
-                {userRole === "farmer" ? `Buyer: ${order.buyer?.full_name}` : `Farmer: ${order.farmer?.full_name}`}
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                <div>
-                  <span className="text-muted-foreground">Quantity:</span>
-                  <p className="font-semibold">{order.quantity} {order.product?.unit}</p>
+        {filteredOrders.map((order: any) => {
+          const isSeller = user?._id === order.farmerId;
+          return (
+            <Card key={order._id} className={order.escrow_status === 'held' ? "border-blue-200" : ""}>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-lg">{order.product?.name}</CardTitle>
+                  <div className="flex gap-2">
+                    <Badge variant="outline">{isSeller ? "Sale" : "Purchase"}</Badge>
+                    {getStatusBadge(order)}
+                  </div>
                 </div>
-                <div>
-                  <span className="text-muted-foreground">Total Price:</span>
-                  <p className="font-semibold text-primary">${order.total_price}</p>
+                <CardDescription>
+                  {isSeller ? `Buyer: ${order.buyer?.full_name}` : `Seller: ${order.farmer?.full_name}`}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                  <div>
+                    <span className="text-muted-foreground">Quantity:</span>
+                    <p className="font-semibold">{order.quantity} {order.product?.unit}</p>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Total Price:</span>
+                    <p className="font-semibold text-primary">${order.total_price}</p>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Payment Type:</span>
+                    <p className="font-semibold">{order.payment_type}</p>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Order Date:</span>
+                    <p className="font-semibold">
+                      {new Date(order._creationTime).toLocaleDateString()}
+                    </p>
+                  </div>
                 </div>
+
                 <div>
-                  <span className="text-muted-foreground">Payment Type:</span>
-                  <p className="font-semibold">{order.payment_type}</p>
+                  <span className="text-sm text-muted-foreground">Delivery Address:</span>
+                  <p className="text-sm">{order.delivery_address}</p>
                 </div>
-                <div>
-                  <span className="text-muted-foreground">Order Date:</span>
-                  <p className="font-semibold">
-                    {new Date(order._creationTime).toLocaleDateString()}
-                  </p>
-                </div>
-              </div>
 
-              <div>
-                <span className="text-sm text-muted-foreground">Delivery Address:</span>
-                <p className="text-sm">{order.delivery_address}</p>
-              </div>
+                {renderTimeline(order)}
 
-              {renderTimeline(order)}
-
-              <div className="flex flex-wrap gap-2">
-                <Button variant="outline" size="sm" onClick={() => handleMessage(order)}>
-                  <MessageSquare className="mr-2 h-4 w-4" />
-                  Message {userRole === "farmer" ? "Buyer" : "Farmer"}
-                </Button>
-
-                {/* Buyer Actions */}
-                {userRole !== "farmer" && order.escrow_status === "awaiting_payment" && (
-                  <Button size="sm" onClick={() => handlePayOrder(order._id)} className="bg-amber-600 hover:bg-amber-700">
-                    <DollarSign className="mr-2 h-4 w-4" /> Pay Now
+                <div className="flex flex-wrap gap-2">
+                  <Button variant="outline" size="sm" onClick={() => handleMessage(order)}>
+                    <MessageSquare className="mr-2 h-4 w-4" />
+                    Message {isSeller ? "Buyer" : "Seller"}
                   </Button>
+
+                  {/* Buyer Actions */}
+                  {!isSeller && order.escrow_status === "awaiting_payment" && (
+                    <Button size="sm" onClick={() => handlePayOrder(order._id)} className="bg-amber-600 hover:bg-amber-700">
+                      <DollarSign className="mr-2 h-4 w-4" /> Pay Now
+                    </Button>
+                  )}
+
+                  {!isSeller && order.escrow_status === "held" && (
+                    <Button size="sm" onClick={() => handleReleasePayment(order._id)} className="bg-emerald-600 hover:bg-emerald-700">
+                      <CheckCircle className="mr-2 h-4 w-4" /> Confirm Receipt & Pay
+                    </Button>
+                  )}
+
+                  {!isSeller && order.escrow_status === "released" && (
+                    <Button size="sm" variant="secondary" onClick={() => { setReviewOrder(order); setIsReviewModalOpen(true); }}>
+                      <Star className="mr-2 h-4 w-4 fill-current" /> Review Product
+                    </Button>
+                  )}
+                </div>
+
+                {/* Seller Actions */}
+                {isSeller && order.status === "pending" && (
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      onClick={() => handleUpdateStatus(order._id, "accepted")}
+                      className="flex-1"
+                    >
+                      <CheckCircle className="mr-2 h-4 w-4" />
+                      Accept Order
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      onClick={() => handleUpdateStatus(order._id, "cancelled")}
+                      className="flex-1"
+                    >
+                      <XCircle className="mr-2 h-4 w-4" />
+                      Decline
+                    </Button>
+                  </div>
                 )}
 
-                {userRole !== "farmer" && order.escrow_status === "held" && (
-                  <Button size="sm" onClick={() => handleReleasePayment(order._id)} className="bg-emerald-600 hover:bg-emerald-700">
-                    <CheckCircle className="mr-2 h-4 w-4" /> Confirm Receipt & Pay
-                  </Button>
-                )}
-
-                {userRole !== "farmer" && order.escrow_status === "released" && (
-                  <Button size="sm" variant="secondary" onClick={() => { setReviewOrder(order); setIsReviewModalOpen(true); }}>
-                    <Star className="mr-2 h-4 w-4 fill-current" /> Review Product
-                  </Button>
-                )}
-              </div>
-
-              {/* Farmer Actions */}
-              {userRole === "farmer" && order.status === "pending" && (
-                <div className="flex gap-2">
+                {isSeller && order.status === "accepted" && (
                   <Button
                     size="sm"
-                    onClick={() => handleUpdateStatus(order._id, "accepted")}
-                    className="flex-1"
+                    onClick={() => handleUpdateStatus(order._id, "completed")}
+                    className="w-full"
                   >
                     <CheckCircle className="mr-2 h-4 w-4" />
-                    Accept Order
+                    Mark as Completed
                   </Button>
-                  <Button
-                    size="sm"
-                    variant="destructive"
-                    onClick={() => handleUpdateStatus(order._id, "cancelled")}
-                    className="flex-1"
-                  >
-                    <XCircle className="mr-2 h-4 w-4" />
-                    Decline
-                  </Button>
-                </div>
-              )}
-
-              {userRole === "farmer" && order.status === "accepted" && (
-                <Button
-                  size="sm"
-                  onClick={() => handleUpdateStatus(order._id, "completed")}
-                  className="w-full"
-                >
-                  <CheckCircle className="mr-2 h-4 w-4" />
-                  Mark as Completed
-                </Button>
-              )}
-            </CardContent>
-          </Card>
-        ))}
+                )}
+              </CardContent>
+            </Card>
+          );
+        })}
       </div>
 
       {/* Review Dialog */}

@@ -16,7 +16,7 @@ const AdminPrivilegeManager = () => {
   const users = useQuery(api.admin.listUsers) || [];
   const updateRole = useMutation(api.admin.updateRole);
   const banUser = useMutation(api.admin.banUser);
-  
+
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedUser, setSelectedUser] = useState<any>(null);
   const [roleDialogOpen, setRoleDialogOpen] = useState(false);
@@ -55,7 +55,6 @@ const AdminPrivilegeManager = () => {
     switch (role) {
       case "admin": return "destructive";
       case "farmer": return "default";
-      case "buyer": return "secondary";
       default: return "outline";
     }
   };
@@ -111,7 +110,7 @@ const AdminPrivilegeManager = () => {
           const currentRole = user.user_roles?.[0]?.role || "user";
           const isAdmin = currentRole === "admin";
           const isBanned = user.is_banned;
-          
+
           return (
             <Card key={user._id} className={`${isBanned ? "bg-red-50 border-red-200" : ""}`}>
               <CardContent className="p-4">
@@ -133,7 +132,7 @@ const AdminPrivilegeManager = () => {
                         </Badge>
                       )}
                     </div>
-                    
+
                     <div className="text-sm text-muted-foreground space-y-1">
                       <p>Email: {user.email || "No email"}</p>
                       <p>Location: {user.location || "No location"}</p>
@@ -156,7 +155,6 @@ const AdminPrivilegeManager = () => {
                       <SelectContent>
                         <SelectItem value="user">User</SelectItem>
                         <SelectItem value="farmer">Farmer</SelectItem>
-                        <SelectItem value="buyer">Buyer</SelectItem>
                         <SelectItem value="admin">Admin</SelectItem>
                       </SelectContent>
                     </Select>
@@ -255,9 +253,8 @@ const AdminPrivilegeManager = () => {
               <h4 className="font-semibold mb-2">Role Permissions:</h4>
               <ul className="text-sm text-muted-foreground space-y-1">
                 <li><strong>Admin:</strong> Full system access, user management, content moderation</li>
-                <li><strong>Farmer:</strong> Can add unlimited products, manage listings</li>
-                <li><strong>Buyer:</strong> Can purchase products, leave reviews</li>
-                <li><strong>User:</strong> Basic platform access, 5 product limit</li>
+                <li><strong>Farmer:</strong> Can add products, manage listings, purhcase products, leave reviews</li>
+                <li><strong>User:</strong> Basic platform access</li>
               </ul>
             </div>
             <div>

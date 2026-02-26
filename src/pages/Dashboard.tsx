@@ -87,12 +87,12 @@ const Dashboard = () => {
         ) : (
           <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
             <TabsList className={`grid w-full ${isAuthenticated ?
-              (role === "admin" ? "grid-cols-7" : (role === "farmer" ? "grid-cols-6" : "grid-cols-5"))
+              (role === "admin" ? "grid-cols-7" : "grid-cols-6")
               : "grid-cols-1"} mb-6`}>
               {isAuthenticated && <TabsTrigger value="profile">Profile</TabsTrigger>}
               {isAuthenticated && <TabsTrigger value="orders">Orders</TabsTrigger>}
               <TabsTrigger value="products">My Products</TabsTrigger>
-              {role === "farmer" && <TabsTrigger value="insights">Insights</TabsTrigger>}
+              {isAuthenticated && <TabsTrigger value="insights">Insights</TabsTrigger>}
               {isAuthenticated && <TabsTrigger value="negotiations">Offers</TabsTrigger>}
               {isAuthenticated && <TabsTrigger value="settings">Settings</TabsTrigger>}
               {role === "admin" && <TabsTrigger value="admin">Admin</TabsTrigger>}

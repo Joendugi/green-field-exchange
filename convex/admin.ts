@@ -52,7 +52,7 @@ export const getStats = query({
     handler: async (ctx) => {
         await ensureAdmin(ctx);
 
-        const users = await ctx.db.query("users").collect(); // optimization: use count() if available or specialized index
+        const users = await ctx.db.query("users").collect();
         const products = await ctx.db.query("products").collect();
         const orders = await ctx.db.query("orders").collect();
 
@@ -264,7 +264,12 @@ export const listPosts = query({
     handler: async (ctx) => {
         await ensureAdmin(ctx);
         // Return all posts, including hidden
-        return await ctx.db.query("posts").order("desc").collect();
+        const posts = await ctx.db
+            .query("posts")
+            .withIndex("by_created_at")
+            .order("desc")
+            .take(100);
+        return posts;
     }
 });
 
@@ -273,7 +278,7 @@ export const listProducts = query({
     handler: async (ctx) => {
         await ensureAdmin(ctx);
         // Return all products
-        return await ctx.db.query("products").order("desc").collect();
+        return await ctx.db.query("products").withIndex("created_at").order("desc").take(100);
     }
 });
 
@@ -390,7 +395,11 @@ export const listAuditLogs = query({
     args: {},
     handler: async (ctx) => {
         await ensureAdmin(ctx);
-        const logs = await ctx.db.query("admin_audit_logs").order("desc").take(50);
+        const logs = await ctx.db
+            .query("admin_audit_logs")
+            .withIndex("by_timestamp")
+            .order("desc")
+            .take(50);
 
         return await Promise.all(logs.map(async (log) => {
             let adminName = "System";
@@ -415,7 +424,11 @@ export const listEmailLogs = query({
     args: {},
     handler: async (ctx) => {
         await ensureAdmin(ctx);
-        return await ctx.db.query("email_logs").order("desc").take(100);
+        return await ctx.db
+            .query("email_logs")
+            .withIndex("by_timestamp")
+            .order("desc")
+            .take(100);
     }
 });
 export const toggleFeatured = mutation({
@@ -485,7 +498,7 @@ export const listAllUserIdsForMarketing = query({
     args: {},
     handler: async (ctx) => {
         await ensureAdmin(ctx);
-        const users = await ctx.db.query("users").collect();
+        const users = await ctx.db.query("users").take(100); // Limit users list
         return users.map(u => u._id);
     }
 });

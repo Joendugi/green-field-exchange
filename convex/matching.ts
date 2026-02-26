@@ -61,20 +61,29 @@ export const getAUMatching = action({
             }),
         });
 
-        if (!response.ok) return [];
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error(`Groq API error (${response.status}):`, errorText);
+            return [];
+        }
 
         const data = await response.json();
+        console.log("AI Matching raw response:", JSON.stringify(data));
+
         try {
-            const content = JSON.parse(data.choices[0].message.content);
-            const matchedIds = content.matches || content.productIds || Object.values(content)[0];
+            const contentString = data.choices[0].message.content;
+            const content = JSON.parse(contentString);
+            const matchedIds = content.matches || content.productIds || content.ids || Object.values(content)[0];
 
             if (Array.isArray(matchedIds)) {
-                // Fetch the actual product details for the UI
+                console.log(`Matched ${matchedIds.length} products`);
                 const matches = await ctx.runQuery(api.products.getByIds, { ids: matchedIds });
                 return matches;
+            } else {
+                console.warn("AI returned non-array matchedIds:", matchedIds);
             }
         } catch (e) {
-            console.error("Failed to parse matching AI response", e);
+            console.error("Failed to parse matching AI response. Content:", data.choices[0].message.content, e);
         }
 
         return [];

@@ -346,6 +346,13 @@ const schema = defineSchema({
     .index("by_to", ["to"])
     .index("by_type", ["type"])
     .index("by_timestamp", ["timestamp"]),
+
+  ai_chat_history: defineTable({
+    userId: v.id("users"),
+    role: v.string(), // "user" | "assistant"
+    content: v.string(),
+    created_at: v.number(),
+  }).index("by_userId", ["userId"]),
 });
 
 export default schema;

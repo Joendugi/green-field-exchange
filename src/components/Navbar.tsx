@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { useAuthActions } from "@convex-dev/auth/react";
@@ -60,6 +60,17 @@ const Navbar = () => {
 
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const prevUnreadCountRef = useRef(unreadCount);
+  const prevMessagesCountRef = useRef(unreadMessagesCount);
+
+  useEffect(() => {
+    if (unreadCount > prevUnreadCountRef.current || unreadMessagesCount > prevMessagesCountRef.current) {
+      const audio = new Audio("https://assets.mixkit.co/active_storage/sfx/2354/2354-preview.mp3");
+      audio.play().catch(e => console.error("Audio play failed (maybe user interaction required):", e));
+    }
+    prevUnreadCountRef.current = unreadCount;
+    prevMessagesCountRef.current = unreadMessagesCount;
+  }, [unreadCount, unreadMessagesCount]);
 
   const navItems = [
     { path: "/", label: "Marketplace", icon: Home },

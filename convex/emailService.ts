@@ -360,46 +360,88 @@ export const emailTemplates = {
 
   orderConfirmation: {
     subject: (isFarmer: boolean, orderId: string) =>
-      isFarmer ? `New Order Received #${orderId}` : `Order Confirmation #${orderId}`,
+      isFarmer ? `🎉 New Order Received #${orderId.slice(0, 8)}` : `✅ Order Confirmed #${orderId.slice(0, 8)}`,
     html: (userName: string, orderId: string, details: { productName: string, quantity: number, unit: string, currency: string, totalPrice: number }, isFarmer: boolean) => `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f8f9fa;">
-        <div style="background-color: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-          <h1 style="color: #22c55e; font-size: 24px; margin-bottom: 20px;">📦 ${isFarmer ? 'New Order' : 'Order Confirmed'}</h1>
-          <p style="color: #4a5568; font-size: 16px;">Hello ${userName},</p>
-          <p style="color: #4a5568; font-size: 16px;">${isFarmer ? 'You have received a new order for your products.' : 'Your order has been successfully placed.'}</p>
-          <div style="background-color: #f7fafc; padding: 20px; border-radius: 6px; margin: 20px 0;">
-            <p style="margin: 0; color: #718096; font-size: 14px;">Order ID: <strong>${orderId}</strong></p>
-            <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 15px 0;">
-            <p style="margin: 0; color: #2d3748; font-size: 16px;"><strong>${details.productName}</strong></p>
-            <p style="margin: 5px 0 0; color: #4a5568; font-size: 14px;">Quantity: ${details.quantity} ${details.unit}</p>
-            <p style="margin: 5px 0 0; color: #4a5568; font-size: 14px;">Total Price: ${details.currency}${details.totalPrice}</p>
+      <div style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 40px 20px; background-color: #f3f4f6;">
+        <div style="background-color: #ffffff; padding: 40px; border-radius: 16px; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);">
+          <div style="text-align: center; margin-bottom: 30px;">
+            <div style="background-color: #ecfdf5; width: 64px; height: 64px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; margin-bottom: 20px;">
+              <span style="font-size: 32px;">${isFarmer ? '🛍️' : '✨'}</span>
+            </div>
+            <h1 style="color: #065f46; font-size: 28px; font-weight: 800; margin: 0; letter-spacing: -0.025em;">
+              ${isFarmer ? 'New Sales Order!' : 'Order Placed!'}
+            </h1>
+            <p style="color: #6b7280; font-size: 16px; margin-top: 8px;">Order ID: #${orderId.slice(0, 8)}</p>
           </div>
-          <p style="color: #4a5568; font-size: 14px; margin-top: 30px;">
-            ${isFarmer ? 'Please log in to your dashboard to manage this order.' : 'The farmer will be notified and will process your order soon.'}
-          </p>
-          <p style="color: #6c757d; font-size: 14px; margin-top: 30px;">AgriLink Global Support</p>
+
+          <div style="color: #374151; font-size: 16px; line-height: 1.6;">
+            <p>Hello <strong>${userName}</strong>,</p>
+            <p>${isFarmer ? 'Great news! You have received a new order for your high-quality produce. Here are the details:' : 'Your order has been successfully placed with the farmer. We will notify you once it is processed.'}</p>
+          </div>
+
+          <div style="background-color: #f9fafb; border: 1px solid #e5e7eb; padding: 24px; border-radius: 12px; margin: 30px 0;">
+            <h3 style="margin: 0 0 16px 0; color: #111827; font-size: 18px; font-weight: 700;">Order Summary</h3>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid #f3f4f6;">
+              <span style="color: #6b7280;">Product</span>
+              <span style="color: #111827; font-weight: 600;">${details.productName}</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid #f3f4f6;">
+              <span style="color: #6b7280;">Quantity</span>
+              <span style="color: #111827; font-weight: 600;">${details.quantity} ${details.unit}</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; margin-top: 12px; font-size: 18px;">
+              <span style="color: #111827; font-weight: 700;">Total Paid</span>
+              <span style="color: #10b981; font-weight: 800;">${details.currency}${details.totalPrice.toLocaleString()}</span>
+            </div>
+          </div>
+
+          <div style="text-align: center; margin-top: 40px;">
+            <a href="https://agrilink.global/dashboard/orders" style="background: linear-gradient(to right, #10b981, #059669); color: white; padding: 14px 40px; text-decoration: none; border-radius: 10px; font-weight: 700; font-size: 16px; display: inline-block; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);">
+              ${isFarmer ? 'Manage Order' : 'Track Order'}
+            </a>
+          </div>
+
+          <div style="margin-top: 40px; border-top: 1px solid #e5e7eb; padding-top: 30px; text-align: center;">
+            <p style="color: #9ca3af; font-size: 14px; margin: 0;">AgriLink Global — Connecting Sustainable Agriculture</p>
+            <p style="color: #d1d5db; font-size: 12px; margin-top: 8px;">If you have any questions, reply to this email or contact support@agrilink.global</p>
+          </div>
         </div>
       </div>
     `,
   },
 
   messageNotification: {
-    subject: "New Message on AgriLink",
+    subject: "💬 New Direct Message on AgriLink",
     html: (userName: string, senderName: string, messagePreview: string) => `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f8f9fa;">
-        <div style="background-color: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-          <h1 style="color: #2d3748; font-size: 24px; margin-bottom: 20px;">💬 New Message</h1>
-          <p style="color: #4a5568; font-size: 16px;">Hello ${userName},</p>
-          <p style="color: #4a5568; font-size: 16px;">You have received a new message from <strong>${senderName}</strong>:</p>
-          <div style="background-color: #f7fafc; padding: 20px; border-left: 4px solid #22c55e; border-radius: 4px; margin: 20px 0;">
-            <p style="margin: 0; color: #4a5568; font-style: italic;">"${messagePreview}"</p>
+      <div style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 40px 20px; background-color: #f3f4f6;">
+        <div style="background-color: #ffffff; padding: 40px; border-radius: 16px; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);">
+          <div style="display: flex; align-items: center; margin-bottom: 30px;">
+             <div style="background-color: #eff6ff; width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; margin-right: 16px;">
+                <span style="font-size: 24px;">💬</span>
+             </div>
+             <div>
+                <h1 style="color: #1e40af; font-size: 22px; font-weight: 800; margin: 0;">New message</h1>
+                <p style="color: #6b7280; font-size: 14px; margin: 0;">From ${senderName}</p>
+             </div>
           </div>
-          <div style="text-align: center; margin: 30px 0;">
-            <a href="https://agrilink.global/messages" style="background-color: #22c55e; color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
-              View Messages
+
+          <div style="background-color: #f8fafc; border-left: 4px solid #3b82f6; padding: 24px; border-radius: 8px; margin: 24px 0;">
+            <p style="color: #4b5563; font-size: 16px; font-style: italic; margin: 0; line-height: 1.6;">"${messagePreview}"</p>
+          </div>
+
+          <p style="color: #374151; font-size: 16px; margin-bottom: 30px;">
+            Hi <strong>${userName}</strong>, you've received a new private message. Respond now to stay connected!
+          </p>
+
+          <div style="text-align: center;">
+            <a href="https://agrilink.global/messages" style="background-color: #2563eb; color: white; padding: 12px 32px; text-decoration: none; border-radius: 8px; font-weight: 700; font-size: 16px; display: inline-block;">
+              Reply to Message
             </a>
           </div>
-          <p style="color: #6c757d; font-size: 14px; margin-top: 30px;">AgriLink Social Team</p>
+
+          <div style="margin-top: 40px; border-top: 1px solid #e5e7eb; padding-top: 24px; text-align: center; color: #9ca3af; font-size: 12px;">
+            You can manage your notification preferences in your dashboard settings.
+          </div>
         </div>
       </div>
     `,

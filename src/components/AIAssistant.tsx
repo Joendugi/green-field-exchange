@@ -1,11 +1,11 @@
-import { useState } from "react";
-import { useAction } from "convex/react";
+import { useState, useEffect } from "react";
+import { useAction, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Bot, Send, Loader2 } from "lucide-react";
+import { Bot, Send, Loader2, History } from "lucide-react";
 import { toast } from "sonner";
 
 const AIAssistant = () => {
@@ -17,7 +17,23 @@ const AIAssistant = () => {
   ]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+
+  const history = useQuery(api.ai.listHistory);
   const chatAction = useAction((api as any).ai.chat);
+
+  // Load history into messages state on mount
+  useEffect(() => {
+    if (history && history.length > 0) {
+      // Sort history by creation time and map to the format expected by the UI
+      const formattedHistory = [...history]
+        .sort((a, b) => a.created_at - b.created_at)
+        .map(msg => ({
+          role: msg.role,
+          content: msg.content
+        }));
+      setMessages(formattedHistory);
+    }
+  }, [history]);
 
   const handleSendMessage = async () => {
     if (!input.trim()) return;
@@ -53,7 +69,12 @@ const AIAssistant = () => {
         <div className="flex items-center gap-3">
           <Bot className="h-8 w-8 text-primary" />
           <div>
-            <CardTitle>AI Assistant</CardTitle>
+            <div className="flex items-center gap-2">
+              <CardTitle>AI Assistant</CardTitle>
+              {history && history.length > 0 && (
+                <History className="h-4 w-4 text-muted-foreground" title="Long-term memory enabled" />
+              )}
+            </div>
             <CardDescription>
               Get agricultural advice, market insights, and farming guidance
             </CardDescription>

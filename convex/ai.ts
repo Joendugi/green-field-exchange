@@ -1,5 +1,33 @@
-import { action } from "./_generated/server";
+import { action, mutation, query } from "./_generated/server";
 import { v } from "convex/values";
+import { api, internal } from "./_generated/api";
+import { getAuthUserId } from "@convex-dev/auth/server";
+import { internalMutation } from "./_generated/server";
+
+export const listHistory = query({
+    args: {},
+    handler: async (ctx) => {
+        const userId = await getAuthUserId(ctx);
+        if (!userId) return [];
+        return await ctx.db
+            .query("ai_chat_history")
+            .withIndex("by_userId", (q) => q.eq("userId", userId))
+            .order("desc")
+            .take(20); // Keep last 20 messages for UI loading
+    },
+});
+
+export const saveMessage = internalMutation({
+    args: { userId: v.id("users"), role: v.string(), content: v.string() },
+    handler: async (ctx, args) => {
+        await ctx.db.insert("ai_chat_history", {
+            userId: args.userId,
+            role: args.role,
+            content: args.content,
+            created_at: Date.now(),
+        });
+    },
+});
 
 export const chat = action({
     args: {
@@ -17,6 +45,45 @@ export const chat = action({
             throw new Error("GROQ_API_KEY is not configured in Convex environment variables");
         }
 
+        const userId = await getAuthUserId(ctx);
+        let userContext = "";
+        let historicContext = "";
+
+        if (userId) {
+            const profile = await ctx.runQuery(api.users.getProfile);
+            const roleData = await ctx.runQuery(api.users.getRole, { userId });
+
+            // Get last few interactions for "memory"
+            const history = await ctx.runQuery(api.ai.listHistory);
+            if (history && history.length > 0) {
+                // Formatting history for the prompt
+                const lastFew = history.reverse().slice(-5); // Use last 5 messages as memory
+                historicContext = `\n\n### SUMMARY OF RECENT PAST INTERACTIONS FOR MEMORY:\n${lastFew.map(m => `- ${m.role === 'user' ? 'User asked' : 'Assistant answered'}: ${m.content.slice(0, 150)}...`).join('\n')}\n(Use this to maintain continuity and remember previous topics discussed).`;
+            }
+
+            if (profile) {
+                userContext = ` The user you are helping is ${profile.full_name || profile.username}.`;
+                if (roleData?.role) {
+                    userContext += ` They are registered as a ${roleData.role}.`;
+                }
+                if (profile.location) {
+                    userContext += ` They are located in ${profile.location}.`;
+                }
+            }
+
+            // Save the user's latest message to history
+            const latestUserMessage = args.messages[args.messages.length - 1];
+            if (latestUserMessage && latestUserMessage.role === "user") {
+                await ctx.runMutation(api.ai.saveMessage, {
+                    userId,
+                    role: "user",
+                    content: latestUserMessage.content,
+                } as any);
+            }
+        }
+
+        const systemPrompt = `You are an agricultural AI assistant helping farmers and buyers with advice and market insights. Be helpful and knowledgeable about agriculture.${userContext}${historicContext} Keep responses concise and practical. Use the user's name if available.`;
+
         const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
             method: "POST",
             headers: {
@@ -28,8 +95,7 @@ export const chat = action({
                 messages: [
                     {
                         role: "system",
-                        content:
-                            "You are an agricultural AI assistant helping farmers and buyers with farming advice, market insights, pricing guidance, and best practices. Be helpful and knowledgeable about agriculture. Keep responses concise and practical.",
+                        content: systemPrompt,
                     },
                     ...args.messages,
                 ],
@@ -42,6 +108,17 @@ export const chat = action({
         }
 
         const data = await response.json();
-        return data.choices?.[0]?.message?.content ?? "I had trouble generating a response. Please try again.";
+        const assistantContent = data.choices?.[0]?.message?.content ?? "I had trouble generating a response.";
+
+        // Save assistant response to history
+        if (userId) {
+            await ctx.runMutation(api.ai.saveMessage, {
+                userId,
+                role: "assistant",
+                content: assistantContent,
+            } as any);
+        }
+
+        return assistantContent;
     },
 });

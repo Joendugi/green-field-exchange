@@ -423,7 +423,9 @@ export const listAuditLogs = query({
 export const listEmailLogs = query({
     args: {},
     handler: async (ctx) => {
-        await ensureAdmin(ctx);
+        console.log("Admin listing email logs...");
+        const admin = await ensureAdmin(ctx);
+        console.log(`Admin authorized: ${admin.email}`);
         return await ctx.db
             .query("email_logs")
             .withIndex("by_timestamp")

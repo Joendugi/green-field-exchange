@@ -58,6 +58,7 @@ export const listByRole = query({
     args: { role: v.string() }, // "buyer" or "farmer"
     handler: async (ctx, args) => {
         const userId = await getAuthUserId(ctx);
+        console.log(`Querying offers for user: ${userId}, role: ${args.role}`);
         if (!userId) return [];
 
         let offers;
@@ -80,11 +81,13 @@ export const listByRole = query({
                 const buyer = await ctx.db
                     .query("profiles")
                     .withIndex("by_userId", (q) => q.eq("userId", offer.buyerId))
-                    .unique();
+                    .first();
                 const farmer = await ctx.db
                     .query("profiles")
                     .withIndex("by_userId", (q) => q.eq("userId", offer.farmerId))
-                    .unique();
+                    .first();
+
+                console.log(`Found details for offer ${offer._id}: product=${!!product}, buyer=${!!buyer}, farmer=${!!farmer}`);
 
                 return {
                     ...offer,

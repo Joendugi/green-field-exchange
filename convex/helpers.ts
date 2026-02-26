@@ -25,7 +25,7 @@ export async function ensureAdmin(ctx: Ctx): Promise<Doc<"users">> {
     .query("user_roles")
     .withIndex("by_userId", (q) => q.eq("userId", userId))
     .filter((q) => q.eq(q.field("role"), "admin"))
-    .unique();
+    .first();
 
   if (!roleData) {
     throw new Error("Admin privileges required");

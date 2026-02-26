@@ -52,17 +52,19 @@ export const list = query({
             products = await ctx.db.query("products").collect();
         }
 
+        const now = Date.now();
+
         // Filtering for public marketplace (stock availability, hidden status, and expiry)
         if (!args.farmerId && !args.includeHidden) {
             products = products.filter((p) =>
                 (p.is_available !== false) &&
+                p.quantity > 0 &&
                 !p.is_hidden &&
                 (!p.expiry_date || p.expiry_date > now)
             );
         }
 
         // Sort by featured status (ensure active duration) then by created_at
-        const now = Date.now();
         products.sort((a, b) => {
             const aFeatured = a.is_featured && (!a.featured_until || a.featured_until > now);
             const bFeatured = b.is_featured && (!b.featured_until || b.featured_until > now);
@@ -94,7 +96,11 @@ export const listRecommendations = query({
         // Simple recommendation: return 4 random available products
         const products = await ctx.db
             .query("products")
-            .filter((q) => q.and(q.eq(q.field("is_available"), true), q.neq(q.field("is_hidden"), true)))
+            .filter((q) => q.and(
+                q.eq(q.field("is_available"), true),
+                q.neq(q.field("is_hidden"), true),
+                q.gt(q.field("quantity"), 0)
+            ))
             .take(4);
 
         return await Promise.all(products.map(async (p) => ({

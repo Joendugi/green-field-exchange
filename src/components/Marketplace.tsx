@@ -354,118 +354,123 @@ const Marketplace = () => {
                     Login to Order
                   </Button>
                 ) : (
-                  <Dialog>
-                    <div className="flex gap-2">
-                      <Button
-                        className="flex-1"
-                        onClick={() => setSelectedProduct(product)}
-                      >
-                        Place Order
-                      </Button>
-                      <Dialog>
-                        <DialogTrigger asChild>
-                          <Button variant="outline" className="flex-1 bg-primary/5 hover:bg-primary/10 border-primary/20 text-primary">
-                            <Handshake className="mr-2 h-4 w-4" /> Bargain
-                          </Button>
-                        </DialogTrigger>
-                        <DialogContent>
-                          <DialogHeader>
-                            <DialogTitle>Make a Price Offer</DialogTitle>
-                            <DialogDescription>
-                              Suggest a different price for {product.name}. The farmer can accept, reject, or counter.
-                            </DialogDescription>
-                          </DialogHeader>
-                          <div className="space-y-4 py-4">
-                            <div className="grid grid-cols-2 gap-4">
-                              <div className="space-y-2">
-                                <Label>Quantity ({product.unit})</Label>
-                                <Input
-                                  type="number"
-                                  value={offerQuantity}
-                                  onChange={(e) => setOfferQuantity(e.target.value)}
-                                  placeholder="1"
-                                />
-                              </div>
-                              <div className="space-y-2">
-                                <Label>Your Price (per {product.unit})</Label>
-                                <div className="relative">
-                                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">{product.currency || "$"}</span>
-                                  <Input
-                                    type="number"
-                                    className="pl-7"
-                                    value={offerPrice}
-                                    onChange={(e) => setOfferPrice(e.target.value)}
-                                    placeholder={product.price.toString()}
-                                  />
-                                </div>
+                  <div className="flex gap-2 w-full">
+                    {/* Place Order Dialog */}
+                    <Dialog>
+                      <DialogTrigger asChild>
+                        <Button
+                          className="flex-1"
+                          onClick={() => setSelectedProduct(product)}
+                        >
+                          Place Order
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent>
+                        <DialogHeader>
+                          <DialogTitle>Place Order</DialogTitle>
+                          <DialogDescription>
+                            Order {product.name} from {product.profiles?.full_name || "Unknown"}
+                          </DialogDescription>
+                        </DialogHeader>
+                        <div className="space-y-4">
+                          <div>
+                            <Label>Quantity ({product.unit})</Label>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              max={product.quantity}
+                              value={orderQuantity}
+                              onChange={(e) => setOrderQuantity(e.target.value)}
+                              placeholder="Enter quantity"
+                            />
+                          </div>
+                          <div>
+                            <Label>Delivery Address</Label>
+                            <Textarea
+                              value={deliveryAddress}
+                              onChange={(e) => setDeliveryAddress(e.target.value)}
+                              placeholder="Enter your delivery address"
+                            />
+                          </div>
+                          {orderQuantity && (
+                            <div className="p-4 bg-secondary rounded-lg">
+                              <div className="flex justify-between items-center">
+                                <span className="font-semibold">Total Price:</span>
+                                <span className="text-2xl font-bold text-primary">
+                                  ${(parseFloat(orderQuantity) * product.price).toFixed(2)}
+                                </span>
                               </div>
                             </div>
+                          )}
+                          <Button
+                            className="w-full"
+                            onClick={handlePlaceOrder}
+                            disabled={!orderQuantity || !deliveryAddress}
+                          >
+                            Confirm Order
+                          </Button>
+                        </div>
+                      </DialogContent>
+                    </Dialog>
+
+                    {/* Bargain Dialog */}
+                    <Dialog>
+                      <DialogTrigger asChild>
+                        <Button variant="outline" className="flex-1 bg-primary/5 hover:bg-primary/10 border-primary/20 text-primary">
+                          <Handshake className="mr-2 h-4 w-4" /> Bargain
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent>
+                        <DialogHeader>
+                          <DialogTitle>Make a Price Offer</DialogTitle>
+                          <DialogDescription>
+                            Suggest a different price for {product.name}. The farmer can accept, reject, or counter.
+                          </DialogDescription>
+                        </DialogHeader>
+                        <div className="space-y-4 py-4">
+                          <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
-                              <Label>Message to Farmer (Optional)</Label>
-                              <Textarea
-                                placeholder="e.g. I'm buying in bulk, can we do a discount?"
-                                value={offerMessage}
-                                onChange={(e) => setOfferMessage(e.target.value)}
+                              <Label>Quantity ({product.unit})</Label>
+                              <Input
+                                type="number"
+                                value={offerQuantity}
+                                onChange={(e) => setOfferQuantity(e.target.value)}
+                                placeholder="1"
                               />
                             </div>
-                            <Button
-                              className="w-full"
-                              onClick={() => handleMakeOffer(product)}
-                              disabled={!offerPrice || !offerQuantity}
-                            >
-                              Send Offer
-                            </Button>
-                          </div>
-                        </DialogContent>
-                      </Dialog>
-                    </div>
-                    <DialogContent>
-                      <DialogHeader>
-                        <DialogTitle>Place Order</DialogTitle>
-                        <DialogDescription>
-                          Order {product.name} from {product.profiles?.full_name || "Unknown"}
-                        </DialogDescription>
-                      </DialogHeader>
-                      <div className="space-y-4">
-                        <div>
-                          <Label>Quantity ({product.unit})</Label>
-                          <Input
-                            type="number"
-                            step="0.01"
-                            max={product.quantity}
-                            value={orderQuantity}
-                            onChange={(e) => setOrderQuantity(e.target.value)}
-                            placeholder="Enter quantity"
-                          />
-                        </div>
-                        <div>
-                          <Label>Delivery Address</Label>
-                          <Textarea
-                            value={deliveryAddress}
-                            onChange={(e) => setDeliveryAddress(e.target.value)}
-                            placeholder="Enter your delivery address"
-                          />
-                        </div>
-                        {orderQuantity && (
-                          <div className="p-4 bg-secondary rounded-lg">
-                            <div className="flex justify-between items-center">
-                              <span className="font-semibold">Total Price:</span>
-                              <span className="text-2xl font-bold text-primary">
-                                ${(parseFloat(orderQuantity) * product.price).toFixed(2)}
-                              </span>
+                            <div className="space-y-2">
+                              <Label>Your Price (per {product.unit})</Label>
+                              <div className="relative">
+                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">{product.currency || "$"}</span>
+                                <Input
+                                  type="number"
+                                  className="pl-7"
+                                  value={offerPrice}
+                                  onChange={(e) => setOfferPrice(e.target.value)}
+                                  placeholder={product.price.toString()}
+                                />
+                              </div>
                             </div>
                           </div>
-                        )}
-                        <Button
-                          className="w-full"
-                          onClick={handlePlaceOrder}
-                          disabled={!orderQuantity || !deliveryAddress}
-                        >
-                          Confirm Order
-                        </Button>
-                      </div>
-                    </DialogContent>
-                  </Dialog>
+                          <div className="space-y-2">
+                            <Label>Message to Farmer (Optional)</Label>
+                            <Textarea
+                              placeholder="e.g. I'm buying in bulk, can we do a discount?"
+                              value={offerMessage}
+                              onChange={(e) => setOfferMessage(e.target.value)}
+                            />
+                          </div>
+                          <Button
+                            className="w-full"
+                            onClick={() => handleMakeOffer(product)}
+                            disabled={!offerPrice || !offerQuantity}
+                          >
+                            Send Offer
+                          </Button>
+                        </div>
+                      </DialogContent>
+                    </Dialog>
+                  </div>
                 )}
               </CardFooter>
             </Card>

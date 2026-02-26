@@ -23,7 +23,7 @@ export const getAUMatching = action({
         // 2. Get available products
         // We'll just grab a sample of available products for the AI to pick from
         const allProducts = await ctx.runQuery(api.products.listAll, { limit: 50 });
-        const availableProducts = allProducts.filter(p => p.is_available);
+        const availableProducts = allProducts.filter(p => p.is_available && p.quantity > 0);
 
         if (availableProducts.length === 0) return [];
 

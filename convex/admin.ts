@@ -278,7 +278,7 @@ export const listProducts = query({
     handler: async (ctx) => {
         await ensureAdmin(ctx);
         // Return all products
-        return await ctx.db.query("products").withIndex("created_at").order("desc").take(100);
+        return await ctx.db.query("products").order("desc").take(100);
     }
 });
 

@@ -49,7 +49,7 @@ const Marketplace = () => {
       };
       getMatches();
     }
-  }, [isAuthenticated, aiMatches]);
+  }, [isAuthenticated]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Convex Queries
   const products = useQuery(api.products.list, {

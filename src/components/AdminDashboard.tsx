@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Users, Package, ShoppingCart, TrendingUp, Download, Activity, Badge as BadgeIcon } from "lucide-react";
+import { Users, Package, ShoppingCart, TrendingUp, Download, Activity, Badge as BadgeIcon, Zap } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { exportToCSV } from "@/lib/dataExport";
@@ -50,6 +50,8 @@ const AdminDashboard = () => {
   const adminSettingsData = useQuery(api.adminSettings.get);
   const auditLogs = useQuery(api.admin.listAuditLogs) ?? [];
   const emailLogs = useQuery(api.admin.listEmailLogs);
+  const recentActivity = useQuery(api.admin.getRecentActivity) ?? [];
+  const growthStats = useQuery(api.admin.getGrowthStats) ?? [];
 
   // ─── Mutations ──────────────────────────────────────────────────────────
   const broadcastNotification = useAction(api.admin.broadcastNotification);
@@ -270,6 +272,7 @@ const AdminDashboard = () => {
 
         <TabsContent value="overview" className="space-y-6 pt-4">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Real User Growth Chart */}
             <Card>
               <CardHeader>
                 <div className="flex items-center justify-between">
@@ -277,23 +280,29 @@ const AdminDashboard = () => {
                     <Activity className="h-5 w-5 text-primary" />
                     <CardTitle>User Growth</CardTitle>
                   </div>
-                  <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20">Monthly</Badge>
+                  <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20">Live</Badge>
                 </div>
               </CardHeader>
               <CardContent className="h-48 flex items-end justify-between gap-2 border-b pb-4 px-4">
-                {[45, 62, 58, 85, 92, 120].map((val, idx) => (
-                  <div key={idx} className="relative flex-1 group">
-                    <div
-                      className="bg-primary rounded-t-sm transition-all duration-500 hover:brightness-110 w-full"
-                      style={{ height: `${(val / 120) * 100}%` }}
-                    />
-                    <p className="text-[10px] text-muted-foreground mt-2 text-center">
-                      {["Sep", "Oct", "Nov", "Dec", "Jan", "Feb"][idx]}
-                    </p>
-                  </div>
-                ))}
+                {growthStats.length === 0 ? (
+                  <p className="text-xs text-muted-foreground m-auto">No data yet</p>
+                ) : (() => {
+                  const maxVal = Math.max(...growthStats.map(m => m.users), 1);
+                  return growthStats.map((m, idx) => (
+                    <div key={idx} className="relative flex-1 group">
+                      <div
+                        className="bg-primary rounded-t-sm transition-all duration-700 hover:brightness-110 w-full"
+                        style={{ height: `${Math.max((m.users / maxVal) * 100, m.users > 0 ? 8 : 2)}%` }}
+                        title={`${m.users} users`}
+                      />
+                      <p className="text-[10px] text-muted-foreground mt-2 text-center">{m.label}</p>
+                    </div>
+                  ));
+                })()}
               </CardContent>
             </Card>
+
+            {/* Real Revenue Chart */}
             <Card>
               <CardHeader>
                 <div className="flex items-center justify-between">
@@ -301,24 +310,67 @@ const AdminDashboard = () => {
                     <TrendingUp className="h-5 w-5 text-emerald-500" />
                     <CardTitle>Revenue Trends</CardTitle>
                   </div>
-                  <Badge variant="outline" className="bg-emerald-500/10 text-emerald-500 border-emerald-500/20">Active</Badge>
+                  <Badge variant="outline" className="bg-emerald-500/10 text-emerald-500 border-emerald-500/20">Live</Badge>
                 </div>
               </CardHeader>
               <CardContent className="h-48 flex items-end justify-between gap-2 border-b pb-4 px-4">
-                {[1200, 1500, 2100, 1800, 2900, 3600].map((val, idx) => (
-                  <div key={idx} className="relative flex-1 group">
-                    <div
-                      className="bg-emerald-500 rounded-t-sm transition-all duration-500 hover:brightness-110 w-full"
-                      style={{ height: `${(val / 3600) * 100}%` }}
-                    />
-                    <p className="text-[10px] text-muted-foreground mt-2 text-center">
-                      {["Sep", "Oct", "Nov", "Dec", "Jan", "Feb"][idx]}
-                    </p>
-                  </div>
-                ))}
+                {growthStats.length === 0 ? (
+                  <p className="text-xs text-muted-foreground m-auto">No data yet</p>
+                ) : (() => {
+                  const maxRev = Math.max(...growthStats.map(m => m.revenue), 1);
+                  return growthStats.map((m, idx) => (
+                    <div key={idx} className="relative flex-1 group">
+                      <div
+                        className="bg-emerald-500 rounded-t-sm transition-all duration-700 hover:brightness-110 w-full"
+                        style={{ height: `${Math.max((m.revenue / maxRev) * 100, m.revenue > 0 ? 8 : 2)}%` }}
+                        title={`$${m.revenue.toFixed(2)}`}
+                      />
+                      <p className="text-[10px] text-muted-foreground mt-2 text-center">{m.label}</p>
+                    </div>
+                  ));
+                })()}
               </CardContent>
             </Card>
           </div>
+
+          {/* Live Platform Pulse */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <Zap className="h-5 w-5 text-yellow-500 animate-pulse" />
+                <CardTitle>Live Platform Pulse</CardTitle>
+                <Badge variant="outline" className="bg-yellow-500/10 text-yellow-600 border-yellow-500/20 text-[10px]">Real-time</Badge>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {recentActivity.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-6">No recent activity in the last 7 days.</p>
+              ) : (
+                <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
+                  {recentActivity.map((event, idx) => (
+                    <div
+                      key={idx}
+                      className="flex items-center gap-3 p-2.5 rounded-lg border bg-muted/30 hover:bg-muted/60 transition-colors"
+                    >
+                      <span className="text-lg shrink-0">{event.icon}</span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm truncate">{event.label}</p>
+                        <p className="text-[10px] text-muted-foreground">
+                          {new Date(event.time).toLocaleString()}
+                        </p>
+                      </div>
+                      <Badge
+                        variant="outline"
+                        className="text-[10px] shrink-0 capitalize"
+                      >
+                        {event.type}
+                      </Badge>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="users" className="space-y-4">

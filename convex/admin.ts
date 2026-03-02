@@ -67,6 +67,78 @@ export const getStats = query({
     },
 });
 
+export const getRecentActivity = query({
+    args: {},
+    handler: async (ctx) => {
+        await ensureAdmin(ctx);
+
+        const now = Date.now();
+        const sevenDaysAgo = now - 7 * 24 * 60 * 60 * 1000;
+
+        // Fetch recent entries from multiple tables
+        const [allRecentUsers, recentOrders, recentPosts, recentProducts] = await Promise.all([
+            ctx.db.query("profiles").order("desc").take(100),
+            ctx.db.query("orders").order("desc").take(10),
+            ctx.db.query("posts").withIndex("by_created_at").order("desc").take(20),
+            ctx.db.query("products").order("desc").take(10),
+        ]);
+
+        // Filter profiles to last 7 days in memory (no index on created_at)
+        const recentUsers = allRecentUsers.filter(u => u.created_at >= sevenDaysAgo);
+
+        const events: Array<{ type: string; label: string; time: number; icon: string }> = [];
+
+        for (const u of recentUsers) {
+            events.push({ type: "user", label: `${u.full_name || u.username} joined`, time: u.created_at, icon: "👤" });
+        }
+        for (const o of recentOrders) {
+            events.push({ type: "order", label: `New order placed — ${o.currency}${o.total_price}`, time: o.created_at, icon: "🛒" });
+        }
+        for (const p of recentPosts) {
+            events.push({ type: "post", label: `New post: "${p.content.slice(0, 40)}${p.content.length > 40 ? "…" : ""}"`, time: p.created_at, icon: "📝" });
+        }
+        for (const p of recentProducts) {
+            events.push({ type: "product", label: `Product listed: ${p.name}`, time: p.created_at, icon: "📦" });
+        }
+
+        events.sort((a, b) => b.time - a.time);
+        return events.slice(0, 20);
+    }
+});
+
+export const getGrowthStats = query({
+    args: {},
+    handler: async (ctx) => {
+        await ensureAdmin(ctx);
+
+        const now = Date.now();
+        const months: { label: string; start: number; end: number }[] = [];
+
+        for (let i = 5; i >= 0; i--) {
+            const d = new Date(now);
+            d.setMonth(d.getMonth() - i);
+            const start = new Date(d.getFullYear(), d.getMonth(), 1).getTime();
+            const end = new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59, 999).getTime();
+            months.push({
+                label: d.toLocaleString("default", { month: "short" }),
+                start,
+                end,
+            });
+        }
+
+        const allProfiles = await ctx.db.query("profiles").collect();
+        const allOrders = await ctx.db.query("orders").collect();
+
+        return months.map(m => ({
+            label: m.label,
+            users: allProfiles.filter(p => p.created_at >= m.start && p.created_at <= m.end).length,
+            revenue: allOrders
+                .filter(o => o.created_at >= m.start && o.created_at <= m.end)
+                .reduce((sum, o) => sum + (o.total_price || 0), 0),
+        }));
+    }
+});
+
 export const listUsers = query({
     args: {},
     handler: async (ctx) => {
@@ -578,3 +650,105 @@ export const generateDailyReport = mutation({
         };
     }
 });
+
+// ── AI Content Moderation Shield ─────────────────────────────────────────────
+export const moderateContent = action({
+    args: {},
+    handler: async (ctx): Promise<{ flagged: Array<{ id: string; type: string; content: string; reason: string; confidence: "high" | "medium" | "low" }> }> => {
+        const admin = await ctx.runQuery(api.admin.checkAdmin);
+        if (!admin) throw new Error("Unauthorized");
+
+        const GROQ_API_KEY = process.env.GROQ_API_KEY;
+        if (!GROQ_API_KEY) {
+            console.warn("GROQ_API_KEY not set — AI moderation unavailable");
+            return { flagged: [] };
+        }
+
+        // Fetch recent unreviewed content
+        const [products, posts] = await Promise.all([
+            ctx.runQuery(api.admin.listProducts),
+            ctx.runQuery(api.admin.listPosts),
+        ]);
+
+        const contentItems = [
+            ...products.slice(0, 20).map((p: any) => ({
+                id: p._id,
+                type: "product" as const,
+                text: `Name: ${p.name}. Description: ${p.description}. Price: ${p.price}.`,
+            })),
+            ...posts.slice(0, 20).map((p: any) => ({
+                id: p._id,
+                type: "post" as const,
+                text: p.content,
+            })),
+        ];
+
+        if (contentItems.length === 0) return { flagged: [] };
+
+        const prompt = `You are a content moderation AI for an East African agricultural marketplace called AgriLink.
+Review the following items and identify any that violate community standards.
+
+Flag items that contain:
+- Spam or misleading product descriptions
+- Prohibited or illegal items (drugs, weapons, stolen goods)
+- Hate speech or harmful content
+- Scam indicators (unrealistic prices, suspicious offers)
+- Copyright violations or fake products
+
+Items to review:
+${contentItems.map((item, i) => `${i + 1}. [${item.type.toUpperCase()}] ID: ${item.id}\n   Content: ${item.text}`).join("\n\n")}
+
+Respond ONLY with a valid JSON object in this exact format:
+{
+  "flagged": [
+    {
+      "id": "item_id_here",
+      "type": "product or post",
+      "reason": "Brief reason for flagging",
+      "confidence": "high, medium, or low"
+    }
+  ]
+}
+
+If nothing needs to be flagged, return: {"flagged": []}`;
+
+        const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+            method: "POST",
+            headers: {
+                Authorization: `Bearer ${GROQ_API_KEY}`,
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+                model: "llama-3.1-8b-instant",
+                messages: [{ role: "user", content: prompt }],
+                response_format: { type: "json_object" },
+                temperature: 0.1,
+            }),
+        });
+
+        if (!response.ok) {
+            console.error("Groq AI moderation error:", await response.text());
+            return { flagged: [] };
+        }
+
+        const data = await response.json();
+        try {
+            const result = JSON.parse(data.choices[0].message.content);
+            const flaggedItems = (result.flagged || []).map((f: any) => {
+                const original = contentItems.find(c => c.id === f.id);
+                return {
+                    id: f.id,
+                    type: f.type,
+                    content: original?.text || "",
+                    reason: f.reason,
+                    confidence: f.confidence || "medium",
+                };
+            });
+            return { flagged: flaggedItems };
+        } catch (e) {
+            console.error("Failed to parse AI moderation response", e);
+            return { flagged: [] };
+        }
+    }
+});
+

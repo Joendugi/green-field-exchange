@@ -17,6 +17,8 @@ interface ContentTabProps {
     onHidePost: (postId: Id<"posts">, hide: boolean) => Promise<void>;
     onHideProduct: (productId: Id<"products">, hide: boolean) => Promise<void>;
     onToggleFeatured: (productId: Id<"products">, featured: boolean) => Promise<void>;
+    onTogglePostFeatured: (postId: Id<"posts">, featured: boolean) => Promise<void>;
+    onBulkTogglePostFeatured: (postIds: Id<"posts">[], featured: boolean) => Promise<void>;
 }
 
 export const ContentTab = ({
@@ -27,6 +29,8 @@ export const ContentTab = ({
     onHidePost,
     onHideProduct,
     onToggleFeatured,
+    onTogglePostFeatured,
+    onBulkTogglePostFeatured,
 }: ContentTabProps) => {
     const [selectedPosts, setSelectedPosts] = useState<Set<string>>(new Set());
     const [selectedProducts, setSelectedProducts] = useState<Set<string>>(new Set());
@@ -82,6 +86,20 @@ export const ContentTab = ({
         try {
             await Promise.all([...selectedPosts].map(id => onHidePost(id as Id<"posts">, hide)));
             toast.success(`${selectedPosts.size} post(s) ${hide ? "hidden" : "restored"}`);
+            setSelectedPosts(new Set());
+        } catch (e: any) {
+            toast.error(e.message);
+        } finally {
+            setBulkLoading(false);
+        }
+    };
+
+    const bulkFeaturePosts = async (featured: boolean) => {
+        if (selectedPosts.size === 0) return;
+        setBulkLoading(true);
+        try {
+            await onBulkTogglePostFeatured([...selectedPosts] as Id<"posts">[], featured);
+            toast.success(`${selectedPosts.size} post(s) ${featured ? "featured" : "unfeatured"}`);
             setSelectedPosts(new Set());
         } catch (e: any) {
             toast.error(e.message);
@@ -244,6 +262,9 @@ export const ContentTab = ({
                                         <Button size="sm" variant="ghost" className="h-7 text-xs" disabled={bulkLoading} onClick={() => bulkHidePosts(false)}>
                                             <Eye className="h-3 w-3 mr-1" /> Restore
                                         </Button>
+                                        <Button size="sm" variant="ghost" className="h-7 text-xs text-amber-600" disabled={bulkLoading} onClick={() => bulkFeaturePosts(true)}>
+                                            <Star className="h-3 w-3 mr-1" /> Feature
+                                        </Button>
                                     </div>
                                 )}
                             </div>
@@ -267,8 +288,17 @@ export const ContentTab = ({
                                     <p className="text-sm line-clamp-2 mb-2">{post.content}</p>
                                     <div className="flex items-center gap-2">
                                         {post.is_hidden && <Badge variant="destructive" className="text-[10px] h-4">Hidden</Badge>}
+                                        {post.is_featured && <Badge className="text-[10px] h-4 bg-amber-500"><Sparkles className="h-2 w-2 mr-0.5" />Featured</Badge>}
                                         <Button size="sm" variant="ghost" className="h-6 text-xs px-2" onClick={() => onHidePost(post._id, !post.is_hidden)}>
                                             {post.is_hidden ? "Restore" : "Hide"}
+                                        </Button>
+                                        <Button
+                                            size="sm"
+                                            variant={post.is_featured ? "default" : "outline"}
+                                            className="h-6 text-xs px-2"
+                                            onClick={() => onTogglePostFeatured(post._id, !post.is_featured)}
+                                        >
+                                            {post.is_featured ? "Unfeature" : "Feature"}
                                         </Button>
                                     </div>
                                 </div>

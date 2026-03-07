@@ -1,6 +1,6 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
-import { ensureAdmin } from "./helpers";
+import { ensureAdmin, logAdminAction } from "./helpers";
 
 export const get = query({
     args: {},
@@ -40,5 +40,14 @@ export const update = mutation({
                 updated_at: Date.now()
             });
         }
+
+        await logAdminAction(
+            ctx,
+            admin._id,
+            "update_settings",
+            undefined,
+            "system",
+            `Settings: Beta=${args.enable_beta_features}, Ads=${args.enable_ads_portal}, Bulk=${args.enable_bulk_tools}`
+        );
     }
 });

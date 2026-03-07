@@ -67,7 +67,7 @@ const Careers = () => {
       type: "Full-time",
       experience: "Mid",
       salary: "$80k - $100k",
-      description: "Support farmers in maximizing their success on AgriLink. Provide training, resolve issues, and gather feedback.",
+      description: "Support farmers in maximizing their success on Wakulima. Provide training, resolve issues, and gather feedback.",
       requirements: [
         "2+ years of customer success experience",
         "Background in agriculture or farming",
@@ -145,7 +145,7 @@ const Careers = () => {
         <div className="container mx-auto px-4 py-20">
           <div className="text-center max-w-4xl mx-auto">
             <h1 className="text-5xl font-bold mb-6 animate-fade-in">
-              Careers at AgriLink
+              Careers at Wakulima
             </h1>
             <p className="text-xl mb-8 text-blue-100">
               Join us in building the future of sustainable agriculture and connecting farmers with the world.
@@ -166,7 +166,7 @@ const Careers = () => {
       {/* Company Values */}
       <section className="py-16">
         <div className="container mx-auto px-4">
-          <h2 className="text-4xl font-bold text-center mb-12">Why Work at AgriLink?</h2>
+          <h2 className="text-4xl font-bold text-center mb-12">Why Work at Wakulima?</h2>
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
             {companyValues.map((value, index) => (
               <Card key={index} className="text-center p-6 hover:shadow-lg transition-shadow">

@@ -58,7 +58,7 @@ const Contact = () => {
                                 <div>
                                     <h3 className="font-bold text-lg">Email Us</h3>
                                     <p className="text-muted-foreground">For general inquiries and support.</p>
-                                    <a href="mailto:support@agrilink.global" className="text-primary font-semibold hover:underline mt-2 block">support@agrilink.global</a>
+                                    <a href="mailto:support@wakulima.online" className="text-primary font-semibold hover:underline mt-2 block">support@wakulima.online</a>
                                 </div>
                             </div>
 
@@ -91,9 +91,9 @@ const Contact = () => {
                             </h3>
                             <div className="space-y-4">
                                 {[
-                                    { name: "Farmer Relations", email: "farmers@agrilink.global" },
-                                    { name: "Order Support", email: "orders@agrilink.global" },
-                                    { name: "Press & Media", email: "press@agrilink.global" },
+                                    { name: "Farmer Relations", email: "farmers@wakulima.online" },
+                                    { name: "Order Support", email: "orders@wakulima.online" },
+                                    { name: "Press & Media", email: "press@wakulima.online" },
                                 ].map((dept, i) => (
                                     <div key={i} className="flex justify-between items-center text-sm border-b border-border/50 pb-2 hover:border-primary/30 transition-colors cursor-pointer group">
                                         <span className="text-muted-foreground group-hover:text-foreground transition-colors">{dept.name}</span>
@@ -144,7 +144,7 @@ const Contact = () => {
                     <Accordion type="single" collapsible className="space-y-4">
                         {[
                             {
-                                q: "How do I verify my farm on AgriLink?",
+                                q: "How do I verify my farm on Wakulima?",
                                 a: "Simply sign up as a farmer and submit your business registration and harvest certifications via the dashboard. Our team will review and verify your profile within 48 hours."
                             },
                             {

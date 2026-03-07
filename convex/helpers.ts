@@ -77,3 +77,23 @@ export async function assertNotificationOwner(
   return notification;
 }
 
+/**
+ * Log an administrative action to the audit logs.
+ */
+export async function logAdminAction(
+  ctx: MutationCtx,
+  adminId: Id<"users">,
+  action: string,
+  targetId?: string,
+  targetType: string = "system",
+  details?: string
+) {
+  await ctx.db.insert("admin_audit_logs", {
+    adminId,
+    action,
+    targetId,
+    targetType,
+    details,
+    timestamp: Date.now(),
+  });
+}

@@ -131,46 +131,46 @@ const AIInsights = () => {
               Leverage artificial intelligence to optimize your farming decisions and maximize profits
             </p>
             <div className="flex flex-wrap justify-center gap-4">
-              <Button size="lg" className="bg-white text-blue-600 hover:bg-blue-50">
+              <Button size="lg" className="bg-white text-blue-600 hover:bg-blue-50 font-semibold shadow-lg">
                 Get Personalized Insights
               </Button>
-              <Button size="lg" variant="outline" className="border-white text-white hover:bg-white hover:text-blue-600">
+              <Button size="lg" variant="outline" className="border-2 border-white/40 text-white bg-white/10 hover:bg-white/20 hover:text-white backdrop-blur-sm font-semibold shadow-lg">
                 View Market Reports
               </Button>
             </div>
           </div>
         </div>
-        <div className="absolute inset-0 bg-black opacity-10"></div>
+        <div className="absolute inset-0 bg-black opacity-10 pointer-events-none"></div>
       </section>
 
       {/* Controls */}
       <section className="container mx-auto px-4 py-8">
         <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
           <div>
-            <label className="block text-sm font-medium mb-2">Select Crop</label>
+            <label className="block text-sm font-medium mb-2 text-gray-800">Select Crop</label>
             <select 
               value={selectedCrop}
               onChange={(e) => setSelectedCrop(e.target.value)}
-              className="w-full p-3 border rounded-lg"
+              className="w-full p-3 border rounded-lg bg-white text-gray-900 shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             >
               {cropRecommendations.map(crop => (
-                <option key={crop.crop} value={crop.crop.toLowerCase()}>
+                <option key={crop.crop} value={crop.crop.toLowerCase()} className="text-gray-900">
                   {crop.crop}
                 </option>
               ))}
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium mb-2">Select Region</label>
+            <label className="block text-sm font-medium mb-2 text-gray-800">Select Region</label>
             <select 
               value={selectedRegion}
               onChange={(e) => setSelectedRegion(e.target.value)}
-              className="w-full p-3 border rounded-lg"
+              className="w-full p-3 border rounded-lg bg-white text-gray-900 shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             >
-              <option value="central_valley">Central Valley</option>
-              <option value="salinas_valley">Salinas Valley</option>
-              <option value="central_coast">Central Coast</option>
-              <option value="bay_area">Bay Area</option>
+              <option value="central_valley" className="text-gray-900">Central Valley</option>
+              <option value="salinas_valley" className="text-gray-900">Salinas Valley</option>
+              <option value="central_coast" className="text-gray-900">Central Coast</option>
+              <option value="bay_area" className="text-gray-900">Bay Area</option>
             </select>
           </div>
         </div>

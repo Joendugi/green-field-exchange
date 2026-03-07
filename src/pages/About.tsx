@@ -33,7 +33,7 @@ const About = () => {
                     <Badge className="mb-6 px-4 py-1.5 bg-primary/10 text-primary border-primary/20">Our Story</Badge>
                     <h1 className="text-5xl lg:text-6xl font-bold mb-8 text-gradient italic">Cultivating Connections</h1>
                     <p className="text-xl text-muted-foreground max-w-3xl mx-auto leading-relaxed">
-                        Founded in 2024, AgriLink was born from a simple observation: the gap between those who grow our food and those who eat it was getting wider. We set out to bridge that gap using modern technology.
+                        Founded in 2024, Wakulima was born from a simple observation: the gap between those who grow our food and those who eat it was getting wider. We set out to bridge that gap using modern technology.
                     </p>
                 </section>
 
@@ -72,7 +72,7 @@ const About = () => {
                         <div className="absolute left-[21px] md:left-1/2 top-4 bottom-4 w-0.5 bg-border -translate-x-1/2 hidden md:block" />
 
                         {[
-                            { year: "2024", title: "The Seed", desc: "AgriLink founded in San Jose with a mission to digitize the local harvest." },
+                            { year: "2024", title: "The Seed", desc: "Wakulima founded in San Jose with a mission to digitize the local harvest." },
                             { year: "2025", title: "Market Growth", desc: "Expansion to 500+ verified farms across three states." },
                             { year: "2026", title: "Global Vision", desc: "Onboarding 2M+ users and launching AI-driven logistics optimization." },
                         ].map((milestone, i) => (

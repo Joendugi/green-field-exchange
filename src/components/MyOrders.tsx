@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Package, CheckCircle, XCircle, MessageSquare, Clock3, ShieldCheck, Star, Undo2, DollarSign } from "lucide-react";
+import { Package, CheckCircle, XCircle, MessageSquare, Clock3, ShieldCheck, Star, Undo2, DollarSign, AlertCircle, CreditCard } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -27,6 +27,7 @@ const MyOrders = ({ userRole: propRole }: MyOrdersProps) => {
   const updateStatus = useMutation(api.orders.updateStatus);
   const payOrderM = useMutation(api.orders.payOrder);
   const releasePayment = useMutation(api.escrow.releasePayment);
+  const disputeOrderM = useMutation(api.escrow.disputeOrder);
   const submitReview = useMutation(api.reviews.submitRating);
 
   const [statusFilter, setStatusFilter] = useState("all");
@@ -37,6 +38,13 @@ const MyOrders = ({ userRole: propRole }: MyOrdersProps) => {
   const [reviewOrder, setReviewOrder] = useState<any>(null);
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState("");
+
+  const [paymentOrder, setPaymentOrder] = useState<any>(null);
+  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+  
+  const [disputeOrder, setDisputeOrder] = useState<any>(null);
+  const [isDisputeModalOpen, setIsDisputeModalOpen] = useState(false);
+  const [disputeReason, setDisputeReason] = useState("");
 
   const navigate = useNavigate();
 
@@ -50,14 +58,36 @@ const MyOrders = ({ userRole: propRole }: MyOrdersProps) => {
     }
   };
 
-  const handlePayOrder = async (orderId: Id<"orders">) => {
-    const loadingToast = toast.loading("Processing payment...");
+  const handlePayOrder = async () => {
+    if (!paymentOrder) return;
+    const loadingToast = toast.loading("Processing payment via secure gateway...");
     try {
       // Simulate external payment gateway latency
-      await new Promise(r => setTimeout(r, 1500));
-      await payOrderM({ orderId });
+      await new Promise(r => setTimeout(r, 2000));
+      await payOrderM({ orderId: paymentOrder._id });
       toast.dismiss(loadingToast);
-      toast.success("Payment successful! Funds are now in escrow.");
+      toast.success("Payment successful! Funds are now securely placed in Escrow.");
+      setIsPaymentModalOpen(false);
+      setPaymentOrder(null);
+    } catch (error: any) {
+      toast.dismiss(loadingToast);
+      toast.error(error.message);
+    }
+  };
+
+  const handleDisputeOrder = async () => {
+    if (!disputeOrder || !disputeReason) {
+      toast.error("Please provide a reason for the dispute.");
+      return;
+    }
+    const loadingToast = toast.loading("Filing dispute...");
+    try {
+      await disputeOrderM({ orderId: disputeOrder._id, reason: disputeReason });
+      toast.dismiss(loadingToast);
+      toast.success("Dispute filed successfully. An admin will review your case.");
+      setIsDisputeModalOpen(false);
+      setDisputeOrder(null);
+      setDisputeReason("");
     } catch (error: any) {
       toast.dismiss(loadingToast);
       toast.error(error.message);
@@ -116,7 +146,7 @@ const MyOrders = ({ userRole: propRole }: MyOrdersProps) => {
           <Clock3 className="h-4 w-4 text-primary" />
           Order Progress Tracking
         </div>
-        <div className="relative flex justify-between">
+        <div className="relative flex justify-between items-center sm:px-4">
           <div className="absolute top-4 left-0 w-full h-0.5 bg-muted z-0 hidden sm:block" />
           <div
             className="absolute top-4 left-0 h-0.5 bg-primary transition-all duration-500 z-0 hidden sm:block"
@@ -128,17 +158,17 @@ const MyOrders = ({ userRole: propRole }: MyOrdersProps) => {
             const isCurrent = currentIndex === index;
 
             return (
-              <div key={step.key} className="relative z-10 flex flex-col items-center gap-2 group sm:flex-1">
+              <div key={step.key} className="relative z-10 flex flex-col items-center gap-1.5 group flex-1">
                 <div
-                  className={`h-8 w-8 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300 border-2 ${isActive
+                  className={`h-7 w-7 md:h-8 md:w-8 rounded-full flex items-center justify-center text-[10px] md:text-xs font-bold transition-all duration-300 border-2 ${isActive
                     ? "border-primary bg-primary text-primary-foreground"
                     : "border-muted bg-background text-muted-foreground"
-                    } ${isCurrent ? "scale-110" : ""}`}
+                    } ${isCurrent ? "scale-110 shadow-lg shadow-primary/20" : ""}`}
                 >
-                  {isActive ? <CheckCircle className="h-5 w-5" /> : index + 1}
+                  {isActive ? <CheckCircle className="h-4 w-4 md:h-5 md:w-5" /> : index + 1}
                 </div>
-                <div className="text-center px-1">
-                  <p className={`text-xs font-bold transition-colors ${isActive ? "text-foreground" : "text-muted-foreground"}`}>
+                <div className="text-center px-0.5">
+                  <p className={`text-[9px] md:text-xs font-bold leading-tight transition-colors ${isActive ? "text-foreground" : "text-muted-foreground"}`}>
                     {step.label}
                   </p>
                 </div>
@@ -190,6 +220,9 @@ const MyOrders = ({ userRole: propRole }: MyOrdersProps) => {
     }
     if (escrow === "refunded") {
       return <Badge variant="destructive"><Undo2 className="mr-1 h-3 w-3" /> Refunded</Badge>;
+    }
+    if (escrow === "disputed") {
+      return <Badge variant="destructive"><AlertCircle className="mr-1 h-3 w-3" /> Disputed</Badge>;
     }
 
     const variants: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
@@ -307,15 +340,20 @@ const MyOrders = ({ userRole: propRole }: MyOrdersProps) => {
 
                   {/* Buyer Actions */}
                   {!isSeller && order.escrow_status === "awaiting_payment" && (
-                    <Button size="sm" onClick={() => handlePayOrder(order._id)} className="bg-amber-600 hover:bg-amber-700">
+                    <Button size="sm" onClick={() => { setPaymentOrder(order); setIsPaymentModalOpen(true); }} className="bg-amber-600 hover:bg-amber-700">
                       <DollarSign className="mr-2 h-4 w-4" /> Pay Now
                     </Button>
                   )}
 
                   {!isSeller && order.escrow_status === "held" && (
-                    <Button size="sm" onClick={() => handleReleasePayment(order._id)} className="bg-emerald-600 hover:bg-emerald-700">
-                      <CheckCircle className="mr-2 h-4 w-4" /> Confirm Receipt & Pay
-                    </Button>
+                    <>
+                      <Button size="sm" onClick={() => handleReleasePayment(order._id)} className="bg-emerald-600 hover:bg-emerald-700">
+                        <CheckCircle className="mr-2 h-4 w-4" /> Confirm Receipt & Pay
+                      </Button>
+                      <Button size="sm" variant="outline" className="text-red-600 border-red-200 hover:bg-red-50" onClick={() => { setDisputeOrder(order); setIsDisputeModalOpen(true); }}>
+                        <AlertCircle className="mr-2 h-4 w-4" /> Report Issue
+                      </Button>
+                    </>
                   )}
 
                   {!isSeller && order.escrow_status === "released" && (
@@ -392,6 +430,85 @@ const MyOrders = ({ userRole: propRole }: MyOrdersProps) => {
               />
             </div>
             <Button className="w-full" onClick={handleSubmitReview}>Submit Review</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Payment Gateway Modal */}
+      <Dialog open={isPaymentModalOpen} onOpenChange={setIsPaymentModalOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center"><DollarSign className="mr-2 h-5 w-5 text-emerald-600" /> Secure Checkout</DialogTitle>
+            <DialogDescription>
+              Your payment will be held securely in escrow until you explicitly confirm delivery.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-6 py-4">
+            <div className="bg-muted p-4 rounded-lg flex justify-between items-center text-lg font-bold">
+              <span>Total Amount:</span>
+              <span className="text-emerald-600">${paymentOrder?.total_price?.toLocaleString()}</span>
+            </div>
+            
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label>Cardholder Name</Label>
+                <Input defaultValue={user?.full_name || ""} placeholder="John Doe" />
+              </div>
+              <div className="space-y-2">
+                <Label>Card Number</Label>
+                <div className="relative">
+                  <Input placeholder="•••• •••• •••• ••••" className="pl-10" />
+                  <CreditCard className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Expiry Date</Label>
+                  <Input placeholder="MM/YY" />
+                </div>
+                <div className="space-y-2">
+                  <Label>CVC</Label>
+                  <Input placeholder="•••" type="password" />
+                </div>
+              </div>
+            </div>
+            
+            <Button className="w-full bg-emerald-600 hover:bg-emerald-700" size="lg" onClick={handlePayOrder}>
+              <ShieldCheck className="mr-2 h-5 w-5" /> Pay Securely
+            </Button>
+            <p className="text-xs text-center text-muted-foreground">
+              Payments are processed securely via Stripe. Wakilima does not store your card details.
+            </p>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dispute Modal */}
+      <Dialog open={isDisputeModalOpen} onOpenChange={setIsDisputeModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center text-destructive"><AlertCircle className="mr-2 h-5 w-5" /> Report an Issue</DialogTitle>
+            <DialogDescription>
+              Is there a problem with your order? Your funds are safe in escrow. Let us know what happened so our admins can step in.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Dispute Reason</Label>
+              <Textarea
+                placeholder="E.g., The produce arrived spoiled, quantity was less than expected, etc."
+                value={disputeReason}
+                onChange={(e) => setDisputeReason(e.target.value)}
+                className="min-h-[100px]"
+              />
+            </div>
+            <div className="bg-amber-50 border border-amber-200 text-amber-800 p-3 rounded-md text-sm">
+              <p><strong>Note:</strong> Filing a dispute will freeze the escrow funds. Do not file disputes frivolously.</p>
+            </div>
+            <div className="flex gap-2 justify-end">
+              <Button variant="outline" onClick={() => setIsDisputeModalOpen(false)}>Cancel</Button>
+              <Button variant="destructive" onClick={handleDisputeOrder}>Submit Dispute</Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>

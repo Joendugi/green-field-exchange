@@ -234,6 +234,35 @@ export const update = mutation({
 });
 
 
+export const bulkUpdate = mutation({
+    args: {
+        ids: v.array(v.id("products")),
+        changes: v.object({
+            price: v.optional(v.number()),
+            quantity: v.optional(v.number()),
+            is_available: v.optional(v.boolean()),
+            category: v.optional(v.string()),
+            location: v.optional(v.string()),
+        }),
+    },
+    handler: async (ctx, args) => {
+        const userId = await getAuthUserId(ctx);
+        if (!userId) throw new Error("Unauthorized");
+
+        for (const id of args.ids) {
+            const product = await ctx.db.get(id);
+            if (!product || product.farmerId !== userId) {
+                continue;
+            }
+            await ctx.db.patch(id, {
+                ...args.changes,
+                updated_at: Date.now(),
+            });
+        }
+    },
+});
+
+
 export const remove = mutation({
     args: { id: v.id("products") },
     handler: async (ctx, args) => {
@@ -292,16 +321,38 @@ export const predictPrice = action({
 export const listAll = query({
     args: { limit: v.optional(v.number()) },
     handler: async (ctx, args) => {
-        return await ctx.db
+        const userId = await getAuthUserId(ctx);
+        const products = await ctx.db
             .query("products")
             .filter((q) => q.eq(q.field("is_available"), true))
             .take(args.limit || 100);
+
+        if (!userId) return products;
+
+        // Map through products and apply loyalty discounts if available
+        return await Promise.all(products.map(async (p) => {
+            const discount = await ctx.db
+                .query("loyalty_discounts")
+                .withIndex("by_farmer_buyer", (q) => q.eq("farmerId", p.farmerId).eq("buyerId", userId as any))
+                .filter((q) => q.eq(q.field("isActive"), true))
+                .first();
+
+            if (discount) {
+                return {
+                    ...p,
+                    discountedPrice: p.price * (1 - discount.discountPercentage / 100),
+                    hasLoyaltyDiscount: true,
+                };
+            }
+            return p;
+        }));
     }
 });
 
 export const getByIds = query({
     args: { ids: v.array(v.string()) },
     handler: async (ctx, args) => {
+        const userId = await getAuthUserId(ctx);
         const results = [];
         for (const id of args.ids) {
             try {
@@ -313,10 +364,28 @@ export const getByIds = query({
                         .withIndex("by_userId", (q) => q.eq("userId", p.farmerId))
                         .first();
 
+                    let discountedPrice = p.price;
+                    let hasLoyaltyDiscount = false;
+
+                    if (userId) {
+                        const discount = await ctx.db
+                            .query("loyalty_discounts")
+                            .withIndex("by_farmer_buyer", (q) => q.eq("farmerId", p.farmerId).eq("buyerId", userId as any))
+                            .filter((q) => q.eq(q.field("isActive"), true))
+                            .first();
+                        
+                        if (discount) {
+                            discountedPrice = p.price * (1 - discount.discountPercentage / 100);
+                            hasLoyaltyDiscount = true;
+                        }
+                    }
+
                     results.push({
                         ...p,
                         image_url: p.image_storage_id ? await ctx.storage.getUrl(p.image_storage_id) : p.image_url,
                         profiles: profile,
+                        discountedPrice,
+                        hasLoyaltyDiscount
                     });
                 }
             } catch {

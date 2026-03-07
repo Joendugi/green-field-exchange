@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Users, Package, ShoppingCart, TrendingUp, Download, Activity, Badge as BadgeIcon, Zap } from "lucide-react";
+import { Users, Package, ShoppingCart, TrendingUp, Download, Activity, Badge as BadgeIcon, Zap, AlertCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { exportToCSV } from "@/lib/dataExport";
@@ -20,6 +20,8 @@ import { EmailLogsTab } from "./admin/EmailLogsTab";
 import { SettingsTab } from "./admin/SettingsTab";
 import { AdsTab } from "./admin/AdsTab";
 import { ContentTab } from "./admin/ContentTab";
+import { EscrowTab } from "./admin/EscrowTab";
+import { MarketHeatmap } from "./admin/MarketHeatmap";
 import type { NewAd } from "./admin/AdsTab";
 
 type SettingsKey = "force_dark_mode" | "enable_beta_features" | "enable_ads_portal" | "enable_bulk_tools";
@@ -63,6 +65,8 @@ const AdminDashboard = () => {
   const toggleFeaturedP = useMutation(api.admin.toggleFeatured);
   const hidePostM = useMutation(api.admin.hidePost);
   const hideProductM = useMutation(api.admin.hideProduct);
+  const togglePostFeaturedM = useMutation(api.posts.togglePostFeatured);
+  const bulkTogglePostFeaturedM = useMutation(api.posts.bulkTogglePostFeatured);
 
   // ─── State ──────────────────────────────────────────────────────────────
   const [searchQuery, setSearchQuery] = useState("");
@@ -225,6 +229,24 @@ const AdminDashboard = () => {
     }
   };
 
+  const handleTogglePostFeatured = async (postId: Id<"posts">, featured: boolean) => {
+    try {
+      await togglePostFeaturedM({ postId, isFeatured: featured });
+      toast.success(featured ? "Story featured" : "Story unfeatured");
+    } catch (e: any) {
+      toast.error(e.message);
+    }
+  };
+
+  const handleBulkTogglePostFeatured = async (postIds: Id<"posts">[], featured: boolean) => {
+    try {
+      await bulkTogglePostFeaturedM({ postIds, isFeatured: featured });
+    } catch (e: any) {
+      toast.error(e.message);
+      throw e;
+    }
+  };
+
   // ─── Render ─────────────────────────────────────────────────────────────
   return (
     <div className="space-y-6">
@@ -268,6 +290,10 @@ const AdminDashboard = () => {
           <TabsTrigger value="broadcast">Broadcast</TabsTrigger>
           <TabsTrigger value="settings">Settings</TabsTrigger>
           <TabsTrigger value="ads">Ads</TabsTrigger>
+          <TabsTrigger value="heatmap">Activity</TabsTrigger>
+          <TabsTrigger value="escrow" className="text-destructive font-semibold">
+            <AlertCircle className="mr-1 h-3 w-3" /> Escrow
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-6 pt-4">
@@ -406,6 +432,8 @@ const AdminDashboard = () => {
             onHidePost={handleHidePost}
             onHideProduct={handleHideProduct}
             onToggleFeatured={handleToggleFeatured}
+            onTogglePostFeatured={handleTogglePostFeatured}
+            onBulkTogglePostFeatured={handleBulkTogglePostFeatured}
           />
         </TabsContent>
 
@@ -443,6 +471,14 @@ const AdminDashboard = () => {
             onSaveAd={handleSaveAd}
             onToggleAd={handleToggleAd}
           />
+        </TabsContent>
+
+        <TabsContent value="heatmap">
+          <MarketHeatmap />
+        </TabsContent>
+
+        <TabsContent value="escrow" className="space-y-4">
+          <EscrowTab />
         </TabsContent>
       </Tabs>
     </div>

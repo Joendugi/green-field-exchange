@@ -46,11 +46,15 @@ const schema = defineSchema({
     likes_count: v.optional(v.number()),
     comments_count: v.optional(v.number()),
     is_hidden: v.optional(v.boolean()),
+    is_featured: v.optional(v.boolean()),
+    type: v.optional(v.string()), // social, question, advice, guide
+    tags: v.optional(v.array(v.string())),
     created_at: v.number(),
     updated_at: v.number(),
   })
     .index("by_userId", ["userId"])
-    .index("by_created_at", ["created_at"]),
+    .index("by_created_at", ["created_at"])
+    .index("by_type", ["type"]),
 
 
   user_settings: defineTable({
@@ -245,6 +249,7 @@ const schema = defineSchema({
     userId: v.id("users"),
     postId: v.id("posts"),
     content: v.string(),
+    is_solution: v.optional(v.boolean()),
     created_at: v.number(),
   })
     .index("by_postId", ["postId"]),
@@ -392,6 +397,17 @@ const schema = defineSchema({
     .index("by_buyerId", ["buyerId"])
     .index("by_farmerId", ["farmerId"])
     .index("by_status", ["status"]),
+
+  loyalty_discounts: defineTable({
+    farmerId: v.id("users"),
+    buyerId: v.id("users"),
+    discountPercentage: v.number(),
+    orderCountThreshold: v.number(),
+    isActive: v.boolean(),
+    created_at: v.number(),
+  })
+    .index("by_farmer_buyer", ["farmerId", "buyerId"])
+    .index("by_farmerId", ["farmerId"]),
 });
 
 export default schema;

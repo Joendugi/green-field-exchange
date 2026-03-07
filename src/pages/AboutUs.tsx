@@ -93,7 +93,7 @@ const AboutUs = () => {
         <div className="container mx-auto px-4 py-20">
           <div className="text-center max-w-4xl mx-auto">
             <h1 className="text-5xl font-bold mb-6 animate-fade-in">
-              About AgriLink
+              About Wakulima
             </h1>
             <p className="text-xl mb-8 text-green-100 max-w-3xl mx-auto">
               Bridging the gap between farmers and consumers through technology, transparency, and sustainable trade.
@@ -134,7 +134,7 @@ const AboutUs = () => {
           <div className="max-w-4xl mx-auto text-center">
             <h2 className="text-4xl font-bold mb-8">Our Mission</h2>
             <p className="text-xl text-gray-600 mb-12 leading-relaxed">
-              At AgriLink, we believe that every farmer deserves fair compensation for their hard work, 
+              At Wakulima, we believe that every farmer deserves fair compensation for their hard work, 
               and every family deserves access to fresh, healthy, locally-sourced food. 
               We're building technology that eliminates middlemen, reduces waste, and creates 
               direct connections between the people who grow our food and the people who eat it.
@@ -218,7 +218,7 @@ const AboutUs = () => {
             <div>
               <div className="text-lg font-semibold mb-2">Email</div>
               <p className="text-green-100">
-                support@agrilink.global
+                support@wakulima.online
               </p>
             </div>
             <div>

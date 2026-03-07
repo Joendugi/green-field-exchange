@@ -12,7 +12,7 @@ const AIAssistant = () => {
   const [messages, setMessages] = useState<any[]>([
     {
       role: "assistant",
-      content: "Hello! I'm your AgriLink AI assistant. I can help you with agricultural advice, market insights, pricing guidance, and farming best practices. How can I assist you today?",
+      content: "Hello! I'm your Wakulima AI assistant. I can help you with agricultural advice, market insights, pricing guidance, and farming best practices. How can I assist you today?",
     },
   ]);
   const [input, setInput] = useState("");

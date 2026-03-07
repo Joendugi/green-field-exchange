@@ -41,7 +41,7 @@ export const generateBatch = internalMutation({
                 const userId = await ctx.db.insert("users", {});
                 await ctx.db.insert("posts", {
                     userId: userId,
-                    content: `Automated harvest report ${i}: Yield is up by ${Math.floor(Math.random() * 20)}% #AgriLinkScale`,
+                    content: `Automated harvest report ${i}: Yield is up by ${Math.floor(Math.random() * 20)}% #WakulimaScale`,
                     likes_count: Math.floor(Math.random() * 1000),
                     comments_count: Math.floor(Math.random() * 100),
                     created_at: now - Math.floor(Math.random() * 1000000),

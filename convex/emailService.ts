@@ -5,6 +5,7 @@ import { api } from "./_generated/api";
 // Helper function to send email via Resend API
 async function sendEmail(ctx: any, args: {
   to: string | string[];
+  bcc?: string[];
   subject: string;
   html: string;
   type: string;
@@ -37,8 +38,9 @@ async function sendEmail(ctx: any, args: {
         Authorization: `Bearer ${RESEND_API_KEY}`,
       },
       body: JSON.stringify({
-        from: process.env.EMAIL_FROM || "AgriLink <onboarding@resend.dev>",
+        from: process.env.EMAIL_FROM || "Wakulima <onboarding@resend.dev>",
         to: Array.isArray(args.to) ? args.to : [args.to],
+        bcc: args.bcc,
         subject: args.subject,
         html: args.html,
       }),
@@ -163,7 +165,7 @@ export const sendVerificationResult = action({
     const html = emailTemplates.verificationResult.html(args.userName, args.approved, args.notes);
     return await sendEmail(ctx, {
       to: args.email,
-      subject: args.approved ? "AgriLink - Verification Approved!" : "AgriLink - Verification Update",
+      subject: args.approved ? "Wakulima - Verification Approved!" : "Wakulima - Verification Update",
       html,
       type: "verification"
     });
@@ -175,8 +177,10 @@ export const sendBulkEmail = action({
   handler: async (ctx, args) => {
     const html = emailTemplates.broadcast.html(args.subject, args.message);
     // Note: Resend batch API would be better here for large lists, but fetch loop or array is fine for MVP
+    // Use BCC for privacy in mass emails
     return await sendEmail(ctx, {
-      to: args.to,
+      to: process.env.EMAIL_FROM || "onboarding@resend.dev",
+      bcc: args.to,
       subject: args.subject,
       html,
       type: "broadcast"
@@ -224,6 +228,19 @@ export const sendMessageNotificationEmail = action({
 });
 
 
+export const sendLoyaltyRewardEmail = action({
+  args: { email: v.string(), userName: v.string(), farmerName: v.string() },
+  handler: async (ctx, args) => {
+    const html = emailTemplates.loyaltyReward.html(args.userName, args.farmerName);
+    return await sendEmail(ctx, {
+      to: args.email,
+      subject: emailTemplates.loyaltyReward.subject(args.farmerName),
+      html,
+      type: "loyalty_reward"
+    });
+  }
+});
+
 export const sendMarketingEmail = action({
   args: { email: v.string(), userName: v.string(), subject: v.string(), message: v.string(), link: v.optional(v.string()) },
   handler: async (ctx, args) => {
@@ -258,20 +275,57 @@ export const emailTemplates = {
             </a>
           </div>` : ''}
           <div style="margin-top: 40px; text-align: center; color: #9ca3af; font-size: 12px;">
-            AgriLink Global Services — Empowering the Agricultural Community
+            Wakulima Global Services — Empowering the Agricultural Community
+          </div>
+        </div>
+      </div>
+    `
+  },
+  loyaltyReward: {
+    subject: (farmerName: string) => `🎁 Exclusive 10% Loyalty Discount from ${farmerName}!`,
+    html: (userName: string, farmerName: string) => `
+      <div style="font-family: 'Inter', sans-serif; max-width: 600px; margin: 0 auto; padding: 40px 20px; background-color: #eef2ff;">
+        <div style="background-color: #ffffff; padding: 40px; border-radius: 24px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);">
+          <div style="text-align: center; margin-bottom: 30px;">
+            <div style="background-color: #ede9fe; width: 80px; height: 80px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; margin-bottom: 20px;">
+              <span style="font-size: 40px;">🎁</span>
+            </div>
+            <h1 style="color: #4338ca; font-size: 28px; font-weight: 800; margin: 0;">Special Reward!</h1>
+            <p style="color: #6366f1; font-size: 18px; font-weight: 600; margin-top: 8px;">Because you're a valued customer</p>
+          </div>
+          
+          <div style="color: #374151; font-size: 16px; line-height: 1.6; text-align: center;">
+            <p>Hello <strong>${userName}</strong>,</p>
+            <p><strong>${farmerName}</strong> has just added you to their exclusive Loyalty Program! As a thank you for your continued support, you now have a permanent <strong>10% discount</strong> on all of their products.</p>
+          </div>
+
+          <div style="background: linear-gradient(135deg, #6366f1 0%, #4338ca 100%); padding: 30px; border-radius: 20px; margin: 30px 0; text-align: center; color: white;">
+            <div style="font-size: 14px; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 10px; opacity: 0.9;">Your Exclusive Benefit</div>
+            <div style="font-size: 48px; font-weight: 900;">10% OFF</div>
+            <div style="font-size: 16px; margin-top: 10px; font-weight: 500;">Automatically applied at checkout</div>
+          </div>
+
+          <div style="text-align: center; margin-top: 40px;">
+            <a href="https://wakulima.online/marketplace" style="background-color: #4338ca; color: white; padding: 16px 40px; text-decoration: none; border-radius: 12px; font-weight: 700; font-size: 16px; display: inline-block; box-shadow: 0 4px 12px rgba(67, 56, 202, 0.25);">
+              Visit Marketplace
+            </a>
+          </div>
+
+          <div style="margin-top: 40px; border-top: 1px solid #e5e7eb; padding-top: 24px; text-align: center; color: #9ca3af; font-size: 12px;">
+            Wakulima — Connecting Farmers and Buyers directly.
           </div>
         </div>
       </div>
     `
   },
   passwordReset: {
-    subject: "Reset your AgriLink password",
+    subject: "Reset your Wakulima password",
     html: (otp: string, userName: string) => `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f8f9fa;">
         <div style="background-color: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
           <h1 style="color: #2d3748; font-size: 24px; margin-bottom: 20px;">🔐 Password Reset Code</h1>
           <p style="color: #4a5568; font-size: 16px; margin-bottom: 20px;">Hello ${userName},</p>
-          <p style="color: #4a5568; font-size: 16px; margin-bottom: 20px;">Use the following 6-digit code to reset your AgriLink password:</p>
+          <p style="color: #4a5568; font-size: 16px; margin-bottom: 20px;">Use the following 6-digit code to reset your Wakulima password:</p>
           <div style="text-align: center; margin: 30px 0;">
             <div style="background-color: #f0fdf4; border: 2px dashed #22c55e; color: #16a34a; padding: 20px; font-size: 32px; font-weight: bold; letter-spacing: 5px; display: inline-block; border-radius: 8px;">
               ${otp}
@@ -285,29 +339,29 @@ export const emailTemplates = {
   },
 
   ban: {
-    subject: "Account Status Update - AgriLink",
+    subject: "Account Status Update - Wakulima",
     html: (userName: string, reason?: string) => `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #fef2f2;">
         <div style="background-color: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
           <h1 style="color: #dc2626; font-size: 24px; margin-bottom: 20px;">⚠️ Account Suspended</h1>
           <p style="color: #4a5568; font-size: 16px;">Hello ${userName},</p>
-          <p style="color: #4a5568; font-size: 16px;">Your AgriLink account has been suspended by an administrator.</p>
+          <p style="color: #4a5568; font-size: 16px;">Your Wakulima account has been suspended by an administrator.</p>
           ${reason ? `<div style="background-color: #fff1f2; padding: 15px; border-left: 4px solid #dc2626; margin: 20px 0; color: #991b1b;">Reason: ${reason}</div>` : ''}
-          <p style="color: #6c757d; font-size: 14px; margin-top: 30px;">If you believe this is a mistake, please contact support@agrilink.global</p>
+          <p style="color: #6c757d; font-size: 14px; margin-top: 30px;">If you believe this is a mistake, please contact support@wakulima.online</p>
         </div>
       </div>
     `
   },
 
   roleChange: {
-    subject: "Role Updated - AgriLink",
+    subject: "Role Updated - Wakulima",
     html: (userName: string, newRole: string) => `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #eff6ff;">
         <div style="background-color: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
           <h1 style="color: #2563eb; font-size: 24px; margin-bottom: 20px;">🛡️ Role Updated</h1>
           <p style="color: #4a5568; font-size: 16px;">Hello ${userName},</p>
           <p style="color: #4a5568; font-size: 16px;">Your account role has been updated to: <strong>${newRole}</strong></p>
-          <p style="color: #6c757d; font-size: 14px; margin-top: 30px;">AgriLink Administration Team</p>
+          <p style="color: #6c757d; font-size: 14px; margin-top: 30px;">Wakulima Administration Team</p>
         </div>
       </div>
     `
@@ -328,7 +382,7 @@ export const emailTemplates = {
           </p>
           ${notes ? `<div style="background-color: #f8fafc; padding: 15px; border-radius: 6px; margin: 20px 0;"><strong>Notes from Auditor:</strong><br/>${notes}</div>` : ''}
           <div style="text-align: center; margin: 30px 0;">
-            <a href="https://agrilink.global/profile" style="background-color: #22c55e; color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
+            <a href="https://wakulima.online/profile" style="background-color: #22c55e; color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
               Go to Profile
             </a>
           </div>
@@ -339,23 +393,35 @@ export const emailTemplates = {
 
   broadcast: {
     html: (title: string, message: string) => `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f7fee7;">
-        <div style="background-color: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-          <h1 style="color: #16a34a; font-size: 24px; margin-bottom: 20px;">📣 ${title}</h1>
-          <div style="color: #4a5568; font-size: 16px; line-height: 1.6; white-space: pre-wrap;">${message}</div>
-          <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 30px 0;">
-          <p style="color: #94a3b8; font-size: 12px; text-align: center;">You are receiving this because you are a registered user of AgriLink.</p>
+      <div style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 40px 20px; background-color: #f0fdf4;">
+        <div style="background-color: #ffffff; padding: 40px; border-radius: 24px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);">
+          <div style="text-align: center; margin-bottom: 32px;">
+            <div style="background-color: #dcfce7; width: 64px; height: 64px; border-radius: 20px; display: inline-flex; align-items: center; justify-content: center; margin-bottom: 16px;">
+              <span style="font-size: 32px;">📣</span>
+            </div>
+            <h1 style="color: #064e3b; font-size: 28px; font-weight: 800; margin: 0; letter-spacing: -0.025em; line-height: 1.2;">${title}</h1>
+          </div>
+          
+          <div style="color: #374151; font-size: 16px; line-height: 1.8; margin-bottom: 32px; white-space: pre-wrap; background-color: #fafafa; padding: 24px; border-radius: 16px; border: 1px solid #f3f4f6;">${message}</div>
+          
+          <div style="text-align: center; margin-top: 32px; padding-top: 32px; border-top: 1px solid #f3f4f6;">
+            <p style="color: #9ca3af; font-size: 13px; margin: 0;">Wakulima Platform Update</p>
+            <p style="color: #d1d5db; font-size: 11px; margin-top: 8px;">You are receiving this because you are an active member of the Wakulima community.</p>
+            <div style="margin-top: 24px;">
+              <a href="https://wakulima.online" style="color: #059669; text-decoration: none; font-weight: 600; font-size: 14px;">Visit Community Portal</a>
+            </div>
+          </div>
         </div>
       </div>
     `
   },
 
   welcome: {
-    subject: "Welcome to AgriLink!",
+    subject: "Welcome to Wakulima!",
     html: (userName: string, role: string) => `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f8f9fa;">
         <div style="background-color: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-          <h1 style="color: #22c55e; font-size: 24px; margin-bottom: 20px;">🌱 Welcome to AgriLink!</h1>
+          <h1 style="color: #22c55e; font-size: 24px; margin-bottom: 20px;">🌱 Welcome to Wakulima!</h1>
           <p style="color: #4a5568; font-size: 16px; margin-bottom: 20px;">Hello ${userName},</p>
           <p style="color: #4a5568; font-size: 16px; margin-bottom: 20px;">Welcome to the future of sustainable agriculture! Your ${role} account has been successfully created.</p>
           <div style="background-color: #f0fdf4; padding: 20px; border-radius: 6px; margin: 20px 0;">
@@ -367,14 +433,14 @@ export const emailTemplates = {
               <li>✅ Join our community of sustainable farmers</li>
             </ul>
           </div>
-          <p style="color: #6c757d; font-size: 14px; margin-top: 30px;">Need help? Contact our support team at support@agrilink.global</p>
+          <p style="color: #6c757d; font-size: 14px; margin-top: 30px;">Need help? Contact our support team at support@wakulima.online</p>
         </div>
       </div>
     `,
   },
 
   verificationConfirmation: {
-    subject: "AgriLink - Verification Request Received",
+    subject: "Wakulima - Verification Request Received",
     html: (userName: string, documentCount: number) => `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f8f9fa;">
         <div style="background-color: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
@@ -390,7 +456,7 @@ export const emailTemplates = {
               <li>Access premium features and AI insights</li>
             </ol>
           </div>
-          <p style="color: #6c757d; font-size: 14px; margin-top: 30px;">Questions? Contact us at support@agrilink.global</p>
+          <p style="color: #6c757d; font-size: 14px; margin-top: 30px;">Questions? Contact us at support@wakulima.online</p>
         </div>
       </div>
     `,
@@ -434,14 +500,14 @@ export const emailTemplates = {
           </div>
 
           <div style="text-align: center; margin-top: 40px;">
-            <a href="https://agrilink.global/dashboard/orders" style="background: linear-gradient(to right, #10b981, #059669); color: white; padding: 14px 40px; text-decoration: none; border-radius: 10px; font-weight: 700; font-size: 16px; display: inline-block; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);">
+            <a href="https://wakulima.online/dashboard/orders" style="background: linear-gradient(to right, #10b981, #059669); color: white; padding: 14px 40px; text-decoration: none; border-radius: 10px; font-weight: 700; font-size: 16px; display: inline-block; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);">
               ${isFarmer ? 'Manage Order' : 'Track Order'}
             </a>
           </div>
 
           <div style="margin-top: 40px; border-top: 1px solid #e5e7eb; padding-top: 30px; text-align: center;">
-            <p style="color: #9ca3af; font-size: 14px; margin: 0;">AgriLink Global — Connecting Sustainable Agriculture</p>
-            <p style="color: #d1d5db; font-size: 12px; margin-top: 8px;">If you have any questions, reply to this email or contact support@agrilink.global</p>
+            <p style="color: #9ca3af; font-size: 14px; margin: 0;">Wakulima Global — Connecting Sustainable Agriculture</p>
+            <p style="color: #d1d5db; font-size: 12px; margin-top: 8px;">If you have any questions, reply to this email or contact support@wakulima.online</p>
           </div>
         </div>
       </div>
@@ -449,7 +515,7 @@ export const emailTemplates = {
   },
 
   messageNotification: {
-    subject: "💬 New Direct Message on AgriLink",
+    subject: "💬 New Direct Message on Wakulima",
     html: (userName: string, senderName: string, messagePreview: string) => `
       <div style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 40px 20px; background-color: #f3f4f6;">
         <div style="background-color: #ffffff; padding: 40px; border-radius: 16px; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);">
@@ -472,7 +538,7 @@ export const emailTemplates = {
           </p>
 
           <div style="text-align: center;">
-            <a href="https://agrilink.global/messages" style="background-color: #2563eb; color: white; padding: 12px 32px; text-decoration: none; border-radius: 8px; font-weight: 700; font-size: 16px; display: inline-block;">
+            <a href="https://wakulima.online/messages" style="background-color: #2563eb; color: white; padding: 12px 32px; text-decoration: none; border-radius: 8px; font-weight: 700; font-size: 16px; display: inline-block;">
               Reply to Message
             </a>
           </div>

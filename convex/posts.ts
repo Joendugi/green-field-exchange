@@ -2,17 +2,27 @@ import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { Id } from "./_generated/dataModel";
-import { ensureAuthenticated } from "./helpers";
+import { ensureAuthenticated, ensureAdmin, logAdminAction } from "./helpers";
 
 export const getPosts = query({
   args: {
     limit: v.optional(v.number()),
     cursor: v.optional(v.string()),
+    type: v.optional(v.string()),
+    tag: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    let postsQuery = ctx.db
-      .query("posts")
-      .withIndex("by_created_at");
+    let postsQuery;
+    
+    if (args.type && args.type !== "all") {
+      postsQuery = ctx.db
+        .query("posts")
+        .withIndex("by_type", (q) => q.eq("type", args.type));
+    } else {
+      postsQuery = ctx.db
+        .query("posts")
+        .withIndex("by_created_at");
+    }
 
     if (args.cursor) {
       const cursorPost = await ctx.db.get(args.cursor as Id<"posts">);
@@ -24,7 +34,13 @@ export const getPosts = query({
       );
     }
 
-    const posts = await postsQuery.order("desc").take(args.limit || 20);
+    let posts = await postsQuery.order("desc").collect();
+
+    if (args.tag) {
+      posts = posts.filter(p => p.tags?.includes(args.tag!));
+    }
+
+    posts = posts.slice(0, args.limit || 20);
 
     // Generate image URLs and enhance with status
     return await Promise.all(
@@ -121,6 +137,8 @@ export const createPost = mutation({
     content: v.string(),
     image_url: v.optional(v.string()),
     video_url: v.optional(v.string()),
+    type: v.optional(v.string()),
+    tags: v.optional(v.array(v.string())),
   },
   handler: async (ctx, args) => {
     const userId = await ensureAuthenticated(ctx);
@@ -139,6 +157,8 @@ export const createPost = mutation({
       content,
       image_url: args.image_url,
       video_url: args.video_url,
+      type: args.type || "social",
+      tags: args.tags || [],
       created_at: now,
       updated_at: now,
       likes_count: 0,
@@ -313,5 +333,108 @@ export const addComment = mutation({
         comments_count: (post.comments_count || 0) + 1,
       });
     }
+  },
+});
+
+export const getFeaturedStories = query({
+  args: {},
+  handler: async (ctx) => {
+    const posts = await ctx.db
+      .query("posts")
+      .filter((q) => q.eq(q.field("is_featured"), true))
+      .order("desc")
+      .take(15);
+
+    return await Promise.all(
+      posts.map(async (post) => {
+        const profile = await ctx.db
+          .query("profiles")
+          .withIndex("by_userId", (q) => q.eq("userId", post.userId))
+          .unique();
+
+        return {
+          ...post,
+          profiles: profile,
+        };
+      })
+    );
+  },
+});
+
+export const togglePostFeatured = mutation({
+  args: { postId: v.id("posts"), isFeatured: v.boolean() },
+  handler: async (ctx, args) => {
+    const admin = await ensureAdmin(ctx);
+
+    await ctx.db.patch(args.postId, {
+      is_featured: args.isFeatured,
+      updated_at: Date.now(),
+    });
+
+    // Log the action using standard helper
+    await logAdminAction(
+        ctx,
+        admin._id,
+        args.isFeatured ? "feature_post" : "unfeature_post",
+        args.postId,
+        "post",
+        `Post featured by ${admin.name || "Admin"}`
+    );
+  },
+});
+
+export const bulkTogglePostFeatured = mutation({
+  args: { postIds: v.array(v.id("posts")), isFeatured: v.boolean() },
+  handler: async (ctx, args) => {
+    const admin = await ensureAdmin(ctx);
+
+    for (const postId of args.postIds) {
+      await ctx.db.patch(postId, {
+        is_featured: args.isFeatured,
+        updated_at: Date.now(),
+      });
+    }
+
+    // Log the bulk action
+    await logAdminAction(
+      ctx,
+      admin._id,
+      args.isFeatured ? "bulk_feature_posts" : "bulk_unfeature_posts",
+      args.postIds[0], // Log the first ID as a reference
+      "post",
+      `Bulk ${args.isFeatured ? "featured" : "unfeatured"} ${args.postIds.length} posts by ${admin.name || "Admin"}`
+    );
+  },
+});
+
+export const toggleCommentSolution = mutation({
+  args: { commentId: v.id("post_comments"), isSolution: v.boolean() },
+  handler: async (ctx, args) => {
+    const userId = await ensureAuthenticated(ctx);
+    
+    const comment = await ctx.db.get(args.commentId);
+    if (!comment) throw new Error("Comment not found");
+
+    const post = await ctx.db.get(comment.postId);
+    if (!post) throw new Error("Post not found");
+
+    if (post.userId !== userId) {
+      throw new Error("Only the post author can mark a solution");
+    }
+
+    if (args.isSolution) {
+        // Reset other solutions for this post
+        const otherSolutions = await ctx.db
+            .query("post_comments")
+            .withIndex("by_postId", (q) => q.eq("postId", comment.postId))
+            .filter((q) => q.eq(q.field("is_solution"), true))
+            .collect();
+
+        for (const sol of otherSolutions) {
+            await ctx.db.patch(sol._id, { is_solution: false });
+        }
+    }
+
+    await ctx.db.patch(args.commentId, { is_solution: args.isSolution });
   },
 });

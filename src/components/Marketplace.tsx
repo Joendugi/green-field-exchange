@@ -14,7 +14,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/contexts/AuthContext";
-import { useAction } from "convex/react";
+import { useAction, useQuery, useMutation } from "convex/react";
+import { ExternalLink, Tag, Megaphone, ShieldCheck } from "lucide-react";
 const Marketplace = () => {
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
@@ -57,10 +58,31 @@ const Marketplace = () => {
     search: searchQuery
   });
   const recommendations = useQuery(api.products.listRecommendations);
+  const activeAds = useQuery(api.advertisements.list) || [];
+
   // Convex Mutations
   const createOrder = useMutation(api.orders.create);
   const logSearch = useMutation(api.analytics.logSearch);
   const createOffer = useMutation(api.offers.createOffer);
+  const trackPixel = useMutation(api.metaAds.trackMetaPixel);
+
+  // Interleave Ads with Products
+  const displayItems = useMemo(() => {
+    if (!products) return [];
+    const items: any[] = [...products];
+    
+    // Only inject ads if we aren't filtering heavily or if it's the main view
+    if (activeAds.length > 0 && categoryFilter === "all" && !searchQuery) {
+      activeAds.forEach((ad, index) => {
+        // Inject every 5 items
+        const position = (index + 1) * 5 + index;
+        if (position <= items.length) {
+          items.splice(position, 0, { ...ad, isAd: true });
+        }
+      });
+    }
+    return items;
+  }, [products, activeAds, categoryFilter, searchQuery]);
 
   const handleMakeOffer = async (product: any) => {
     try {
@@ -171,6 +193,56 @@ const Marketplace = () => {
       ))}
     </div>
   );
+
+  const SponsoredAdCard = ({ ad }: { ad: any }) => {
+    useEffect(() => {
+      // Track impression
+      trackPixel({ 
+        eventName: "AdImpression", 
+        eventData: { adId: ad._id, title: ad.title } 
+      });
+    }, [ad._id, ad.title]);
+
+    return (
+      <Card className="hover-lift overflow-hidden border-primary/30 bg-primary/5 relative">
+        <div className="absolute top-2 left-2 z-10">
+          <Badge className="bg-primary/90 text-white border-0 flex items-center gap-1 shadow-sm">
+            <Megaphone className="h-3 w-3" /> Sponsored
+          </Badge>
+        </div>
+        <CardHeader className="p-0">
+          <div className="aspect-[4/3] relative overflow-hidden bg-muted flex items-center justify-center">
+            {ad.image_url ? (
+              <img src={ad.image_url} alt={ad.title} className="w-full h-full object-cover transition-transform duration-500 hover:scale-105" />
+            ) : (
+              <Zap className="h-12 w-12 text-primary/30" />
+            )}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent pointer-events-none" />
+          </div>
+        </CardHeader>
+        <CardContent className="p-5 space-y-3">
+          <CardTitle className="text-xl font-bold text-primary truncate">{ad.title}</CardTitle>
+          <CardDescription className="line-clamp-2 text-sm leading-relaxed min-h-[40px]">
+            {ad.description}
+          </CardDescription>
+          <div className="flex items-center gap-2 text-primary font-semibold text-xs py-1 px-2 bg-primary/10 w-fit rounded-full">
+            <Tag className="h-3 w-3" /> Promotion
+          </div>
+        </CardContent>
+        <CardFooter className="px-5 pb-5 pt-0">
+          <Button 
+            className="w-full bg-primary hover:bg-primary/90 text-white font-bold h-11 shadow-lg" 
+            onClick={() => {
+              trackPixel({ eventName: "AdClick", eventData: { adId: ad._id } });
+              window.open(ad.target_url, "_blank");
+            }}
+          >
+            Visit Website <ExternalLink className="ml-2 h-4 w-4" />
+          </Button>
+        </CardFooter>
+      </Card>
+    );
+  };
 
   return (
     <div className="space-y-6">
@@ -291,190 +363,225 @@ const Marketplace = () => {
         renderProductSkeletons()
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {products.map((product) => (
-            <Card key={product._id} className="hover-lift overflow-hidden">
-              <CardHeader>
-                <div className="aspect-[4/3] bg-secondary rounded-lg mb-4 overflow-hidden">
-                  {product.image_url ? (
-                    <img
-                      src={product.image_url}
-                      alt={product.name}
-                      className="w-full h-full object-cover"
-                      loading="lazy"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center">
-                      <ShoppingCart className="h-12 w-12 text-muted-foreground" />
+          {displayItems.map((item: any, idx) => {
+            if (item.isAd) {
+              return <SponsoredAdCard key={item._id} ad={item} />;
+            }
+
+            const product = item;
+            return (
+              <Card key={product._id} className="hover-lift overflow-hidden">
+                <CardHeader>
+                  <div className="aspect-[4/3] bg-secondary rounded-lg mb-4 overflow-hidden">
+                    {product.image_url ? (
+                      <img
+                        src={product.image_url}
+                        alt={product.name}
+                        className="w-full h-full object-cover"
+                        loading="lazy"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <ShoppingCart className="h-12 w-12 text-muted-foreground" />
+                      </div>
+                    )}
+                    {product.expiry_date && (product.expiry_date - Date.now() < 48 * 60 * 60 * 1000) && (
+                      <Badge className="absolute top-2 right-2 bg-red-500 text-white border-none animate-pulse">
+                        Expiring Soon!
+                      </Badge>
+                    )}
+                  </div>
+                  <CardTitle>{product.name}</CardTitle>
+                  <CardDescription>{product.description}</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  <div className="flex flex-col gap-1">
+                    <div className="flex items-center justify-between">
+                      <div className="flex flex-col">
+                        {product.hasLoyaltyDiscount ? (
+                          <>
+                            <span className="text-2xl font-bold text-primary">
+                              {product.currency || "$"}{product.discountedPrice.toFixed(2)}/{product.unit}
+                            </span>
+                            <span className="text-xs text-muted-foreground line-through decoration-rose-400">
+                              Was {product.currency || "$"}{product.price}
+                            </span>
+                          </>
+                        ) : (
+                          <span className="text-2xl font-bold text-primary">
+                            {product.currency || "$"}{product.price}/{product.unit}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex flex-col items-end gap-1">
+                        <Badge variant="secondary">{product.category}</Badge>
+                        {product.hasLoyaltyDiscount && (
+                          <Badge variant="default" className="bg-indigo-600 hover:bg-indigo-700 animate-pulse gap-1 text-[10px] h-5">
+                            <Gift className="h-3 w-3" /> Loyalty Reward
+                          </Badge>
+                        )}
+                        {product.is_featured && (
+                          <Badge variant="default" className="bg-amber-500 hover:bg-amber-600 gap-1 text-[10px] h-5">
+                            <Sparkles className="h-3 w-3" /> Featured
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <MapPin className="h-4 w-4" />
+                    <span>{product.location}</span>
+                  </div>
+                  <div className="text-sm flex items-center gap-1.5 flex-wrap">
+                    <span className="font-semibold">Farmer:</span> 
+                    {product.profiles?.full_name || "Unknown"}
+                    {product.profiles?.verified && (
+                      <Badge variant="secondary" className="bg-blue-500/10 text-blue-600 border-blue-200 text-[10px] h-4 px-1.5 flex items-center gap-0.5">
+                        <ShieldCheck className="h-2.5 w-2.5" /> Verified
+                      </Badge>
+                    )}
+                  </div>
+                  <div className="text-sm">
+                    <span className="font-semibold">Available:</span> {product.quantity} {product.unit}
+                  </div>
+                  {product.expiry_date && (
+                    <div className="text-sm text-amber-600 flex items-center gap-1">
+                      <span className="font-semibold">Best Before:</span> {new Date(product.expiry_date).toLocaleDateString()}
                     </div>
                   )}
-                  {product.expiry_date && (product.expiry_date - Date.now() < 48 * 60 * 60 * 1000) && (
-                    <Badge className="absolute top-2 right-2 bg-red-500 text-white border-none animate-pulse">
-                      Expiring Soon!
-                    </Badge>
-                  )}
-                </div>
-                <CardTitle>{product.name}</CardTitle>
-                <CardDescription>{product.description}</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-2xl font-bold text-primary">
-                    {product.currency || "$"}{product.price}/{product.unit}
-                  </span>
-                  <Badge variant="secondary">{product.category}</Badge>
-                  {product.is_featured && (
-                    <Badge variant="default" className="bg-amber-500 hover:bg-amber-600 gap-1">
-                      <Sparkles className="h-3 w-3" /> Featured
-                    </Badge>
-                  )}
-                </div>
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <MapPin className="h-4 w-4" />
-                  <span>{product.location}</span>
-                </div>
-                <div className="text-sm">
-                  <span className="font-semibold">Farmer:</span> {product.profiles?.full_name || "Unknown"}
-                </div>
-                <div className="text-sm">
-                  <span className="font-semibold">Available:</span> {product.quantity} {product.unit}
-                </div>
-                {product.expiry_date && (
-                  <div className="text-sm text-amber-600 flex items-center gap-1">
-                    <span className="font-semibold">Best Before:</span> {new Date(product.expiry_date).toLocaleDateString()}
-                  </div>
-                )}
-              </CardContent>
-              <CardFooter>
-                {product.farmerId === profile?.userId ? (
-                  <Button className="w-full" variant="outline" disabled>
-                    Your Product
-                  </Button>
-                ) : !isAuthenticated ? (
-                  <Button className="w-full" variant="outline" onClick={() => navigate("/auth")}>
-                    Login to Order
-                  </Button>
-                ) : (
-                  <div className="flex gap-2 w-full">
-                    {/* Place Order Dialog */}
-                    <Dialog>
-                      <DialogTrigger asChild>
-                        <Button
-                          className="flex-1"
-                          onClick={() => setSelectedProduct(product)}
-                        >
-                          Place Order
-                        </Button>
-                      </DialogTrigger>
-                      <DialogContent>
-                        <DialogHeader>
-                          <DialogTitle>Place Order</DialogTitle>
-                          <DialogDescription>
-                            Order {product.name} from {product.profiles?.full_name || "Unknown"}
-                          </DialogDescription>
-                        </DialogHeader>
-                        <div className="space-y-4">
-                          <div>
-                            <Label>Quantity ({product.unit})</Label>
-                            <Input
-                              type="number"
-                              step="0.01"
-                              max={product.quantity}
-                              value={orderQuantity}
-                              onChange={(e) => setOrderQuantity(e.target.value)}
-                              placeholder="Enter quantity"
-                            />
-                          </div>
-                          <div>
-                            <Label>Delivery Address</Label>
-                            <Textarea
-                              value={deliveryAddress}
-                              onChange={(e) => setDeliveryAddress(e.target.value)}
-                              placeholder="Enter your delivery address"
-                            />
-                          </div>
-                          {orderQuantity && (
-                            <div className="p-4 bg-secondary rounded-lg">
-                              <div className="flex justify-between items-center">
-                                <span className="font-semibold">Total Price:</span>
-                                <span className="text-2xl font-bold text-primary">
-                                  ${(parseFloat(orderQuantity) * product.price).toFixed(2)}
-                                </span>
-                              </div>
-                            </div>
-                          )}
+                </CardContent>
+                <CardFooter>
+                  {product.farmerId === profile?.userId ? (
+                    <Button className="w-full" variant="outline" disabled>
+                      Your Product
+                    </Button>
+                  ) : !isAuthenticated ? (
+                    <Button className="w-full" variant="outline" onClick={() => navigate("/auth")}>
+                      Login to Order
+                    </Button>
+                  ) : (
+                    <div className="flex gap-2 w-full">
+                      {/* Place Order Dialog */}
+                      <Dialog>
+                        <DialogTrigger asChild>
                           <Button
-                            className="w-full"
-                            onClick={handlePlaceOrder}
-                            disabled={!orderQuantity || !deliveryAddress}
+                            className="flex-1"
+                            onClick={() => setSelectedProduct(product)}
                           >
-                            Confirm Order
+                            Place Order
                           </Button>
-                        </div>
-                      </DialogContent>
-                    </Dialog>
-
-                    {/* Bargain Dialog */}
-                    <Dialog>
-                      <DialogTrigger asChild>
-                        <Button variant="outline" className="flex-1 bg-primary/5 hover:bg-primary/10 border-primary/20 text-primary">
-                          <Handshake className="mr-2 h-4 w-4" /> Bargain
-                        </Button>
-                      </DialogTrigger>
-                      <DialogContent>
-                        <DialogHeader>
-                          <DialogTitle>Make a Price Offer</DialogTitle>
-                          <DialogDescription>
-                            Suggest a different price for {product.name}. The farmer can accept, reject, or counter.
-                          </DialogDescription>
-                        </DialogHeader>
-                        <div className="space-y-4 py-4">
-                          <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2">
+                        </DialogTrigger>
+                        <DialogContent>
+                          <DialogHeader>
+                            <DialogTitle>Place Order</DialogTitle>
+                            <DialogDescription>
+                              Order {product.name} from {product.profiles?.full_name || "Unknown"}
+                            </DialogDescription>
+                          </DialogHeader>
+                          <div className="space-y-4">
+                            <div>
                               <Label>Quantity ({product.unit})</Label>
                               <Input
                                 type="number"
-                                value={offerQuantity}
-                                onChange={(e) => setOfferQuantity(e.target.value)}
-                                placeholder="1"
+                                step="0.01"
+                                max={product.quantity}
+                                value={orderQuantity}
+                                onChange={(e) => setOrderQuantity(e.target.value)}
+                                placeholder="Enter quantity"
                               />
                             </div>
-                            <div className="space-y-2">
-                              <Label>Your Price (per {product.unit})</Label>
-                              <div className="relative">
-                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">{product.currency || "$"}</span>
+                            <div>
+                              <Label>Delivery Address</Label>
+                              <Textarea
+                                value={deliveryAddress}
+                                onChange={(e) => setDeliveryAddress(e.target.value)}
+                                placeholder="Enter your delivery address"
+                              />
+                            </div>
+                            {orderQuantity && (
+                              <div className="p-4 bg-secondary rounded-lg">
+                                <div className="flex justify-between items-center">
+                                  <span className="font-semibold">Total Price:</span>
+                                  <span className="text-2xl font-bold text-primary">
+                                    ${(parseFloat(orderQuantity) * (product.discountedPrice || product.price)).toFixed(2)}
+                                  </span>
+                                </div>
+                              </div>
+                            )}
+                            <Button
+                              className="w-full"
+                              onClick={handlePlaceOrder}
+                              disabled={!orderQuantity || !deliveryAddress}
+                            >
+                              Confirm Order
+                            </Button>
+                          </div>
+                        </DialogContent>
+                      </Dialog>
+  
+                      {/* Bargain Dialog */}
+                      <Dialog>
+                        <DialogTrigger asChild>
+                          <Button variant="outline" className="flex-1 bg-primary/5 hover:bg-primary/10 border-primary/20 text-primary">
+                            <Handshake className="mr-2 h-4 w-4" /> Bargain
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                          <DialogHeader>
+                            <DialogTitle>Make a Price Offer</DialogTitle>
+                            <DialogDescription>
+                              Suggest a different price for {product.name}. The farmer can accept, reject, or counter.
+                            </DialogDescription>
+                          </DialogHeader>
+                          <div className="space-y-4 py-4">
+                            <div className="grid grid-cols-2 gap-4">
+                              <div className="space-y-2">
+                                <Label>Quantity ({product.unit})</Label>
                                 <Input
                                   type="number"
-                                  className="pl-7"
-                                  value={offerPrice}
-                                  onChange={(e) => setOfferPrice(e.target.value)}
-                                  placeholder={product.price.toString()}
+                                  value={offerQuantity}
+                                  onChange={(e) => setOfferQuantity(e.target.value)}
+                                  placeholder="1"
                                 />
                               </div>
+                              <div className="space-y-2">
+                                <Label>Your Price (per {product.unit})</Label>
+                                <div className="relative">
+                                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">{product.currency || "$"}</span>
+                                  <Input
+                                    type="number"
+                                    className="pl-7"
+                                    value={offerPrice}
+                                    onChange={(e) => setOfferPrice(e.target.value)}
+                                    placeholder={product.price.toString()}
+                                  />
+                                </div>
+                              </div>
                             </div>
+                            <div className="space-y-2">
+                              <Label>Message to Farmer (Optional)</Label>
+                              <Textarea
+                                placeholder="e.g. I'm buying in bulk, can we do a discount?"
+                                value={offerMessage}
+                                onChange={(e) => setOfferMessage(e.target.value)}
+                              />
+                            </div>
+                            <Button
+                              className="w-full"
+                              onClick={() => handleMakeOffer(product)}
+                              disabled={!offerPrice || !offerQuantity}
+                            >
+                              Send Offer
+                            </Button>
                           </div>
-                          <div className="space-y-2">
-                            <Label>Message to Farmer (Optional)</Label>
-                            <Textarea
-                              placeholder="e.g. I'm buying in bulk, can we do a discount?"
-                              value={offerMessage}
-                              onChange={(e) => setOfferMessage(e.target.value)}
-                            />
-                          </div>
-                          <Button
-                            className="w-full"
-                            onClick={() => handleMakeOffer(product)}
-                            disabled={!offerPrice || !offerQuantity}
-                          >
-                            Send Offer
-                          </Button>
-                        </div>
-                      </DialogContent>
-                    </Dialog>
-                  </div>
-                )}
-              </CardFooter>
-            </Card>
-          ))}
+                        </DialogContent>
+                      </Dialog>
+                    </div>
+                  )}
+                </CardFooter>
+              </Card>
+            );
+          })}
         </div>
       )}
 

@@ -9,7 +9,7 @@ const Footer = () => (
                 <div>
                     <div className="flex items-center gap-3 mb-6">
                         <Sprout className="h-8 w-8 text-primary" />
-                        <span className="text-2xl font-bold uppercase tracking-tighter">AgriLink</span>
+                        <span className="text-2xl font-bold uppercase tracking-tighter">Wakulima</span>
                     </div>
                     <p className="text-muted-foreground mb-6 text-sm leading-relaxed">
                         Bridging the gap between farmers and consumers through technology, transparency, and sustainable trade.
@@ -21,7 +21,7 @@ const Footer = () => (
                         </p>
                         <p className="flex items-center gap-3 text-muted-foreground">
                             <Mail className="h-5 w-5 text-primary/60 shrink-0" />
-                            <span>support@agrilink.global</span>
+                            <span>support@wakulima.online</span>
                         </p>
                     </div>
                     <div className="flex gap-4">
@@ -70,7 +70,7 @@ const Footer = () => (
             </div>
 
             <div className="border-t pt-8 flex flex-col md:flex-row justify-between items-center gap-4 text-xs text-muted-foreground uppercase tracking-wider font-medium">
-                <p>© 2026 AgriLink Global Inc. All rights reserved.</p>
+                <p>© 2026 Wakulima Global Inc. All rights reserved.</p>
                 <div className="flex gap-8">
                     <Link to="/privacy" className="hover:text-primary transition-colors">Privacy Policy</Link>
                     <Link to="/terms" className="hover:text-primary transition-colors">Terms of Service</Link>

@@ -28,10 +28,10 @@ const Onboarding = ({ open, onComplete, onDismiss }: OnboardingProps) => {
 
   const commonStart = [
     {
-      title: "Welcome to AgriLink!",
+      title: "Welcome to Wakulima!",
       description: "The future of sustainable agricultural trade",
       icon: <Sparkles className="h-16 w-16 text-primary" />,
-      content: "AgriLink connects the entire supply chain. Let's show you how to make the most of your new account!",
+      content: "Wakulima connects the entire supply chain. Let's show you how to make the most of your new account!",
     }
   ];
 
@@ -103,7 +103,7 @@ const Onboarding = ({ open, onComplete, onDismiss }: OnboardingProps) => {
       if (typeof window !== "undefined") {
         window.localStorage.removeItem(STEP_STORAGE_KEY);
       }
-      toast.success("Welcome aboard! Enjoy exploring AgriLink!");
+      toast.success("Welcome aboard! Enjoy exploring Wakulima!");
     } catch (error: any) {
       console.error("Error completing onboarding:", error);
       onComplete();
@@ -134,44 +134,45 @@ const Onboarding = ({ open, onComplete, onDismiss }: OnboardingProps) => {
             Step {step + 1} of {steps.length}
           </p>
         </div>
-        <div className="flex justify-end mb-4">
-          <Button variant="ghost" size="sm" onClick={handleDismiss}>
-            Skip for now
-          </Button>
-        </div>
-        <div className="flex flex-col items-center space-y-6 py-6">
-          {currentStep.icon}
-          <p className="text-center text-muted-foreground">{currentStep.content}</p>
+        <div className="flex flex-col items-center space-y-4 py-4 md:py-6">
+          <div className="p-4 rounded-full bg-primary/5 mb-2">
+            {currentStep.icon}
+          </div>
+          <p className="text-center text-sm md:text-base text-muted-foreground leading-relaxed px-2">
+            {currentStep.content}
+          </p>
 
-          <div className="flex gap-2">
+          <div className="flex gap-1.5 pt-2">
             {steps.map((_, idx) => (
               <div
                 key={idx}
-                className={`h-2 w-2 rounded-full transition-all ${idx === step ? "bg-primary w-8" : "bg-muted"
+                className={`h-1.5 rounded-full transition-all duration-300 ${idx === step ? "bg-primary w-6 md:w-8" : "bg-muted w-1.5"
                   }`}
               />
             ))}
           </div>
         </div>
-        <div className="flex justify-between">
+        <div className="flex items-center justify-between mt-4">
           {step > 0 ? (
-            <Button variant="outline" onClick={() => setStep(step - 1)}>
-              <ChevronLeft className="mr-2 h-4 w-4" />
-              Previous
+            <Button variant="ghost" size="sm" onClick={() => setStep(step - 1)} className="px-2">
+              <ChevronLeft className="mr-1 h-4 w-4" />
+              Back
             </Button>
           ) : (
-            <Button variant="ghost" onClick={handleComplete} className="text-muted-foreground">
-              Skip Tutorial
+            <Button variant="ghost" size="sm" onClick={handleDismiss} className="px-2 text-muted-foreground">
+              Skip for now
             </Button>
           )}
           <div className="flex-1" />
           {step < steps.length - 1 ? (
-            <Button onClick={() => setStep(step + 1)}>
+            <Button onClick={() => setStep(step + 1)} className="min-w-[100px]">
               Next
-              <ChevronRight className="ml-2 h-4 w-4" />
+              <ChevronRight className="ml-1 h-4 w-4" />
             </Button>
           ) : (
-            <Button onClick={handleComplete}>Get Started</Button>
+            <Button onClick={handleComplete} className="min-w-[120px] bg-primary hover:bg-primary/90">
+              Get Started
+            </Button>
           )}
         </div>
       </DialogContent>

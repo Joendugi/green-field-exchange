@@ -2,6 +2,7 @@ import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { api } from "./_generated/api";
+import { ensureAdmin, logAdminAction } from "./helpers";
 
 export const getVerificationRequest = query({
   args: { userId: v.id("users") },
@@ -28,6 +29,18 @@ export const createVerificationRequest = mutation({
     const user = await ctx.db.get(userId);
     if (!user) {
       throw new Error("User not found");
+    }
+
+    // Security check: Validate that storage IDs actually exist
+    if (args.documents) {
+      for (const id of args.documents) {
+        try {
+          const metadata = await ctx.storage.getMetadata(id);
+          if (!metadata) throw new Error("Metadata not found");
+        } catch (e) {
+            throw new Error(`Security violation: Invalid or inaccessible document ${id}`);
+        }
+      }
     }
 
     // Check if request already exists
@@ -73,26 +86,7 @@ export const updateVerificationRequest = mutation({
     admin_notes: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) {
-      throw new Error("Unauthorized");
-    }
-
-    const adminUser = await ctx.db.get(userId);
-    if (!adminUser) {
-      throw new Error("User not found");
-    }
-
-    // Check if user has admin role
-    const adminRole = await ctx.db
-      .query("user_roles")
-      .withIndex("by_userId", (q) => q.eq("userId", adminUser._id))
-      .filter((q) => q.eq(q.field("role"), "admin"))
-      .first();
-
-    if (!adminRole) {
-      throw new Error("Not authorized");
-    }
+    const adminUser = await ensureAdmin(ctx);
 
     const request = await ctx.db.get(args.requestId);
     if (!request) {
@@ -122,6 +116,16 @@ export const updateVerificationRequest = mutation({
       }
     }
 
+    // Audit log
+    await logAdminAction(
+        ctx,
+        adminUser._id,
+        args.status === "approved" ? "approve_verification" : "reject_verification",
+        request.userId,
+        "identity",
+        `Request ${args.requestId}: ${args.admin_notes || "No notes"}`
+    );
+
     return args.requestId;
   },
 });
@@ -129,26 +133,7 @@ export const updateVerificationRequest = mutation({
 export const getPendingRequests = query({
   args: {},
   handler: async (ctx) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) {
-      throw new Error("Unauthorized");
-    }
-
-    const adminUser = await ctx.db.get(userId);
-    if (!adminUser) {
-      throw new Error("User not found");
-    }
-
-    // Check if user has admin role
-    const adminRole = await ctx.db
-      .query("user_roles")
-      .withIndex("by_userId", (q) => q.eq("userId", adminUser._id))
-      .filter((q) => q.eq(q.field("role"), "admin"))
-      .first();
-
-    if (!adminRole) {
-      throw new Error("Not authorized");
-    }
+    await ensureAdmin(ctx);
 
     const requests = await ctx.db
       .query("verification_requests")

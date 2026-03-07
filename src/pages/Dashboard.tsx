@@ -86,17 +86,21 @@ const Dashboard = () => {
           <DashboardSkeleton />
         ) : (
           <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-            <TabsList className={`grid w-full ${isAuthenticated ?
-              (role === "admin" ? "grid-cols-7" : "grid-cols-6")
-              : "grid-cols-1"} mb-6`}>
-              {isAuthenticated && <TabsTrigger value="profile">Profile</TabsTrigger>}
-              {isAuthenticated && <TabsTrigger value="orders">Orders</TabsTrigger>}
-              <TabsTrigger value="products">My Products</TabsTrigger>
-              {isAuthenticated && <TabsTrigger value="insights">Insights</TabsTrigger>}
-              {isAuthenticated && <TabsTrigger value="negotiations">Offers</TabsTrigger>}
-              {isAuthenticated && <TabsTrigger value="settings">Settings</TabsTrigger>}
-              {role === "admin" && <TabsTrigger value="admin">Admin</TabsTrigger>}
-            </TabsList>
+            <div className="relative mb-6">
+              <div className="overflow-x-auto pb-2 scrollbar-hide -mx-4 px-4 md:mx-0 md:px-0">
+                <TabsList className={`inline-flex w-auto md:w-full min-w-full md:grid ${isAuthenticated ?
+                  (role === "admin" ? "md:grid-cols-7" : "md:grid-cols-6")
+                  : "grid-cols-1"} justify-start md:justify-center`}>
+                  {isAuthenticated && <TabsTrigger value="profile">Profile</TabsTrigger>}
+                  {isAuthenticated && <TabsTrigger value="orders">Orders</TabsTrigger>}
+                  <TabsTrigger value="products">My Products</TabsTrigger>
+                  {isAuthenticated && <TabsTrigger value="insights">Insights</TabsTrigger>}
+                  {isAuthenticated && <TabsTrigger value="negotiations">Offers</TabsTrigger>}
+                  {isAuthenticated && <TabsTrigger value="settings">Settings</TabsTrigger>}
+                  {role === "admin" && <TabsTrigger value="admin" className="text-primary font-bold">Admin</TabsTrigger>}
+                </TabsList>
+              </div>
+            </div>
 
             <TabsContent value="profile">
               <Profile />

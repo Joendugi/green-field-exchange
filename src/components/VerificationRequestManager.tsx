@@ -21,6 +21,12 @@ const VerificationRequestManager = () => {
   const [notes, setNotes] = useState("");
   const [action, setAction] = useState<"approve" | "reject">("approve");
 
+  const logView = useMutation(api.admin.logDocumentView);
+
+  const handleLogView = (requestId: Id<"verification_requests">) => {
+    logView({ requestId }).catch(console.error);
+  };
+
   const processVerification = async (requestId: Id<"verification_requests">, userId: Id<"users">, approve: boolean) => {
     try {
       await handleVerification({ requestId, approve, notes: notes.trim() || undefined });
@@ -137,7 +143,7 @@ const VerificationRequestManager = () => {
                               )}
                             </AspectRatio>
                             <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-                              <Button size="icon" variant="ghost" className="text-white" asChild>
+                              <Button size="icon" variant="ghost" className="text-white" asChild onClick={() => handleLogView(request._id)}>
                                 <a href={url} target="_blank" rel="noopener noreferrer">
                                   <ExternalLink className="h-4 w-4" />
                                 </a>
@@ -169,6 +175,7 @@ const VerificationRequestManager = () => {
                         onClick={() => {
                           setSelectedRequest(request);
                           setAction("approve");
+                          handleLogView(request._id);
                         }}
                         className="bg-green-600 hover:bg-green-700"
                       >
@@ -223,6 +230,7 @@ const VerificationRequestManager = () => {
                         onClick={() => {
                           setSelectedRequest(request);
                           setAction("reject");
+                          handleLogView(request._id);
                         }}
                       >
                         <XCircle className="h-4 w-4 mr-1" />
@@ -269,6 +277,7 @@ const VerificationRequestManager = () => {
                     onClick={() => {
                       setSelectedRequest(request);
                       setNotesDialogOpen(true);
+                      handleLogView(request._id);
                     }}
                   >
                     <Eye className="h-4 w-4 mr-1" />

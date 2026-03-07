@@ -11,13 +11,15 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Plus, Edit, Trash2, Package, Lightbulb, BarChart3, Layers, DollarSign, Grid, X } from "lucide-react";
+import { Plus, Edit, Trash2, Package, Lightbulb, BarChart3, Layers, DollarSign, Grid, X, CheckCircle2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import VerificationRequestDialog from "./VerificationRequestDialog";
+import BulkInventoryManager from "./BulkInventoryManager";
+import { Checkbox } from "@/components/ui/checkbox";
 
 type PricePrediction = {
   suggested_price?: number;
@@ -587,12 +589,12 @@ const MyProducts = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h2 className="text-3xl font-bold">My Products</h2>
+          <h2 className="text-2xl md:text-3xl font-bold text-foreground">My Products</h2>
           {!isVerified && (
             <p className="text-sm text-muted-foreground mt-1">
-              Unverified users can add up to 5 products. {products.length}/5 products added.
+              Unverified: {products.length}/5 products added.
             </p>
           )}
         </div>
@@ -603,33 +605,65 @@ const MyProducts = () => {
             setFormErrors({});
           }
         }}>
-          <DialogTrigger asChild>
-            <Button
-              onClick={() => {
-                setEditingProduct(null);
-                setFormData({
-                  name: "",
-                  description: "",
-                  category: "vegetables",
-                  price: "",
-                  quantity: "",
-                  unit: "",
-                  location: "",
-                  image_url: "",
-                  image_storage_id: "",
-                  expiry_date: "",
-                  currency: "$",
-                });
-                setCurrentStep(0);
-                setMediaFile(null);
-                setMediaPreview("");
-                setFormErrors({});
-              }}
-            >
-              <Plus className="mr-2 h-4 w-4" />
-              Add Product
-            </Button>
-          </DialogTrigger>
+          <div className="flex gap-2 w-full sm:w-auto">
+            {products.length > 0 && (
+              <div className="flex items-center gap-2 mr-2">
+                <Checkbox 
+                  checked={selectedProducts.length === products.length && products.length > 0}
+                  onCheckedChange={(checked) => {
+                    if (checked) {
+                      setSelectedProducts(products.map(p => p._id));
+                    } else {
+                      setSelectedProducts([]);
+                    }
+                  }}
+                />
+                <span className="text-xs text-muted-foreground hidden sm:inline">Select All</span>
+              </div>
+            )}
+            {selectedProducts.length > 0 && (
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={() => setSelectedProducts([])}
+                className="text-xs text-muted-foreground hover:text-foreground"
+              >
+                Clear
+              </Button>
+            )}
+            <BulkInventoryManager 
+              selectedIds={selectedProducts} 
+              onComplete={() => setSelectedProducts([])} 
+            />
+            <DialogTrigger asChild>
+              <Button
+                className="w-full sm:w-auto"
+                onClick={() => {
+                  setEditingProduct(null);
+                  setFormData({
+                    name: "",
+                    description: "",
+                    category: "vegetables",
+                    price: "",
+                    quantity: "",
+                    unit: "",
+                    location: "",
+                    image_url: "",
+                    image_storage_id: "",
+                    expiry_date: "",
+                    currency: "$",
+                  });
+                  setCurrentStep(0);
+                  setMediaFile(null);
+                  setMediaPreview("");
+                  setFormErrors({});
+                }}
+              >
+                <Plus className="mr-2 h-4 w-4" />
+                Add Product
+              </Button>
+            </DialogTrigger>
+          </div>
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>{editingProduct ? "Edit Product" : "Add New Product"}</DialogTitle>
@@ -673,36 +707,42 @@ const MyProducts = () => {
         </Dialog>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Statistics Cards */}
-        <Card>
-          <CardContent className="flex items-center gap-3 py-4">
-            <BarChart3 className="h-10 w-10 text-primary" />
+        <Card className="bg-card/50 backdrop-blur-sm">
+          <CardContent className="flex items-center gap-4 p-4">
+            <div className="p-3 rounded-full bg-primary/10">
+              <BarChart3 className="h-6 w-6 text-primary" />
+            </div>
             <div>
-              <p className="text-sm text-muted-foreground">Active listings</p>
-              <p className="text-2xl font-bold">
+              <p className="text-xs text-muted-foreground uppercase tracking-wider font-medium">Active</p>
+              <p className="text-xl font-bold">
                 {products.filter((product) => product.is_available).length}
               </p>
             </div>
           </CardContent>
         </Card>
-        <Card>
-          <CardContent className="flex items-center gap-3 py-4">
-            <Layers className="h-10 w-10 text-primary" />
+        <Card className="bg-card/50 backdrop-blur-sm">
+          <CardContent className="flex items-center gap-4 p-4">
+            <div className="p-3 rounded-full bg-emerald-500/10">
+              <Layers className="h-6 w-6 text-emerald-500" />
+            </div>
             <div>
-              <p className="text-sm text-muted-foreground">Total inventory</p>
-              <p className="text-2xl font-bold">
-                {products.reduce((sum, product) => sum + (product.quantity || 0), 0).toLocaleString()} {products[0]?.unit || "units"}
+              <p className="text-xs text-muted-foreground uppercase tracking-wider font-medium">Inventory</p>
+              <p className="text-xl font-bold truncate">
+                {products.reduce((sum, product) => sum + (product.quantity || 0), 0).toLocaleString()} <span className="text-sm font-normal text-muted-foreground">{products[0]?.unit || "units"}</span>
               </p>
             </div>
           </CardContent>
         </Card>
-        <Card>
-          <CardContent className="flex items-center gap-3 py-4">
-            <DollarSign className="h-10 w-10 text-primary" />
+        <Card className="bg-card/50 backdrop-blur-sm">
+          <CardContent className="flex items-center gap-4 p-4">
+            <div className="p-3 rounded-full bg-amber-500/10">
+              <DollarSign className="h-6 w-6 text-amber-500" />
+            </div>
             <div>
-              <p className="text-sm text-muted-foreground">Average price</p>
-              <p className="text-2xl font-bold">
+              <p className="text-xs text-muted-foreground uppercase tracking-wider font-medium">Avg Price</p>
+              <p className="text-xl font-bold">
                 ${
                   products.length
                     ? (products.reduce((sum, product) => sum + (product.price || 0), 0) / products.length).toFixed(2)
@@ -712,12 +752,14 @@ const MyProducts = () => {
             </div>
           </CardContent>
         </Card>
-        <Card>
-          <CardContent className="flex items-center gap-3 py-4">
-            <Grid className="h-10 w-10 text-primary" />
+        <Card className="bg-card/50 backdrop-blur-sm">
+          <CardContent className="flex items-center gap-4 p-4">
+            <div className="p-3 rounded-full bg-indigo-500/10">
+              <Grid className="h-6 w-6 text-indigo-500" />
+            </div>
             <div>
-              <p className="text-sm text-muted-foreground">Categories covered</p>
-              <p className="text-2xl font-bold">
+              <p className="text-xs text-muted-foreground uppercase tracking-wider font-medium">Categories</p>
+              <p className="text-xl font-bold">
                 {new Set(products.map((product) => product.category)).size || 0}
               </p>
             </div>
@@ -730,10 +772,15 @@ const MyProducts = () => {
           <Card key={product._id}>
             <CardHeader>
               <div className="flex items-center justify-between">
-                {/* Selection logic if needed */}
-                <Badge variant={product.is_available ? "default" : "secondary"}>
-                  {product.is_available ? "Active" : "Inactive"}
-                </Badge>
+                <div className="flex items-center gap-2">
+                  <Checkbox 
+                    checked={selectedProducts.includes(product._id)} 
+                    onCheckedChange={() => toggleProductSelection(product._id)}
+                  />
+                  <Badge variant={product.is_available ? "default" : "secondary"}>
+                    {product.is_available ? "Active" : "Inactive"}
+                  </Badge>
+                </div>
               </div>
               <div className="aspect-video bg-secondary rounded-lg mb-4 overflow-hidden">
                 {product.image_url ? (

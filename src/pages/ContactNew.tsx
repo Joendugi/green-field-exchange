@@ -35,7 +35,7 @@ const Contact = () => {
     {
       icon: <Mail className="w-6 h-6 text-blue-600" />,
       title: "Email",
-      details: "support@agrilink.global\npartnerships@agrilink.global\npress@agrilink.global"
+      details: "support@wakulima.online\npartnerships@wakulima.online\npress@wakulima.online"
     },
     {
       icon: <Phone className="w-6 h-6 text-purple-600" />,
@@ -63,7 +63,7 @@ const Contact = () => {
       icon: <Users className="w-8 h-8 text-green-600" />,
       title: "For Farmers",
       questions: [
-        "How do I start selling on AgriLink?",
+        "How do I start selling on Wakulima?",
         "What are the verification requirements?",
         "How does pricing work?",
         "What are the seller fees?"
@@ -83,7 +83,7 @@ const Contact = () => {
       icon: <HelpCircle className="w-8 h-8 text-purple-600" />,
       title: "General",
       questions: [
-        "Is AgriLink available in my area?",
+        "Is Wakulima available in my area?",
         "How do you verify sellers?",
         "What is your refund policy?",
         "How do I report an issue?"
@@ -113,7 +113,7 @@ const Contact = () => {
         <div className="container mx-auto px-4 py-20">
           <div className="text-center max-w-4xl mx-auto">
             <h1 className="text-5xl font-bold mb-6 animate-fade-in">
-              Contact AgriLink
+              Contact Wakulima
             </h1>
             <p className="text-xl mb-8 text-green-100">
               We're here to help. Reach out to our team for support, partnerships, or just to say hello.
@@ -324,7 +324,7 @@ const Contact = () => {
                 <div className="space-y-2 text-gray-600">
                   <p><strong>Address:</strong> 123 Innovation Way, San Jose, CA 95110</p>
                   <p><strong>Phone:</strong> 1-800-AGRI-LINK</p>
-                  <p><strong>Email:</strong> support@agrilink.global</p>
+                  <p><strong>Email:</strong> support@wakulima.online</p>
                   <p><strong>Hours:</strong> Mon-Fri 8AM-6PM PST</p>
                 </div>
               </CardContent>
@@ -336,7 +336,7 @@ const Contact = () => {
                 <div className="space-y-2 text-gray-600">
                   <p><strong>Address:</strong> 456 Market Street, San Francisco, CA 94105</p>
                   <p><strong>Phone:</strong> 1-415-AGRI-SF</p>
-                  <p><strong>Email:</strong> sf@agrilink.global</p>
+                  <p><strong>Email:</strong> sf@wakulima.online</p>
                   <p><strong>Hours:</strong> Mon-Fri 9AM-5PM PST</p>
                 </div>
               </CardContent>

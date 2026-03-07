@@ -255,7 +255,7 @@ const MissionVision = () => {
           </h2>
           <p className="text-xl mb-8 text-green-100 max-w-3xl mx-auto">
             Whether you're a farmer looking for fair markets or a consumer seeking fresh, 
-            locally-sourced food, AgriLink is your platform for meaningful connections.
+            locally-sourced food, Wakulima is your platform for meaningful connections.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Button size="lg" className="bg-white text-green-600 hover:bg-green-50">

@@ -38,6 +38,7 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import ThemeToggle from "./ThemeToggle";
 import { formatDistanceToNow } from "date-fns";
+import AIFloatingBubble from "./AIFloatingBubble";
 
 const Navbar = () => {
   const navigate = useNavigate();
@@ -134,7 +135,7 @@ const Navbar = () => {
         <div className="flex items-center gap-6">
           <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigate("/")}>
             <Sprout className="h-8 w-8 text-primary" />
-            <h1 className="text-xl font-bold text-foreground">AgriLink</h1>
+            <h1 className="text-xl font-bold text-foreground">Wakulima</h1>
           </div>
 
           {/* Desktop Nav */}
@@ -259,7 +260,7 @@ const Navbar = () => {
               </DropdownMenuContent>
             </DropdownMenu>
           ) : (
-            <div className="flex items-center gap-2">
+            <div className="hidden md:flex items-center gap-2">
               <Button variant="ghost" size="sm" onClick={() => navigate("/auth")}>Login</Button>
               <Button size="sm" onClick={() => navigate("/auth")}>Sign Up</Button>
             </div>
@@ -276,7 +277,7 @@ const Navbar = () => {
               <SheetHeader>
                 <SheetTitle className="flex items-center gap-2">
                   <Sprout className="h-6 w-6 text-primary" />
-                  AgriLink
+                  Wakulima
                 </SheetTitle>
               </SheetHeader>
               <div className="flex flex-col gap-2 mt-6">
@@ -303,16 +304,23 @@ const Navbar = () => {
                     Log out
                   </Button>
                 ) : (
-                  <Button variant="default" onClick={() => handleNavigation("/auth")} className="justify-start gap-3 h-12">
-                    <User className="h-5 w-5" />
-                    Sign In
-                  </Button>
+                  <div className="flex flex-col gap-2 p-1">
+                    <Button variant="outline" onClick={() => handleNavigation("/auth")} className="justify-start gap-3 h-12">
+                      <User className="h-5 w-5" />
+                      Login
+                    </Button>
+                    <Button onClick={() => handleNavigation("/auth")} className="justify-start gap-3 h-12">
+                      <Plus className="h-5 w-5" />
+                      Create Account
+                    </Button>
+                  </div>
                 )}
               </div>
             </SheetContent>
           </Sheet>
         </div>
       </div>
+      <AIFloatingBubble />
     </nav>
   );
 };

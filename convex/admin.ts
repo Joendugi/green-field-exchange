@@ -2,20 +2,7 @@ import { mutation, query, action } from "./_generated/server";
 import { v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { api } from "./_generated/api";
-import { ensureAdmin } from "./helpers";
-
-// Global Audit Logger
-// Internal helper for logging within mutations
-async function logAdminAction(ctx: any, adminId: string, action: string, targetId?: string, targetType: string = "system", details?: string) {
-    await ctx.db.insert("admin_audit_logs", {
-        adminId,
-        action,
-        targetId,
-        targetType,
-        details,
-        timestamp: Date.now(),
-    });
-}
+import { ensureAdmin, logAdminAction } from "./helpers";
 
 // Public mutation for logging from Actions
 export const createAuditLog = mutation({
@@ -328,6 +315,24 @@ export const handleVerification = mutation({
             approved: args.approve,
             notes: args.notes
         });
+    }
+});
+
+export const logDocumentView = mutation({
+    args: { requestId: v.id("verification_requests") },
+    handler: async (ctx, args) => {
+        const admin = await ensureAdmin(ctx);
+        const request = await ctx.db.get(args.requestId);
+        if (!request) throw new Error("Request not found");
+
+        await logAdminAction(
+            ctx,
+            admin._id,
+            "view_sensitive_documents",
+            request.userId,
+            "identity",
+            `Viewed documents for request ${args.requestId}`
+        );
     }
 });
 
@@ -685,7 +690,7 @@ export const moderateContent = action({
 
         if (contentItems.length === 0) return { flagged: [] };
 
-        const prompt = `You are a content moderation AI for an East African agricultural marketplace called AgriLink.
+        const prompt = `You are a content moderation AI for an East African agricultural marketplace called Wakulima.
 Review the following items and identify any that violate community standards.
 
 Flag items that contain:
@@ -752,3 +757,27 @@ If nothing needs to be flagged, return: {"flagged": []}`;
     }
 });
 
+
+// ─── Experimental / Trial Tools ──────────────────────────────────────────────
+export const experimentalSampleBroadcast = mutation({
+    args: { title: v.string(), message: v.string() },
+    handler: async (ctx, args) => {
+        // NOTE: This skips the admin check for ease of trial/CLI execution
+        // in a production scenario, this should be removed or strictly guarded.
+        const users = await ctx.db.query("users").collect();
+        const emails = users.map(u => u.email).filter(Boolean) as string[];
+
+        if (emails.length > 0) {
+            await ctx.scheduler.runAfter(0, api.emailService.sendBulkEmail, {
+                to: emails,
+                subject: args.title,
+                message: args.message
+            });
+        }
+
+        return {
+            recipients: emails.length,
+            status: "Broadcast scheduled for trial"
+        };
+    }
+});

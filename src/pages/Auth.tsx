@@ -173,7 +173,7 @@ const Auth = () => {
   };
 
   const handleOAuthSignIn = (provider: "google") => {
-    void signIn(provider);
+    void signIn(provider, { redirectTo: window.location.origin });
   };
 
   return (

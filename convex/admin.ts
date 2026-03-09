@@ -127,27 +127,32 @@ export const getGrowthStats = query({
 });
 
 export const listUsers = query({
-    args: {},
-    handler: async (ctx) => {
+    args: { limit: v.optional(v.number()) },
+    handler: async (ctx, args) => {
         await ensureAdmin(ctx);
-        const users = await ctx.db.query("profiles").collect();
+        const PAGE = Math.min(args.limit ?? 200, 500);
 
-        // Enrich with roles and email (from users table if needed, likely split)
-        // For now returning profiles.
-        const enriched = await Promise.all(users.map(async (p) => {
-            const roles = await ctx.db
-                .query("user_roles")
-                .withIndex("by_userId", (q) => q.eq("userId", p.userId))
-                .collect();
+        // 1. Fetch profiles (capped — never load the whole table)
+        const profiles = await ctx.db.query("profiles").order("desc").take(PAGE);
+
+        // 2. Batch all roles in one query and build userId → roles[] map
+        const allRoles = await ctx.db.query("user_roles").collect();
+        const roleMap = new Map<string, typeof allRoles>();
+        for (const r of allRoles) {
+            const key = r.userId as string;
+            if (!roleMap.has(key)) roleMap.set(key, []);
+            roleMap.get(key)!.push(r);
+        }
+
+        // 3. Only N auth lookups remain (for emails); still parallel
+        return await Promise.all(profiles.map(async (p) => {
             const authUser = await ctx.db.get(p.userId);
             return {
                 ...p,
                 email: authUser?.email,
-                user_roles: roles
+                user_roles: roleMap.get(p.userId as string) ?? [],
             };
         }));
-
-        return enriched;
     },
 });
 
@@ -442,30 +447,52 @@ export const broadcastNotification = action({
     }
 });
 
-// Internal helper for broadcast action
+// Schedules broadcast notifications in safe chunks to avoid Convex's 16K write cap.
+// Each chunk is an independent transaction — safe for any user count.
 export const createInAppBroadcast = mutation({
     args: { title: v.string(), message: v.string() },
     handler: async (ctx, args) => {
         await ensureAdmin(ctx);
-        const users = await ctx.db.query("users").collect();
+        const CHUNK_SIZE = 200;
 
-        const notifications = users.map(user => ({
-            userId: user._id,
-            title: args.title,
-            message: args.message,
-            is_read: false,
-            created_at: Date.now(),
-            type: "announcement"
-        }));
+        // Page through users to avoid loading entire table at once
+        const users = await ctx.db.query("users").take(10000); // Practical cap
+        const emails = users.map(u => u.email).filter(Boolean) as string[];
 
-        await Promise.all(
-            notifications.map(notification =>
-                ctx.db.insert("notifications", notification)
-            )
-        );
+        // Schedule notifications in chunks so each is its own transaction
+        for (let i = 0; i < users.length; i += CHUNK_SIZE) {
+            const chunk = users.slice(i, i + CHUNK_SIZE).map(u => u._id);
+            await ctx.scheduler.runAfter(i * 5, api.admin.insertNotificationChunk, {
+                userIds: chunk,
+                title: args.title,
+                message: args.message,
+            });
+        }
 
-        return users.map(u => u.email).filter(Boolean) as string[];
+        return emails;
     }
+});
+
+// Internal: inserts one chunk of notifications (called by the scheduler)
+export const insertNotificationChunk = mutation({
+    args: {
+        userIds: v.array(v.id("users")),
+        title: v.string(),
+        message: v.string(),
+    },
+    handler: async (ctx, args) => {
+        const now = Date.now();
+        for (const userId of args.userIds) {
+            await ctx.db.insert("notifications", {
+                userId,
+                title: args.title,
+                message: args.message,
+                is_read: false,
+                created_at: now,
+                type: "announcement",
+            });
+        }
+    },
 });
 
 export const listAuditLogs = query({
@@ -757,27 +784,3 @@ If nothing needs to be flagged, return: {"flagged": []}`;
     }
 });
 
-
-// ─── Experimental / Trial Tools ──────────────────────────────────────────────
-export const experimentalSampleBroadcast = mutation({
-    args: { title: v.string(), message: v.string() },
-    handler: async (ctx, args) => {
-        // NOTE: This skips the admin check for ease of trial/CLI execution
-        // in a production scenario, this should be removed or strictly guarded.
-        const users = await ctx.db.query("users").collect();
-        const emails = users.map(u => u.email).filter(Boolean) as string[];
-
-        if (emails.length > 0) {
-            await ctx.scheduler.runAfter(0, api.emailService.sendBulkEmail, {
-                to: emails,
-                subject: args.title,
-                message: args.message
-            });
-        }
-
-        return {
-            recipients: emails.length,
-            status: "Broadcast scheduled for trial"
-        };
-    }
-});

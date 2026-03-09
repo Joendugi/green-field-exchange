@@ -160,6 +160,7 @@ const schema = defineSchema({
     .index("by_farmerId", ["farmerId"])
     .index("by_category", ["category"])
     .index("by_location", ["location"])
+    .index("by_created_at", ["created_at"])
     .searchIndex("search_name", {
       searchField: "name",
       filterFields: ["category", "is_available"],

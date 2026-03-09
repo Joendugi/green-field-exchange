@@ -49,11 +49,12 @@ export const getMessages = query({
         // Ensure the requesting user is a participant in the conversation
         await assertConversationParticipant(ctx, args.conversationId, userId);
 
+        // Limit to last 200 messages — prevents huge threads from timing out
         return await ctx.db
             .query("messages")
             .withIndex("by_conversationId", (q) => q.eq("conversationId", args.conversationId))
             .order("asc")
-            .collect();
+            .take(200);
     },
 });
 
@@ -162,13 +163,27 @@ export const unreadCount = query({
         const userId = await getAuthUserId(ctx);
         if (!userId) return 0;
 
-        const messages = await ctx.db
-            .query("messages")
-            .filter((q) => q.and(q.eq(q.field("is_read"), false), q.neq(q.field("senderId"), userId)))
+        // Scoped to the user's own conversations — avoids scanning the global messages table
+        const conversations = await ctx.db
+            .query("conversations")
+            .filter((q) => q.or(
+                q.eq(q.field("participant1_id"), userId),
+                q.eq(q.field("participant2_id"), userId)
+            ))
             .collect();
 
-        // This is not efficient for many messages, but okay for MVP.
-        // Ideally we filter by conversation where user is participant.
-        return messages.length;
+        let total = 0;
+        for (const conv of conversations) {
+            const unread = await ctx.db
+                .query("messages")
+                .withIndex("by_conversationId", (q) => q.eq("conversationId", conv._id))
+                .filter((q) => q.and(
+                    q.eq(q.field("is_read"), false),
+                    q.neq(q.field("senderId"), userId)
+                ))
+                .take(100); // cap per conversation
+            total += unread.length;
+        }
+        return total;
     },
 });

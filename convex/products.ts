@@ -4,40 +4,31 @@ import { getAuthUserId } from "@convex-dev/auth/server";
 import { checkRateLimit } from "./rateLimiting";
 import { Id, Doc } from "./_generated/dataModel";
 
-// List all products with optional filters
+// List products with optional filters and cursor-based pagination
 export const list = query({
     args: {
         category: v.optional(v.string()),
         search: v.optional(v.string()),
         farmerId: v.optional(v.id("users")),
         includeHidden: v.optional(v.boolean()),
+        limit: v.optional(v.number()),    // max items per page (default 40)
+        cursor: v.optional(v.string()),   // last _id from previous page
     },
     handler: async (ctx, args) => {
+        const PAGE_SIZE = Math.min(args.limit ?? 40, 100); // hard cap at 100
+        const now = Date.now();
         let products;
 
         if (args.farmerId) {
             products = await ctx.db
                 .query("products")
                 .withIndex("by_farmerId", (q) => q.eq("farmerId", args.farmerId!))
-                .collect();
-        } else if (args.category && args.category !== "all") {
-            products = await ctx.db
-                .query("products")
-                .withIndex("by_category", (q) => q.eq("category", args.category!))
-                .collect();
+                .order("desc")
+                .take(PAGE_SIZE * 2); // take a little more to allow client-side expiry filtering
         } else if (args.search) {
-            // Security: Sanitize and validate search input
-            if (args.search.length > 200) {
-                throw new Error("Search query too long");
-            }
-
-            const sanitizedSearch = args.search
-                .replace(/[<>]/g, '')
-                .trim();
-
-            if (sanitizedSearch.length < 2) {
-                return []; // Require at least 2 characters
-            }
+            if (args.search.length > 200) throw new Error("Search query too long");
+            const sanitizedSearch = args.search.replace(/[<>]/g, '').trim();
+            if (sanitizedSearch.length < 2) return [];
 
             products = await ctx.db
                 .query("products")
@@ -47,14 +38,26 @@ export const list = query({
                         ? search.eq("category", args.category)
                         : search;
                 })
-                .collect();
+                .take(PAGE_SIZE);
+        } else if (args.category && args.category !== "all") {
+            products = await ctx.db
+                .query("products")
+                .withIndex("by_category", (q) => q.eq("category", args.category!))
+                .order("desc")
+                .take(PAGE_SIZE);
         } else {
-            products = await ctx.db.query("products").collect();
+            // Default: paginated, sorted by created_at desc
+            let q = ctx.db.query("products").withIndex("by_created_at").order("desc");
+            if (args.cursor) {
+                const cursorDoc = await ctx.db.get(args.cursor as Id<"products">);
+                if (cursorDoc) {
+                    q = q.filter((f) => f.lt(f.field("created_at"), cursorDoc.created_at)) as any;
+                }
+            }
+            products = await q.take(PAGE_SIZE);
         }
 
-        const now = Date.now();
-
-        // Filtering for public marketplace (stock availability, hidden status, and expiry)
+        // Public marketplace filters (availability, expiry, hidden)
         if (!args.farmerId && !args.includeHidden) {
             products = products.filter((p) =>
                 (p.is_available !== false) &&
@@ -64,31 +67,37 @@ export const list = query({
             );
         }
 
-        // Sort by featured status (ensure active duration) then by created_at
-        const sortedProducts = [...products].sort((a, b) => {
-            const aFeatured = a.is_featured && (!a.featured_until || a.featured_until > now);
-            const bFeatured = b.is_featured && (!b.featured_until || b.featured_until > now);
+        // Sort: featured first, then by created_at — only for default (non-search) views
+        if (!args.search) {
+            products = [...products].sort((a, b) => {
+                const aFeatured = a.is_featured && (!a.featured_until || a.featured_until > now);
+                const bFeatured = b.is_featured && (!b.featured_until || b.featured_until > now);
+                if (aFeatured && !bFeatured) return -1;
+                if (!aFeatured && bFeatured) return 1;
+                return (b.created_at || 0) - (a.created_at || 0);
+            });
+        }
 
-            if (aFeatured && !bFeatured) return -1;
-            if (!aFeatured && bFeatured) return 1;
-            return (b.created_at || 0) - (a.created_at || 0);
-        });
+        // Slice to PAGE_SIZE after sort
+        products = products.slice(0, PAGE_SIZE);
 
-        // Generate image URLs and enhance with profile
-        return await Promise.all(sortedProducts.map(async (p) => {
+        // Enrich with farmer profile & storage URL
+        return await Promise.all(products.map(async (p) => {
             const profile = await ctx.db
                 .query("profiles")
                 .withIndex("by_userId", (q) => q.eq("userId", p.farmerId))
                 .first();
-
             return {
                 ...p,
-                image_url: p.image_storage_id ? await ctx.storage.getUrl(p.image_storage_id) : p.image_url,
+                image_url: p.image_storage_id
+                    ? await ctx.storage.getUrl(p.image_storage_id)
+                    : p.image_url,
                 profiles: profile,
             };
         }));
     },
 });
+
 
 export const listRecommendations = query({
     args: {},

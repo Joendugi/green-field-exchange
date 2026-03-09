@@ -12,8 +12,10 @@ export const getPosts = query({
     tag: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    const PAGE_SIZE = Math.min(args.limit ?? 20, 50); // hard cap at 50 per page
+    const userId = await getAuthUserId(ctx); // call ONCE, not inside map
+
     let postsQuery;
-    
     if (args.type && args.type !== "all") {
       postsQuery = ctx.db
         .query("posts")
@@ -26,23 +28,22 @@ export const getPosts = query({
 
     if (args.cursor) {
       const cursorPost = await ctx.db.get(args.cursor as Id<"posts">);
-      if (!cursorPost) {
-        throw new Error("Cursor not found");
-      }
+      if (!cursorPost) throw new Error("Cursor not found");
       postsQuery = postsQuery.filter((q) =>
         q.lt(q.field("created_at"), cursorPost.created_at)
       );
     }
 
-    let posts = await postsQuery.order("desc").collect();
+    // If tag filtering is needed, over-fetch slightly so we still get a full page
+    const fetchSize = args.tag ? PAGE_SIZE * 5 : PAGE_SIZE;
+    let posts = await postsQuery.order("desc").take(fetchSize);
 
     if (args.tag) {
       posts = posts.filter(p => p.tags?.includes(args.tag!));
     }
+    posts = posts.slice(0, PAGE_SIZE);
 
-    posts = posts.slice(0, args.limit || 20);
-
-    // Generate image URLs and enhance with status
+    // Enrich each post — userId is resolved once above
     return await Promise.all(
       posts.map(async (post) => {
         const profile = await ctx.db
@@ -50,28 +51,27 @@ export const getPosts = query({
           .withIndex("by_userId", (q) => q.eq("userId", post.userId))
           .unique();
 
-        const userId = await getAuthUserId(ctx);
         let isLiked = false;
         let isReposted = false;
 
         if (userId) {
-          const like = await ctx.db
-            .query("post_likes")
-            .withIndex("by_userId", (q) => q.eq("userId", userId).eq("postId", post._id))
-            .unique();
+          const [like, repost] = await Promise.all([
+            ctx.db.query("post_likes")
+              .withIndex("by_userId", (q) => q.eq("userId", userId).eq("postId", post._id))
+              .unique(),
+            ctx.db.query("post_reposts")
+              .withIndex("by_userId", (q) => q.eq("userId", userId).eq("postId", post._id))
+              .unique(),
+          ]);
           isLiked = !!like;
-
-          const repost = await ctx.db
-            .query("post_reposts")
-            .withIndex("by_userId", (q) => q.eq("userId", userId).eq("postId", post._id))
-            .unique();
           isReposted = !!repost;
         }
 
+        // Cap comments at 20 per post — prevents loading huge threads on feed
         const comments = await ctx.db
           .query("post_comments")
           .withIndex("by_postId", (q) => q.eq("postId", post._id))
-          .collect();
+          .take(20);
 
         const commentsWithProfiles = await Promise.all(comments.map(async (c) => {
           const cProfile = await ctx.db
@@ -87,13 +87,14 @@ export const getPosts = query({
           isLiked,
           isReposted,
           post_comments: commentsWithProfiles,
-          post_likes: { length: post.likes_count }, // UI expects .length
-          post_reposts: { length: post.reposts_count || 0 }, // If I add reposts_count
+          post_likes: { length: post.likes_count },
+          post_reposts: { length: post.reposts_count || 0 },
         };
       })
     );
   },
 });
+
 
 export const getPost = query({
   args: { postId: v.id("posts") },

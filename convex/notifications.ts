@@ -1,4 +1,4 @@
-import { mutation, query } from "./_generated/server";
+import { mutation, query, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { ensureAuthenticated, assertNotificationOwner } from "./helpers";
@@ -44,5 +44,28 @@ export const markAllRead = mutation({
         for (const n of unread) {
             await ctx.db.patch(n._id, { is_read: true });
         }
+    },
+});
+
+// Internal: called by nightly cron — deletes READ notifications older than 30 days
+export const archiveOldNotifications = internalMutation({
+    args: {},
+    handler: async (ctx) => {
+        const THIRTY_DAYS = 30 * 24 * 60 * 60 * 1000;
+        const cutoff = Date.now() - THIRTY_DAYS;
+
+        // Process up to 500 at a time so each cron run is safe
+        const old = await ctx.db
+            .query("notifications")
+            .filter((q) => q.and(
+                q.eq(q.field("is_read"), true),
+                q.lt(q.field("created_at"), cutoff)
+            ))
+            .take(500);
+
+        for (const n of old) {
+            await ctx.db.delete(n._id);
+        }
+        return { archived: old.length };
     },
 });

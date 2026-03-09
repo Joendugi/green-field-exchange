@@ -1,4 +1,4 @@
-import { mutation } from "./_generated/server";
+import { mutation, query, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
 
 // Check rate limit for password reset requests
@@ -120,5 +120,22 @@ export const cleanupRateLimits = mutation({
       deleted: oldEntries.length,
       message: "Cleaned up old rate limit entries"
     };
+  },
+});
+
+// Internal version called by the nightly cron — no auth needed
+export const cleanupRateLimitsInternal = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    // Keep only the last 24 hours of rate limit records
+    const cutoff = Date.now() - (24 * 60 * 60 * 1000);
+    const old = await ctx.db
+      .query("rate_limit_tracking")
+      .withIndex("by_timestamp", (q) => q.lt("timestamp", cutoff))
+      .take(500); // delete in bounded batches
+    for (const entry of old) {
+      await ctx.db.delete(entry._id);
+    }
+    return { deleted: old.length };
   },
 });

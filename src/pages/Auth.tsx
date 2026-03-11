@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { useAuthActions } from "@convex-dev/auth/react";
 import { useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Button } from "@/components/ui/button";
@@ -15,12 +14,12 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 
 import { useAuth } from "@/contexts/AuthContext";
 import { checkPasswordStrength } from "@/lib/validation";
+import { supabase } from "@/integrations/supabase/client";
+import { ensureMyRole, upsertMyProfile } from "@/integrations/supabase/profiles";
 
 const Auth = () => {
   const navigate = useNavigate();
   const { isAuthenticated, loading: authLoading } = useAuth();
-  const { signIn } = useAuthActions();
-  const updateProfile = useMutation(api.users.updateProfile);
   const requestPasswordReset = useMutation(api.passwordReset.requestPasswordReset);
 
   const [isLoading, setIsLoading] = useState(false);
@@ -42,11 +41,11 @@ const Auth = () => {
         if (pendingData) {
           try {
             const { fullName, role, email } = JSON.parse(pendingData);
-            await updateProfile({
-              full_name: fullName,
-              role: role,
+            await upsertMyProfile({
               username: email.split("@")[0],
+              full_name: fullName,
             });
+            await ensureMyRole(role);
             localStorage.removeItem("pending_signup_profile");
             toast.success("Profile created successfully!");
           } catch (error) {
@@ -59,13 +58,13 @@ const Auth = () => {
     };
 
     finalizeSignUp();
-  }, [isAuthenticated, authLoading, navigate, updateProfile]);
+  }, [isAuthenticated, authLoading, navigate]);
 
   // ... inside component ...
 
   const validatePassword = (pwd: string): boolean => {
     const { score, feedback } = checkPasswordStrength(pwd);
-    if (score < 5) { // Assuming 5 is max score in validation.ts (length, upper, lower, digit, special)
+    if (score < 4) { // Assuming 4 is max score in validation.ts (length, upper, lower, digit)
       setPasswordError(feedback[0] || "Password is too weak");
       return false;
     }
@@ -90,7 +89,12 @@ const Auth = () => {
         email
       }));
 
-      await signIn("password", { email, password, flow: "signUp" });
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+      });
+
+      if (error) throw error;
 
       toast.success("Account created! Finalizing your profile...");
       // navigate is handled by the useEffect which also calls updateProfile
@@ -145,7 +149,12 @@ const Auth = () => {
     setIsLoading(true);
 
     try {
-      await signIn("password", { email, password, flow: "signIn" });
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) throw error;
 
       // Ban check is handled in individual components or a higher level component.
       // If we want it here, we'd need to check profile AFTER sign in.
@@ -173,7 +182,12 @@ const Auth = () => {
   };
 
   const handleOAuthSignIn = (provider: "google") => {
-    void signIn(provider, { redirectTo: window.location.origin });
+    void supabase.auth.signInWithOAuth({
+      provider,
+      options: {
+        redirectTo: window.location.origin,
+      },
+    });
   };
 
   return (

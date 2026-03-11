@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
-import { useAuthActions } from "@convex-dev/auth/react";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   Bell,
@@ -16,6 +15,7 @@ import {
   LogOut,
   Shield,
   BarChart3,
+  Plus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNavigate, useLocation } from "react-router-dom";
@@ -43,12 +43,9 @@ import AIFloatingBubble from "./AIFloatingBubble";
 const Navbar = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { signOut } = useAuthActions();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, logout, user, role } = useAuth();
 
   // Convex Queries
-  const profile = useQuery(api.users.getProfile);
-  const roleData = useQuery(api.users.getRole, {});
   const notifications = useQuery(api.notifications.list) || [];
   const unreadMessagesCount = useQuery(api.messages.unreadCount) || 0;
 
@@ -79,7 +76,7 @@ const Navbar = () => {
       { path: "/messages", label: "Message", icon: MessageSquare, badge: unreadMessagesCount },
       { path: "/social", label: "Social", icon: Users },
       { path: "/ai", label: "AI Assistant", icon: Bot },
-      ...(roleData?.role === "admin" ? [{ path: "/meta-ads", label: "Meta Ads", icon: BarChart3 }] : []),
+      ...(role === "admin" ? [{ path: "/meta-ads", label: "Meta Ads", icon: BarChart3 }] : []),
     ] : [
       { path: "/social", label: "Social", icon: Users }, // Social is public
     ]),
@@ -94,7 +91,7 @@ const Navbar = () => {
 
   const handleLogout = async () => {
     try {
-      await signOut();
+      await logout();
       navigate("/auth");
     } catch (error) {
       console.error("Logout failed:", error);
@@ -233,7 +230,7 @@ const Navbar = () => {
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuLabel>
-                  {profile && profile.full_name ? profile.full_name : "My Account"}
+                  {user && user.full_name ? user.full_name : "My Account"}
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => navigate("/profile")}>
@@ -245,7 +242,7 @@ const Navbar = () => {
                   <span>Settings</span>
                 </DropdownMenuItem>
 
-                {roleData?.role === "admin" && (
+                {role === "admin" && (
                   <DropdownMenuItem onClick={() => navigate("/admin")} className="text-primary focus:text-primary font-medium">
                     <Shield className="mr-2 h-4 w-4" />
                     <span>Admin Dashboard</span>

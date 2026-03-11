@@ -14,12 +14,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/contexts/AuthContext";
-import { useAction, useQuery, useMutation } from "convex/react";
-import { ExternalLink, Tag, Megaphone, ShieldCheck } from "lucide-react";
+import { useIdentityBridge } from "@/contexts/IdentityBridge";
+import { listProductsWithProfiles } from "@/integrations/supabase/products";
+import { ExternalLink, Tag, Megaphone, ShieldCheck, Zap } from "lucide-react";
+
 const Marketplace = () => {
   const navigate = useNavigate();
-  const { isAuthenticated } = useAuth();
-  const profile = useQuery(api.users.getProfile);
+  const { isAuthenticated, user: profile } = useAuth();
+  const { convexUserId } = useIdentityBridge();
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [selectedProduct, setSelectedProduct] = useState<any>(null);
@@ -52,37 +54,71 @@ const Marketplace = () => {
     }
   }, [isAuthenticated]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Convex Queries
-  const products = useQuery(api.products.list, {
-    category: categoryFilter,
-    search: searchQuery
-  });
-  const recommendations = useQuery(api.products.listRecommendations);
-  const activeAds = useQuery(api.advertisements.list) || [];
+  // Supabase products
+  const [products, setProducts] = useState<any[]>([]);
+  const [isLoadingProducts, setIsLoadingProducts] = useState(true);
 
-  // Convex Mutations
-  const createOrder = useMutation(api.orders.create);
-  const logSearch = useMutation(api.analytics.logSearch);
-  const createOffer = useMutation(api.offers.createOffer);
-  const trackPixel = useMutation(api.metaAds.trackMetaPixel);
+  useEffect(() => {
+    const load = async () => {
+      setIsLoadingProducts(true);
+      try {
+        const result = await listProductsWithProfiles({
+          category: categoryFilter === "all" ? undefined : categoryFilter,
+          search: searchQuery || undefined,
+          limit: 40,
+        });
+        setProducts(result);
+      } catch (e) {
+        console.error("Failed to load products", e);
+        setProducts([]);
+      } finally {
+        setIsLoadingProducts(false);
+      }
+    };
+    void load();
+  }, [categoryFilter, searchQuery]);
 
-  // Interleave Ads with Products
-  const displayItems = useMemo(() => {
-    if (!products) return [];
-    const items: any[] = [...products];
-    
-    // Only inject ads if we aren't filtering heavily or if it's the main view
-    if (activeAds.length > 0 && categoryFilter === "all" && !searchQuery) {
-      activeAds.forEach((ad, index) => {
-        // Inject every 5 items
-        const position = (index + 1) * 5 + index;
-        if (position <= items.length) {
-          items.splice(position, 0, { ...ad, isAd: true });
+  // AI Matching (still Convex)
+  useEffect(() => {
+    if (isAuthenticated) {
+      const getMatches = async () => {
+        setIsMatching(true);
+        try {
+          const result = await aiMatches({ limit: 4 });
+          setSmartMatches(result);
+        } catch (e) {
+          console.error("AI Matching failed:", e);
+        } finally {
+          setIsMatching(false);
         }
-      });
+      };
+      getMatches();
     }
-    return items;
-  }, [products, activeAds, categoryFilter, searchQuery]);
+  }, [isAuthenticated]);
+
+  // Convex Mutations (orders/offers still on Convex)
+  const createOrder = useMutation(api.orders.create);
+  const createOffer = useMutation(api.offers.createOffer);
+
+  const renderProductSkeletons = () => (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {Array.from({ length: 6 }).map((_, idx) => (
+        <Card key={idx} className="p-4">
+          <Skeleton className="h-40 w-full rounded-lg" />
+          <div className="space-y-3 mt-4">
+            <Skeleton className="h-6 w-3/4" />
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-1/2" />
+            <div className="flex items-center justify-between">
+              <Skeleton className="h-6 w-24" />
+              <Skeleton className="h-6 w-16" />
+            </div>
+            <Skeleton className="h-10 w-full" />
+          </div>
+        </Card>
+      ))}
+    </div>
+  );
 
   const handleMakeOffer = async (product: any) => {
     try {
@@ -105,7 +141,7 @@ const Marketplace = () => {
       }
 
       await createOffer({
-        productId: product._id,
+        productId: product.id,
         quantity,
         amount_per_unit: price,
         message: offerMessage,
@@ -120,23 +156,11 @@ const Marketplace = () => {
     }
   };
 
-  const isLoadingProducts = products === undefined;
-  const isLoadingRecommendations = recommendations === undefined;
+  const isLoadingRecommendations = false; // stubbed for now
+  const recommendations = [];
+  const activeAds = [];
 
-  // Log searches for analytics (with debounce)
-  useEffect(() => {
-    if (!searchQuery && categoryFilter === 'all') return;
-
-    const timeout = setTimeout(() => {
-      logSearch({
-        query: searchQuery,
-        category: categoryFilter,
-        location: profile?.location // Use buyer's location if available
-      });
-    }, 1500); // 1.5s debounce to avoid spamming search logs while typing
-
-    return () => clearTimeout(timeout);
-  }, [searchQuery, categoryFilter, logSearch, profile?.location]);
+  const displayItems = products;
 
   const handlePlaceOrder = async () => {
     try {
@@ -157,7 +181,7 @@ const Marketplace = () => {
       }
 
       await createOrder({
-        productId: selectedProduct._id,
+        productId: selectedProduct.id,
         quantity: quantity,
         delivery_address: deliveryAddress,
         payment_type: "cash_on_delivery", // Default
@@ -174,35 +198,7 @@ const Marketplace = () => {
     }
   };
 
-  const renderProductSkeletons = () => (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-      {Array.from({ length: 6 }).map((_, idx) => (
-        <Card key={idx} className="p-4">
-          <Skeleton className="h-40 w-full rounded-lg" />
-          <div className="space-y-3 mt-4">
-            <Skeleton className="h-6 w-3/4" />
-            <Skeleton className="h-4 w-full" />
-            <Skeleton className="h-4 w-1/2" />
-            <div className="flex items-center justify-between">
-              <Skeleton className="h-6 w-24" />
-              <Skeleton className="h-6 w-16" />
-            </div>
-            <Skeleton className="h-10 w-full" />
-          </div>
-        </Card>
-      ))}
-    </div>
-  );
-
   const SponsoredAdCard = ({ ad }: { ad: any }) => {
-    useEffect(() => {
-      // Track impression
-      trackPixel({ 
-        eventName: "AdImpression", 
-        eventData: { adId: ad._id, title: ad.title } 
-      });
-    }, [ad._id, ad.title]);
-
     return (
       <Card className="hover-lift overflow-hidden border-primary/30 bg-primary/5 relative">
         <div className="absolute top-2 left-2 z-10">
@@ -233,7 +229,6 @@ const Marketplace = () => {
           <Button 
             className="w-full bg-primary hover:bg-primary/90 text-white font-bold h-11 shadow-lg" 
             onClick={() => {
-              trackPixel({ eventName: "AdClick", eventData: { adId: ad._id } });
               window.open(ad.target_url, "_blank");
             }}
           >
@@ -451,11 +446,7 @@ const Marketplace = () => {
                   )}
                 </CardContent>
                 <CardFooter>
-                  {product.farmerId === profile?.userId ? (
-                    <Button className="w-full" variant="outline" disabled>
-                      Your Product
-                    </Button>
-                  ) : !isAuthenticated ? (
+                  {!isAuthenticated ? (
                     <Button className="w-full" variant="outline" onClick={() => navigate("/auth")}>
                       Login to Order
                     </Button>
@@ -467,8 +458,9 @@ const Marketplace = () => {
                           <Button
                             className="flex-1"
                             onClick={() => setSelectedProduct(product)}
+                            disabled={convexUserId && product.farmer_id === convexUserId}
                           >
-                            Place Order
+                            {convexUserId && product.farmer_id === convexUserId ? "Your Product" : "Place Order"}
                           </Button>
                         </DialogTrigger>
                         <DialogContent>

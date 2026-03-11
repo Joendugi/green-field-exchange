@@ -25,19 +25,18 @@ import {
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { Id } from "../../convex/_generated/dataModel";
+import { useAuth } from "@/contexts/AuthContext";
+import { requestMyVerification, updateMyProfile } from "@/integrations/supabase/profiles";
 
 const Profile = () => {
+  const { user: profile, role } = useAuth();
+
   // Queries
-  const profile = useQuery(api.users.getProfile);
-  const userRole = useQuery(api.users.getRole, {});
   const notifications = useQuery(api.notifications.list) || [];
   const followerCount = useQuery(api.users.getFollowersCount, {}); // Defaults to auth user
   const navigate = useNavigate();
 
   // Mutations
-  const updateProfile = useMutation(api.users.updateProfile);
-  const requestVerification = useMutation(api.users.requestVerification);
-  const generateUploadUrl = useMutation(api.users.generateUploadUrl);
   const markRead = useMutation(api.notifications.markRead);
 
   const [isEditing, setIsEditing] = useState(false);
@@ -68,24 +67,8 @@ const Profile = () => {
     try {
       setIsSubmitting(true);
 
-      let avatarUrl = profile?.avatar_url;
-
-      if (avatarFile) {
-        const postUrl = await generateUploadUrl();
-        const result = await fetch(postUrl, {
-          method: "POST",
-          headers: { "Content-Type": avatarFile.type },
-          body: avatarFile,
-        });
-        const { storageId } = await result.json();
-
-        // Store the storage ID as the avatar URL
-        avatarUrl = storageId;
-      }
-
-      await updateProfile({
+      await updateMyProfile({
         ...formData,
-        avatar_url: avatarUrl,
       });
 
       toast.success("Profile updated!");
@@ -101,7 +84,7 @@ const Profile = () => {
 
   const handleRequestVerification = async () => {
     try {
-      await requestVerification();
+      await requestMyVerification();
       toast.success("Verification request submitted!");
     } catch (error: any) {
       toast.error(error.message);
@@ -169,7 +152,7 @@ const Profile = () => {
                   )}
                 </div>
                 <div className="flex gap-2">
-                  {userRole?.role === "admin" && (
+                  {role === "admin" && (
                     <Button
                       variant="destructive"
                       size="sm"
@@ -202,10 +185,10 @@ const Profile = () => {
 
               {/* Badges */}
               <div className="flex flex-wrap gap-2 mt-3">
-                {userRole && (
-                  <Badge variant="outline" className={getRoleBadgeColor(userRole.role)}>
+                {role && (
+                  <Badge variant="outline" className={getRoleBadgeColor(role)}>
                     <Shield className="h-3 w-3 mr-1" />
-                    {userRole.role.charAt(0).toUpperCase() + userRole.role.slice(1)}
+                    {role.charAt(0).toUpperCase() + role.slice(1)}
                   </Badge>
                 )}
                 {profile.verified && (

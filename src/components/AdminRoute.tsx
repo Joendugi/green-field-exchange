@@ -1,14 +1,11 @@
-import { useQuery } from "convex/react";
-import { api } from "../../convex/_generated/api";
 import { Navigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Loader2 } from "lucide-react";
 
 const AdminRoute = ({ children }: { children: React.ReactNode }) => {
-    const { isAuthenticated, loading: authLoading } = useAuth();
-    const roleData = useQuery(api.users.getRole, {});
+    const { isAuthenticated, loading: authLoading, role } = useAuth();
 
-    if (authLoading || roleData === undefined) {
+    if (authLoading) {
         return (
             <div className="flex items-center justify-center min-h-screen">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -20,7 +17,7 @@ const AdminRoute = ({ children }: { children: React.ReactNode }) => {
         return <Navigate to="/auth" />;
     }
 
-    if (roleData?.role !== "admin") {
+    if (role !== "admin") {
         return <Navigate to="/" />;
     }
 

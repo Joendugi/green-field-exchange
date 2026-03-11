@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import type { ChangeEvent, DragEvent, FormEvent } from "react";
 import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "../../convex/_generated/api";
@@ -17,6 +17,8 @@ import { toast } from "sonner";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { useIdentityBridge } from "@/contexts/IdentityBridge";
+import { getMyProducts, createProduct, updateProduct, deleteProduct } from "@/integrations/supabase/products";
 import VerificationRequestDialog from "./VerificationRequestDialog";
 import BulkInventoryManager from "./BulkInventoryManager";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -29,24 +31,42 @@ type PricePrediction = {
 const MyProducts = () => {
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
+  const { convexUserId } = useIdentityBridge();
 
-  // Convex Data
+  // Supabase products
+  const [products, setProducts] = useState<any[]>([]);
+  const [isLoadingProducts, setIsLoadingProducts] = useState(true);
+
+  useEffect(() => {
+    const load = async () => {
+      setIsLoadingProducts(true);
+      try {
+        const result = await getMyProducts();
+        setProducts(result);
+      } catch (e) {
+        console.error("Failed to load my products", e);
+        setProducts([]);
+      } finally {
+        setIsLoadingProducts(false);
+      }
+    };
+    void load();
+  }, []);
+
+  // Convex Data (keep for settings/verification for now)
   const profile = useQuery(api.users.getProfile, {});
-  // We need to handle the case where profile is loading or null.
-  // If profile is not yet loaded, we might skip the products query or pass undefined (which Convex handles by skipping).
-  const products = useQuery(api.products.list, profile ? { farmerId: profile.userId } : "skip") || [];
   const settings = useQuery(api.users.getSettings, {});
 
-  // Mutations & Actions
-  const createProduct = useMutation(api.products.create);
-  const updateProduct = useMutation(api.products.update);
-  const deleteProduct = useMutation(api.products.remove);
+  // Use convexUserId for verification checks instead of profile.userId
+  const isVerified = profile?.verified || false;
+
+  // Convex Mutations (keep for verification for now)
   const generateUploadUrl = useMutation(api.products.generateUploadUrl);
   const predictPriceAction = useAction(api.products.predictPrice);
   const requestVerificationMutation = useMutation(api.verification.createVerificationRequest);
 
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const [editingProduct, setEditingProduct] = useState<Doc<"products"> | null>(null);
+  const [editingProduct, setEditingProduct] = useState<any | null>(null);
   const [pricePrediction, setPricePrediction] = useState<PricePrediction | null>(null);
   const [isLoadingPrediction, setIsLoadingPrediction] = useState(false);
   const [verificationDialogOpen, setVerificationDialogOpen] = useState(false);
@@ -110,14 +130,10 @@ const MyProducts = () => {
     }
 
     setIsUploading(true);
-    let storageId: string | undefined = formData.image_storage_id || undefined;
-    // We don't store storageId in formData usually, but we can.
+    let imageUrl = formData.image_url;
+    // TODO: migrate image upload to Supabase Storage; for now keep Convex storage
 
     try {
-      if (mediaFile) {
-        storageId = await handleUploadMedia(mediaFile);
-      }
-
       const productData = {
         name: formData.name,
         description: formData.description,
@@ -126,32 +142,23 @@ const MyProducts = () => {
         unit: formData.unit,
         location: formData.location,
         category: formData.category,
-        image_url: formData.image_url,
-        image_storage_id: storageId as Id<"_storage"> | undefined,
-        expiry_date: formData.expiry_date ? new Date(formData.expiry_date).getTime() : undefined,
+        image_url: imageUrl || null,
+        expiry_date: formData.expiry_date || null,
+        currency: formData.currency,
       };
 
       if (editingProduct) {
-        await updateProduct({
-          id: editingProduct._id,
-          changes: productData
-        });
+        await updateProduct(editingProduct.id, productData);
         toast.success("Product updated successfully!");
+        // Refresh list
+        const updated = await getMyProducts();
+        setProducts(updated);
       } else {
-        await createProduct({
-          name: productData.name,
-          description: productData.description,
-          price: productData.price,
-          quantity: productData.quantity,
-          unit: productData.unit,
-          location: productData.location,
-          category: productData.category,
-          image_url: productData.image_url,
-          image_storage_id: productData.image_storage_id,
-          expiry_date: formData.expiry_date ? new Date(formData.expiry_date).getTime() : undefined,
-          currency: formData.currency,
-        });
+        await createProduct(productData);
         toast.success("Product added successfully!");
+        // Refresh list
+        const updated = await getMyProducts();
+        setProducts(updated);
       }
 
       setIsAddDialogOpen(false);
@@ -206,10 +213,13 @@ const MyProducts = () => {
     }
   };
 
-  const handleDelete = async (id: Id<"products">) => {
+  const handleDelete = async (id: string) => {
     try {
-      await deleteProduct({ id });
+      await deleteProduct(id);
       toast.success("Product deleted successfully!");
+      // Refresh list
+      const updated = await getMyProducts();
+      setProducts(updated);
     } catch (error: unknown) {
       toast.error(error instanceof Error ? error.message : String(error));
     }
@@ -217,11 +227,11 @@ const MyProducts = () => {
 
   const handleToggleAvailability = async (product: any) => {
     try {
-      await updateProduct({
-        id: product._id,
-        changes: { is_available: !product.is_available }
-      });
+      await updateProduct(product.id, { is_available: !product.is_available });
       toast.success(`Product ${!product.is_available ? 'activated' : 'deactivated'} successfully!`);
+      // Refresh list
+      const updated = await getMyProducts();
+      setProducts(updated);
     } catch (error: any) {
       toast.error(error.message);
     }
@@ -587,6 +597,25 @@ const MyProducts = () => {
     }
   };
 
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold mb-4">Please sign in to manage your products</h2>
+          <Button onClick={() => navigate("/auth")}>Sign In</Button>
+        </div>
+      </div>
+    );
+  }
+
+  if (isLoadingProducts) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -612,7 +641,7 @@ const MyProducts = () => {
                   checked={selectedProducts.length === products.length && products.length > 0}
                   onCheckedChange={(checked) => {
                     if (checked) {
-                      setSelectedProducts(products.map(p => p._id));
+                      setSelectedProducts(products.map(p => p.id));
                     } else {
                       setSelectedProducts([]);
                     }
@@ -769,13 +798,13 @@ const MyProducts = () => {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {products.map((product) => (
-          <Card key={product._id}>
+          <Card key={product.id}>
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Checkbox 
-                    checked={selectedProducts.includes(product._id)} 
-                    onCheckedChange={() => toggleProductSelection(product._id)}
+                    checked={selectedProducts.includes(product.id)} 
+                    onCheckedChange={() => toggleProductSelection(product.id)}
                   />
                   <Badge variant={product.is_available ? "default" : "secondary"}>
                     {product.is_available ? "Active" : "Inactive"}
@@ -860,7 +889,7 @@ const MyProducts = () => {
                 variant="destructive"
                 size="sm"
                 aria-label={`Delete ${product.name}`}
-                onClick={() => handleDelete(product._id)}
+                onClick={() => handleDelete(product.id)}
               >
                 <Trash2 className="h-4 w-4" />
               </Button>

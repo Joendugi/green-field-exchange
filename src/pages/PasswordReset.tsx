@@ -73,7 +73,7 @@ const PasswordReset = () => {
     }
 
     const { score, feedback } = checkPasswordStrength(password);
-    if (score < 5) {
+    if (score < 4) {
       setError(feedback[0] || "Password is too weak");
       return;
     }

@@ -392,7 +392,7 @@ const Auth = () => {
                     </Alert>
                   )}
                   <p className="text-xs text-muted-foreground">
-                    Must contain uppercase, lowercase, digit, and special character (- or _)
+                    Must contain uppercase, lowercase, and a number
                   </p>
                 </div>
                 <div className="hidden">

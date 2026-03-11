@@ -19,9 +19,6 @@ export const checkPasswordStrength = (password: string): { score: number; feedba
     if (/[0-9]/.test(password)) score++;
     else feedback.push("Include at least one number");
 
-    if (/[^A-Za-z0-9]/.test(password)) score++;
-    else feedback.push("Include at least one special character");
-
     return { score, feedback };
 };
 

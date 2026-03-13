@@ -53,12 +53,12 @@ function useCountUp(target: number, duration = 1800, started = false) {
 /*  Product cards strip data                   */
 /* ─────────────────────────────────────────── */
 const featuredItems = [
-  { name: "Golden Mangoes", farm: "Sunrise Farm", price: "$3.50/kg", tag: "Seasonal", color: "from-amber-400/20 to-orange-300/10", img: "https://images.unsplash.com/photo-1553279768-865429fa0078?w=300&h=300&fit=crop" },
-  { name: "Heirloom Tomatoes", farm: "Red Soil Co.", price: "$4.20/kg", tag: "Organic", color: "from-red-400/20 to-rose-300/10", img: "https://images.unsplash.com/photo-1592924357228-91a4daadcfea?w=300&h=300&fit=crop" },
-  { name: "Sweet Corn", farm: "Prairie Roots", price: "$1.80/ear", tag: "Fresh", color: "from-yellow-400/20 to-lime-300/10", img: "https://images.unsplash.com/photo-1550583724-b2692b85b150?w=300&h=300&fit=crop" },
-  { name: "Baby Spinach", farm: "GreenThumb", price: "$2.90/bag", tag: "Certified", color: "from-emerald-400/20 to-green-300/10", img: "https://images.unsplash.com/photo-1576045057995-568f588f82fb?w=300&h=300&fit=crop" },
-  { name: "Fresh Strawberries", farm: "Berry Valley", price: "$5.60/kg", tag: "Top Pick", color: "from-pink-400/20 to-red-300/10", img: "https://images.unsplash.com/photo-1464965911861-746a04b4bca6?w=300&h=300&fit=crop" },
-  { name: "Purple Eggplant", farm: "Dusk Hill Farm", price: "$3.10/kg", tag: "Exotic", color: "from-purple-400/20 to-violet-300/10", img: "https://images.unsplash.com/photo-1615484477778-ca3b77940c25?w=300&h=300&fit=crop" },
+  { name: "Golden Mangoes", farm: "Sunrise Farm", price: "$3.50/kg", tag: "Seasonal", color: "from-amber-400/20 to-orange-300/10", img: "https://images.unsplash.com/photo-1553279768-865429fa0078?w=300&h=300&fit=crop", alt: "Fresh Golden Mangoes harvest from Sunrise Farm" },
+  { name: "Heirloom Tomatoes", farm: "Red Soil Co.", price: "$4.20/kg", tag: "Organic", color: "from-red-400/20 to-rose-300/10", img: "https://images.unsplash.com/photo-1592924357228-91a4daadcfea?w=300&h=300&fit=crop", alt: "Organic Heirloom Tomatoes basket from Red Soil Co." },
+  { name: "Sweet Corn", farm: "Prairie Roots", price: "$1.80/ear", tag: "Fresh", color: "from-yellow-400/20 to-lime-300/10", img: "https://images.unsplash.com/photo-1550583724-b2692b85b150?w=300&h=300&fit=crop", alt: "Fresh Sweet Corn ears from Prairie Roots farm" },
+  { name: "Baby Spinach", farm: "GreenThumb", price: "$2.90/bag", tag: "Certified", color: "from-emerald-400/20 to-green-300/10", img: "https://images.unsplash.com/photo-1576045057995-568f588f82fb?w=300&h=300&fit=crop", alt: "Certified Baby Spinach bag from GreenThumb fields" },
+  { name: "Fresh Strawberries", farm: "Berry Valley", price: "$5.60/kg", tag: "Top Pick", color: "from-pink-400/20 to-red-300/10", img: "https://images.unsplash.com/photo-1464965911861-746a04b4bca6?w=300&h=300&fit=crop", alt: "Top Pick Fresh Strawberries box from Berry Valley" },
+  { name: "Purple Eggplant", farm: "Dusk Hill Farm", price: "$3.10/kg", tag: "Exotic", color: "from-purple-400/20 to-violet-300/10", img: "https://images.unsplash.com/photo-1615484477778-ca3b77940c25?w=300&h=300&fit=crop", alt: "Exotic Purple Eggplant from Dusk Hill Farm" },
 ];
 
 /* ─────────────────────────────────────────── */
@@ -259,8 +259,8 @@ const Index = () => {
         <div className="absolute inset-0 z-0">
           <img
             src="https://images.unsplash.com/photo-1500937386664-56d1dfef3854?auto=format&fit=crop&q=85&w=2000"
-            alt=""
-            aria-hidden="true"
+            alt="Local farm landscape showing sustainable agriculture fields"
+            aria-hidden="false"
             className="w-full h-full object-cover object-center"
           />
           {/* Layered gradient: dark at top for navbar legibility, rich green-black at bottom */}
@@ -296,7 +296,7 @@ const Index = () => {
                 <Button
                   size="lg"
                   id="hero-cta-primary"
-                  className="h-14 px-8 rounded-full bg-emerald-500 hover:bg-emerald-400 text-white shadow-xl shadow-black/30 hover:shadow-emerald-500/40 hover:scale-105 transition-all text-base font-bold group border-0"
+                  className="h-14 px-8 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white shadow-xl shadow-emerald-900/40 hover:scale-105 transition-all text-base font-bold group border-0"
                   onClick={() => navigate("/auth")}
                 >
                   Start Growing
@@ -306,7 +306,7 @@ const Index = () => {
                   size="lg"
                   id="hero-cta-secondary"
                   variant="outline"
-                  className="h-14 px-8 rounded-full border-2 border-white/40 text-white hover:bg-white/15 hover:border-white/60 backdrop-blur-md text-base font-semibold group"
+                  className="h-14 px-8 rounded-full border-2 border-white/60 text-white hover:bg-white hover:text-emerald-900 backdrop-blur-md text-base font-bold group shadow-lg shadow-black/20"
                   onClick={() => setShowMarketplace(true)}
                 >
                   <Play className="mr-2 h-4 w-4 fill-current group-hover:scale-110 transition-transform" />
@@ -408,7 +408,7 @@ const Index = () => {
               className={`snap-start shrink-0 w-52 rounded-3xl overflow-hidden border border-border/60 hover:border-primary/40 cursor-pointer transition-all duration-300 hover:-translate-y-2 hover:shadow-xl hover:shadow-primary/10 bg-gradient-to-br ${item.color} backdrop-blur-sm group`}
             >
               <div className="h-36 overflow-hidden relative">
-                <img src={item.img} alt={item.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                <img src={item.img} alt={item.alt} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
                 <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-300" />
                 <span className="absolute top-2 right-2 bg-white/90 text-[9px] font-bold uppercase tracking-widest text-primary px-2 py-0.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300 shadow">
                   View
@@ -546,7 +546,7 @@ const Index = () => {
                 <Button
                   size="lg"
                   id="cta-join"
-                  className="h-14 px-12 rounded-full bg-white text-primary hover:bg-white/90 hover:scale-105 transition-all text-base font-bold shadow-2xl"
+                  className="h-14 px-12 rounded-full bg-white text-[#05280f] hover:bg-emerald-50 hover:scale-105 transition-all text-base font-extrabold shadow-2xl"
                   onClick={() => navigate("/auth")}
                 >
                   Join Now for Free
@@ -555,7 +555,7 @@ const Index = () => {
                   size="lg"
                   id="cta-browse"
                   variant="ghost"
-                  className="h-14 px-10 rounded-full border-2 border-white/30 text-white hover:bg-white/10 text-base font-semibold"
+                  className="h-14 px-10 rounded-full border-2 border-white/50 text-white hover:bg-white/20 text-base font-bold backdrop-blur-sm"
                   onClick={() => setShowMarketplace(true)}
                 >
                   Browse Marketplace

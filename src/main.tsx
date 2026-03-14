@@ -7,7 +7,11 @@ import { ConvexProvider, ConvexReactClient } from "convex/react";
 import { supabase } from "@/integrations/supabase/client";
 import { AuthProvider } from "@/contexts/AuthContext";
 
-const convex = new ConvexReactClient(import.meta.env.VITE_CONVEX_URL as string);
+const convexUrl = import.meta.env.VITE_CONVEX_URL as string;
+if (!convexUrl) {
+  console.error("Missing VITE_CONVEX_URL in environment variables.");
+}
+const convex = new ConvexReactClient(convexUrl || "https://placeholder.convex.cloud");
 
 function SupabaseAuthBridge({ children }: { children: React.ReactNode }) {
   React.useEffect(() => {
@@ -15,11 +19,13 @@ function SupabaseAuthBridge({ children }: { children: React.ReactNode }) {
 
     void supabase.auth.getSession().then(({ data }) => {
       if (!active) return;
-      convex.setAuth(data.session?.access_token ?? null);
+      const token = data.session?.access_token ?? null;
+      convex.setAuth(async () => token);
     });
 
     const { data: subscription } = supabase.auth.onAuthStateChange((_event, session) => {
-      convex.setAuth(session?.access_token ?? null);
+      const token = session?.access_token ?? null;
+      convex.setAuth(async () => token);
     });
 
     return () => {

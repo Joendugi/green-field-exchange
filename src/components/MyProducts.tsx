@@ -100,7 +100,6 @@ const MyProducts = () => {
   // I'll assume true or check schema.
 
   const steps = ["Details", "Pricing", "Media & Review"];
-  const isVerified = profile?.verified || false;
 
   const handleUploadMedia = async (file: File) => {
     try {

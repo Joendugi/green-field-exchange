@@ -8,7 +8,9 @@ import { useAuth } from "@/contexts/AuthContext";
 
 const ThemeToggle = () => {
   const { isAuthenticated } = useAuth();
-  const settings = useQuery(api.users.getSettings);
+  const isSupabaseOnly = import.meta.env.MODE === "supabase-only";
+  const settings = useQuery(api.users.getSettings, !isSupabaseOnly ? {} : "skip");
+
   const updateSettings = useMutation(api.users.updateSettings);
   const [localDarkMode, setLocalDarkMode] = useState(() => {
     if (typeof window !== "undefined") {

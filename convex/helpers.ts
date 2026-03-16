@@ -1,5 +1,16 @@
 import type { QueryCtx, MutationCtx } from "./_generated/server";
-import { getAuthUserId } from "@convex-dev/auth/server";
+
+export async function getAuthUserId(ctx: any) {
+  const identity = await ctx.auth.getUserIdentity();
+  if (!identity) return null;
+  // Use email for lookup to bridge from Supabase
+  const user = await ctx.db
+    .query("users")
+    .withIndex("by_email", (q: any) => q.eq("email", identity.email))
+    .first();
+  return user?._id ?? null;
+}
+
 import type { Id, Doc } from "./_generated/dataModel";
 
 type Ctx = QueryCtx | MutationCtx;

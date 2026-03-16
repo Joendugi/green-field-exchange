@@ -1,6 +1,6 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
-import { getAuthUserId } from "@convex-dev/auth/server";
+import { getAuthUserId } from "./helpers";
 import { api } from "./_generated/api";
 
 export const createOffer = mutation({

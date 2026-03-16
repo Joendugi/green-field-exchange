@@ -1,4 +1,5 @@
 import { createRoot } from "react-dom/client";
+import { BrowserRouter } from "react-router-dom";
 import App from "./App.tsx";
 import "./index.css";
 
@@ -6,6 +7,7 @@ import React from "react";
 import { ConvexProvider, ConvexReactClient } from "convex/react";
 import { supabase } from "@/integrations/supabase/client";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { IdentityBridgeProvider } from "@/contexts/IdentityBridge";
 
 const convexUrl = import.meta.env.VITE_CONVEX_URL as string;
 if (!convexUrl) {
@@ -13,38 +15,21 @@ if (!convexUrl) {
 }
 const convex = new ConvexReactClient(convexUrl || "https://placeholder.convex.cloud");
 
-function SupabaseAuthBridge({ children }: { children: React.ReactNode }) {
-  React.useEffect(() => {
-    let active = true;
-
-    void supabase.auth.getSession().then(({ data }) => {
-      if (!active) return;
-      const token = data.session?.access_token ?? null;
-      convex.setAuth(async () => token);
-    });
-
-    const { data: subscription } = supabase.auth.onAuthStateChange((_event, session) => {
-      const token = session?.access_token ?? null;
-      convex.setAuth(async () => token);
-    });
-
-    return () => {
-      active = false;
-      subscription.subscription.unsubscribe();
-    };
-  }, []);
-
-  return <>{children}</>;
+// Expose to window for IdentityBridge access
+if (typeof window !== "undefined") {
+  (window as any).convex = convex;
 }
 
 createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <ConvexProvider client={convex}>
-      <SupabaseAuthBridge>
-        <AuthProvider>
-          <App />
-        </AuthProvider>
-      </SupabaseAuthBridge>
+      <BrowserRouter>
+        <IdentityBridgeProvider>
+          <AuthProvider>
+            <App />
+          </AuthProvider>
+        </IdentityBridgeProvider>
+      </BrowserRouter>
     </ConvexProvider>
   </React.StrictMode>
 );

@@ -2,7 +2,6 @@ import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { api } from "./_generated/api";
 import { checkRateLimit } from "./rateLimiting";
-import { hashPassword } from "./password";
 
 // Request password reset
 export const requestPasswordReset = mutation({
@@ -133,28 +132,10 @@ export const resetPassword = mutation({
     const user = await ctx.db.get(userId);
     if (!user) throw new Error("User not found");
 
-    // Locate the authAccount for this user
-    const authAccount = await ctx.db
-      .query("authAccounts")
-      .filter((q) =>
-        q.and(
-          q.eq(q.field("userId"), userId),
-          q.eq(q.field("provider"), "password")
-        )
-      )
-      .first();
-
-    if (!authAccount) {
-      throw new Error("Auth account not found. Please contact support.");
-    }
-
-    // Hash the new password
-    const hashedPassword = await hashPassword(args.newPassword);
-
-    // Update the authAccount secret
-    await ctx.db.patch(authAccount._id, {
-      secret: hashedPassword,
-    });
+    // NOTE: This app uses Supabase Auth for password management.
+    // The actual password update is done on the frontend via
+    // supabase.auth.updateUser({ password: newPassword }).
+    // This mutation only validates the OTP/token and cleans it up.
 
     // Delete used token
     await ctx.db.delete(tokenId);
@@ -169,7 +150,7 @@ export const resetPassword = mutation({
       timestamp: Date.now(),
     });
 
-    return { success: true, message: "Password reset successfully" };
+    return { success: true, message: "Password reset verified. You may now update your password." };
   },
 });
 

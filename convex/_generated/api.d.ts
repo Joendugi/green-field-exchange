@@ -13,7 +13,6 @@ import type * as adminSettings from "../adminSettings.js";
 import type * as advertisements from "../advertisements.js";
 import type * as ai from "../ai.js";
 import type * as analytics from "../analytics.js";
-import type * as auth from "../auth.js";
 import type * as crons from "../crons.js";
 import type * as emailService from "../emailService.js";
 import type * as escrow from "../escrow.js";
@@ -59,7 +58,6 @@ declare const fullApi: ApiFromModules<{
   advertisements: typeof advertisements;
   ai: typeof ai;
   analytics: typeof analytics;
-  auth: typeof auth;
   crons: typeof crons;
   emailService: typeof emailService;
   escrow: typeof escrow;

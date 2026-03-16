@@ -1,6 +1,6 @@
 import { mutation, query, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
-import { getAuthUserId } from "@convex-dev/auth/server";
+import { getAuthUserId } from "./helpers";
 import { ensureAuthenticated, assertNotificationOwner } from "./helpers";
 
 export const list = query({

@@ -1,8 +1,9 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
-import { getAuthUserId } from "@convex-dev/auth/server";
+import { getAuthUserId } from "./helpers";
 import { api } from "./_generated/api";
 import { ensureAdmin, logAdminAction } from "./helpers";
+import type { Id } from "./_generated/dataModel";
 
 export const getVerificationRequest = query({
   args: { userId: v.id("users") },
@@ -21,10 +22,11 @@ export const createVerificationRequest = mutation({
     documents: v.optional(v.array(v.string())),
   },
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) {
+    const rawId = await getAuthUserId(ctx);
+    if (!rawId) {
       throw new Error("Unauthorized");
     }
+    const userId = rawId as Id<"users">;
 
     const user = await ctx.db.get(userId);
     if (!user) {

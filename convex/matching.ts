@@ -1,7 +1,9 @@
 import { action } from "./_generated/server";
 import { v } from "convex/values";
 import { api } from "./_generated/api";
-import { getAuthUserId } from "@convex-dev/auth/server";
+
+import { getAuthUserId } from "./helpers";
+
 
 export const getAUMatching = action({
     args: {

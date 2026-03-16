@@ -45,9 +45,11 @@ const Navbar = () => {
   const location = useLocation();
   const { isAuthenticated, logout, user, role } = useAuth();
 
+  const isSupabaseOnly = import.meta.env.MODE === "supabase-only";
+
   // Convex Queries
-  const notifications = useQuery(api.notifications.list) || [];
-  const unreadMessagesCount = useQuery(api.messages.unreadCount) || 0;
+  const notifications = useQuery(api.notifications.list, !isSupabaseOnly ? {} : "skip") || [];
+  const unreadMessagesCount = useQuery(api.messages.unreadCount, !isSupabaseOnly ? {} : "skip") || 0;
 
   // Mutations
   const markRead = useMutation(api.notifications.markRead);

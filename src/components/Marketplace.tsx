@@ -1,13 +1,13 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { useQuery, useMutation } from "convex/react";
+import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { ShoppingCart, MapPin, Search, Sparkles, Loader2, Handshake, Gavel, TrendingUp, Package } from "lucide-react";
+import { ShoppingCart, MapPin, Search, Sparkles, Loader2, Handshake, Gavel, TrendingUp, Package, Gift } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -21,7 +21,6 @@ import { ExternalLink, Tag, Megaphone, ShieldCheck, Zap } from "lucide-react";
 const Marketplace = () => {
   const navigate = useNavigate();
   const { isAuthenticated, user: profile } = useAuth();
-  const { convexUserId } = useIdentityBridge();
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [selectedProduct, setSelectedProduct] = useState<any>(null);
@@ -36,9 +35,10 @@ const Marketplace = () => {
   const aiMatches = useAction(api.matching.getAUMatching);
   const [smartMatches, setSmartMatches] = useState<any[]>([]);
   const [isMatching, setIsMatching] = useState(false);
+  const { isConvexAuthReady, convexUserId } = useIdentityBridge();
 
   useEffect(() => {
-    if (isAuthenticated) {
+    if (isAuthenticated && isConvexAuthReady && convexUserId) {
       const getMatches = async () => {
         setIsMatching(true);
         try {
@@ -52,7 +52,7 @@ const Marketplace = () => {
       };
       getMatches();
     }
-  }, [isAuthenticated]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [isAuthenticated, isConvexAuthReady, convexUserId, aiMatches]);
 
   // Supabase products
   const [products, setProducts] = useState<any[]>([]);
@@ -78,23 +78,6 @@ const Marketplace = () => {
     void load();
   }, [categoryFilter, searchQuery]);
 
-  // AI Matching (still Convex)
-  useEffect(() => {
-    if (isAuthenticated) {
-      const getMatches = async () => {
-        setIsMatching(true);
-        try {
-          const result = await aiMatches({ limit: 4 });
-          setSmartMatches(result);
-        } catch (e) {
-          console.error("AI Matching failed:", e);
-        } finally {
-          setIsMatching(false);
-        }
-      };
-      getMatches();
-    }
-  }, [isAuthenticated]);
 
   // Convex Mutations (orders/offers still on Convex)
   const createOrder = useMutation(api.orders.create);

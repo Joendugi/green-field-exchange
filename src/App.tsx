@@ -2,6 +2,7 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import { Toaster } from "sonner";
 import { Suspense, lazy } from "react";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import Navbar from "@/components/Navbar";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
@@ -95,10 +96,12 @@ function AppContent() {
 
 function App() {
   return (
-    <div className="min-h-screen bg-background">
-      <AppContent />
-      <Toaster position="top-right" richColors />
-    </div>
+    <TooltipProvider>
+      <div className="min-h-screen bg-background">
+        <AppContent />
+        <Toaster position="top-right" richColors />
+      </div>
+    </TooltipProvider>
   );
 }
 

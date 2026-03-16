@@ -13,7 +13,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 
 const OffersManager = () => {
-    const { user } = useAuth();
+    const { user, convexUserId } = useAuth();
     const offers = useQuery(api.offers.listForUser);
     const respondMutation = useMutation(api.offers.respond);
     const checkoutMutation = useMutation(api.offers.finalizeCheckout);
@@ -77,7 +77,7 @@ const OffersManager = () => {
 
             <div className="grid gap-6">
                 {offers.map((offer: any) => {
-                    const isSeller = user?._id === offer.farmerId;
+                    const isSeller = convexUserId === offer.farmerId;
                     return (
                         <Card key={offer._id} className={offer.status === 'accepted' ? "border-emerald-200 bg-emerald-50/20" : ""}>
                             <CardHeader className="pb-4">

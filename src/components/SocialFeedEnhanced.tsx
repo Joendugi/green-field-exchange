@@ -16,7 +16,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const SocialFeedEnhanced = () => {
-  const { user: currentUser, isAuthenticated, role } = useAuth();
+  const { user: currentUser, isAuthenticated, role, convexUserId } = useAuth();
   const [newPostContent, setNewPostContent] = useState("");
   const [postType, setPostType] = useState("social");
   const [tags, setTags] = useState("");
@@ -388,7 +388,7 @@ const SocialFeedEnhanced = () => {
                         </CardDescription>
                       </div>
                     </div>
-                    {isAuthenticated && post.userId !== currentUser?._id && (
+                    {isAuthenticated && post.userId !== convexUserId && (
                       <Button
                         variant="ghost"
                         size="sm"
@@ -511,7 +511,7 @@ const SocialFeedEnhanced = () => {
                               <p className="text-[15px] text-foreground/80 leading-relaxed font-medium">{comment.content}</p>
                               
                               {/* Solution Action for Authors */}
-                              {isAuthenticated && currentUser?._id === post.userId && post.type === "question" && (
+                              {isAuthenticated && convexUserId === post.userId && post.type === "question" && (
                                 <div className="mt-4 pt-3 border-t border-primary/5">
                                   <Button
                                     variant="ghost"

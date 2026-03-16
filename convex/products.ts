@@ -1,6 +1,6 @@
 import { mutation, query, action } from "./_generated/server";
 import { v } from "convex/values";
-import { getAuthUserId } from "@convex-dev/auth/server";
+import { getAuthUserId } from "./helpers";
 import { checkRateLimit } from "./rateLimiting";
 import { Id, Doc } from "./_generated/dataModel";
 

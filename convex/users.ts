@@ -1,6 +1,6 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
-import { getAuthUserId } from "@convex-dev/auth/server";
+import { getAuthUserId } from "./helpers";
 import { checkRateLimit } from "./rateLimiting";
 
 export const getUserByEmail = query({
@@ -326,5 +326,69 @@ export const searchUsers = query({
             .take(10);
 
         return results.filter(p => p.userId !== userId);
+    },
+});
+
+export const provisionUser = mutation({
+    args: {
+        email: v.string(),
+        name: v.optional(v.string()),
+    },
+    handler: async (ctx, args) => {
+        const identity = await ctx.auth.getUserIdentity();
+        if (!identity) {
+            console.error("provisionUser: No identity found");
+            throw new Error("Not authenticated");
+        }
+
+        console.log("provisionUser: Authenticated as", identity.email);
+
+        // Safety check: ensure the identity email matches the provided email
+        if (identity.email !== args.email) {
+            console.error("provisionUser: Identity mismatch", identity.email, args.email);
+            throw new Error("Identity mismatch");
+        }
+
+        const existingUser = await ctx.db
+            .query("users")
+            .withIndex("by_email", (q) => q.eq("email", args.email))
+            .first();
+
+        if (existingUser) {
+            // Update token identifier if needed
+            if (existingUser.tokenIdentifier !== identity.tokenIdentifier) {
+                await ctx.db.patch(existingUser._id, {
+                    tokenIdentifier: identity.tokenIdentifier
+                });
+            }
+            return existingUser._id;
+        }
+
+        const userId = await ctx.db.insert("users", {
+            email: args.email,
+            name: args.name || identity.name || args.email,
+            tokenIdentifier: identity.tokenIdentifier,
+        });
+
+        // Also create an initial profile if none exists
+        const existingProfile = await ctx.db
+            .query("profiles")
+            .withIndex("by_userId", (q) => q.eq("userId", userId))
+            .first();
+
+        if (!existingProfile) {
+            await ctx.db.insert("profiles", {
+                userId,
+                username: args.email.split("@")[0] + "_" + Math.floor(Math.random() * 1000),
+                full_name: args.name || identity.name,
+                verified: false,
+                verification_requested: false,
+                onboarded: false,
+                created_at: Date.now(),
+                updated_at: Date.now(),
+            });
+        }
+
+        return userId;
     },
 });

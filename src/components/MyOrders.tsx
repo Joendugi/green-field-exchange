@@ -20,7 +20,7 @@ interface MyOrdersProps {
 }
 
 const MyOrders = ({ userRole: propRole }: MyOrdersProps) => {
-  const { user } = useAuth();
+  const { user, convexUserId } = useAuth();
   // Passing "skip" if no userRole? No, userRole can be null initially.
   const orders = useQuery(api.orders.list, {}) || [];
 
@@ -181,7 +181,7 @@ const MyOrders = ({ userRole: propRole }: MyOrdersProps) => {
   };
 
   const handleMessage = (order: any) => {
-    const isSeller = user?._id === order.farmerId;
+    const isSeller = convexUserId === order.farmerId;
     const recipient = isSeller ? order.buyer?.full_name : order.farmer?.full_name;
     navigate("/social", {
       state: {
@@ -288,7 +288,7 @@ const MyOrders = ({ userRole: propRole }: MyOrdersProps) => {
 
       <div className="space-y-4">
         {filteredOrders.map((order: any) => {
-          const isSeller = user?._id === order.farmerId;
+          const isSeller = convexUserId === order.farmerId;
           return (
             <Card key={order._id} className={order.escrow_status === 'held' ? "border-blue-200" : ""}>
               <CardHeader>

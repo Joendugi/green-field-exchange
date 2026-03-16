@@ -34,15 +34,43 @@ export async function listProducts(params: {
   limit?: number;
   cursor?: string;
 } = {}): Promise<ProductRow[]> {
-  const { data, error } = await supabase.rpc("list_products", {
-    p_category: params.category ?? null,
-    p_search: params.search ?? null,
-    p_limit: params.limit ?? 40,
-    p_cursor: params.cursor ?? null,
-  });
+  let query = supabase
+    .from("products")
+    .select("*, profiles:profiles(full_name, avatar_url, verified)")
+    .eq("is_available", true)
+    .gt("quantity", 0)
+    .eq("is_hidden", false);
 
-  if (error) throw error;
-  return (data as ProductRow[]) ?? [];
+  if (params.category) {
+    query = query.eq("category", params.category);
+  }
+
+  if (params.search) {
+    query = query.or(`name.ilike.%${params.search}%,description.ilike.%${params.search}%`);
+  }
+
+  if (params.cursor) {
+    query = query.lt("created_at", params.cursor);
+  }
+
+  query = query
+    .order("is_featured", { ascending: false })
+    .order("created_at", { ascending: false });
+
+  if (params.limit) {
+    query = query.limit(params.limit);
+  } else {
+    query = query.limit(40);
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    console.error("Supabase error in listProducts:", error);
+    throw error;
+  }
+  
+  return (data as any[]) ?? [];
 }
 
 export async function createProduct(input: {

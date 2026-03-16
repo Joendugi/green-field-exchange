@@ -29,7 +29,7 @@ import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 
 const MetaAds = () => {
-  const { user } = useAuth();
+  const { user, convexUserId } = useAuth();
 
   // Queries
   const analytics = useQuery(api.metaAds.getMetaAnalytics, {
@@ -99,7 +99,7 @@ const MetaAds = () => {
     try {
       const campaignData = {
         ...campaignForm,
-        userId: user._id,
+        userId: convexUserId as any,
         targetAudience: campaignForm.targetAudience ? (campaignForm.targetAudience as any) : undefined
       };
 
@@ -133,7 +133,7 @@ const MetaAds = () => {
     try {
       await createAudience({
         ...audienceForm,
-        userId: user._id
+        userId: convexUserId as any
       });
 
       toast.success("Audience created successfully!");
@@ -154,7 +154,7 @@ const MetaAds = () => {
       await trackConversion({
         conversionType: type,
         conversionData: { timestamp: Date.now() },
-        userId: user?._id,
+        userId: convexUserId as any,
         value,
         currency: "USD"
       });

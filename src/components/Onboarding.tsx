@@ -23,7 +23,7 @@ interface OnboardingProps {
 const STEP_STORAGE_KEY = "onboarding:step";
 
 const Onboarding = ({ open, onComplete, onDismiss }: OnboardingProps) => {
-  const { user: currentUser, role } = useAuth();
+  const { user: currentUser, role, convexUserId } = useAuth();
   const updateProfile = useMutation(api.users.updateProfile);
 
   const commonStart = [
@@ -96,7 +96,7 @@ const Onboarding = ({ open, onComplete, onDismiss }: OnboardingProps) => {
       if (currentUser) {
         await updateProfile({ onboarding_completed: true });
         // Mark in local storage as well for instant feedback
-        localStorage.setItem(`onboarding_completed_${currentUser._id}`, "true");
+        localStorage.setItem(`onboarding_completed_${convexUserId}`, "true");
       }
 
       onComplete();

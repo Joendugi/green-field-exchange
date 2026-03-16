@@ -1,7 +1,7 @@
 import { action, mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { api, internal } from "./_generated/api";
-import { getAuthUserId } from "@convex-dev/auth/server";
+import { getAuthUserId } from "./helpers";
 import { internalMutation } from "./_generated/server";
 
 export const listHistory = query({

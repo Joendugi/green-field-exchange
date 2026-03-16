@@ -14,7 +14,7 @@ import { useAuth } from "@/contexts/AuthContext";
 const UserProfile = () => {
   const { userId } = useParams();
   const navigate = useNavigate();
-  const { user: currentUser, isAuthenticated } = useAuth();
+  const { user: currentUser, isAuthenticated, convexUserId } = useAuth();
   const targetUserId = userId as Id<"users">;
 
   // Convex Queries
@@ -116,7 +116,7 @@ const UserProfile = () => {
                   </div>
                 )}
               </div>
-              {currentUser?.userId !== targetUserId && (
+              {convexUserId !== targetUserId && (
                 <Button
                   variant={isFollowing ? "outline" : "default"}
                   onClick={handleFollowToggle}

@@ -13,7 +13,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Id } from "../../convex/_generated/dataModel";
 
 const Messages = () => {
-  const { user: currentUser, isAuthenticated } = useAuth();
+  const { user: currentUser, isAuthenticated, convexUserId } = useAuth();
   const [selectedConversationId, setSelectedConversationId] = useState<Id<"conversations"> | null>(null);
   const [newMessage, setNewMessage] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
@@ -117,7 +117,7 @@ const Messages = () => {
                   <ScrollArea className="h-[300px] border rounded-md p-2">
                     {userSearchTerm.length > 0 ? (
                       <div className="space-y-2">
-                        {searchResults?.filter(u => u.userId !== currentUser?.userId).map((user) => (
+                        {searchResults?.filter(u => u.userId !== convexUserId).map((user) => (
                           <div
                             key={user._id}
                             className="flex items-center gap-3 p-2 hover:bg-muted rounded-md cursor-pointer transition-colors"
@@ -190,7 +190,7 @@ const Messages = () => {
                     </div>
                     {conversation.last_message && (
                       <p className="text-xs text-muted-foreground truncate pr-4">
-                        {conversation.last_sender_id === currentUser?.userId ? "You: " : ""}{conversation.last_message}
+                        {conversation.last_sender_id === convexUserId ? "You: " : ""}{conversation.last_message}
                       </p>
                     )}
                   </div>
@@ -232,7 +232,7 @@ const Messages = () => {
               <ScrollArea className="flex-1 p-4">
                 <div className="space-y-4 pr-4">
                   {messages?.map((message, index) => {
-                    const isMe = message.senderId === currentUser?.userId;
+                    const isMe = message.senderId === convexUserId;
                     return (
                       <div
                         key={message._id}

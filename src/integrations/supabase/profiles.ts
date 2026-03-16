@@ -2,20 +2,42 @@ import { supabase } from "./client";
 
 export type ProfileRow = {
   id: string;
+  /** Alias for `id` – used by components that expect a Convex-style userId */
+  userId: string;
+  /** Alias for `id` – used by components that expect a Convex-style _id */
+  _id: string;
   username: string;
   full_name: string | null;
+  /** Alias for `full_name` */
+  name: string | null;
   avatar_url: string | null;
+  /** Alias for `avatar_url` */
+  image: string | null;
   bio: string | null;
   location: string | null;
   website: string | null;
   verified: boolean;
   verification_requested: boolean;
   onboarded: boolean;
+  /** Alias for `onboarded` */
+  onboarding_completed: boolean;
   is_banned: boolean;
   ban_reason: string | null;
   created_at: string;
   updated_at: string;
 };
+
+/** Adds computed alias fields to a raw Supabase profiles row. */
+function enrichProfile(raw: Record<string, any>): ProfileRow {
+  return {
+    ...raw,
+    userId: raw.id,
+    _id: raw.id,
+    name: raw.full_name ?? null,
+    image: raw.avatar_url ?? null,
+    onboarding_completed: Boolean(raw.onboarded),
+  } as ProfileRow;
+}
 
 export async function getCurrentUserId(): Promise<string | null> {
   const { data, error } = await supabase.auth.getUser();
@@ -34,7 +56,7 @@ export async function getMyProfile(): Promise<ProfileRow | null> {
     .maybeSingle();
 
   if (error) throw error;
-  return (data as ProfileRow | null) ?? null;
+  return data ? enrichProfile(data) : null;
 }
 
 export async function upsertMyProfile(input: {
@@ -57,7 +79,7 @@ export async function upsertMyProfile(input: {
     .single();
 
   if (error) throw error;
-  return data as ProfileRow;
+  return enrichProfile(data);
 }
 
 export async function ensureMyRole(role: string): Promise<void> {
@@ -86,7 +108,7 @@ export async function updateMyProfile(changes: Partial<Pick<
     .single();
 
   if (error) throw error;
-  return data as ProfileRow;
+  return enrichProfile(data);
 }
 
 export async function requestMyVerification(): Promise<ProfileRow> {

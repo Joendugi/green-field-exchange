@@ -11,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Plus, Edit, Trash2, Package, Lightbulb, BarChart3, Layers, DollarSign, Grid, X, CheckCircle2 } from "lucide-react";
+import { Plus, Edit, Trash2, Package, Lightbulb, BarChart3, Layers, DollarSign, Grid, X, CheckCircle2, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -53,12 +53,14 @@ const MyProducts = () => {
     void load();
   }, []);
 
+  const isSupabaseOnly = import.meta.env.MODE === "supabase-only";
+
   // Convex Data (keep for settings/verification for now)
-  const profile = useQuery(api.users.getProfile, {});
-  const settings = useQuery(api.users.getSettings, {});
+  const profile = useQuery(api.users.getProfile, !isSupabaseOnly ? {} : "skip");
+  const settings = useQuery(api.users.getSettings, !isSupabaseOnly ? {} : "skip");
 
   // Use convexUserId for verification checks instead of profile.userId
-  const isVerified = profile?.verified || false;
+  const isVerified = (profile as any)?.verified || false;
 
   // Convex Mutations (keep for verification for now)
   const generateUploadUrl = useMutation(api.products.generateUploadUrl);

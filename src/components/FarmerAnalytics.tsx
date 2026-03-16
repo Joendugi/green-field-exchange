@@ -4,14 +4,15 @@ import { api } from "../../convex/_generated/api";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { DollarSign, TrendingUp, Map, Search, Package, ArrowUpRight, Loader2, Sparkles, Lightbulb, AlertCircle, CheckCircle2, Calendar, Gift } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useMutation } from "convex/react";
 import { toast } from "sonner";
 
 const FarmerAnalytics = () => {
-    const { user } = useAuth();
-    const analytics = useQuery(api.analytics.getFarmerAnalytics, user?.userId ? { farmerId: user.userId } : "skip");
+    const { user, convexUserId } = useAuth();
+    const analytics = useQuery(api.analytics.getFarmerAnalytics, convexUserId ? { farmerId: convexUserId as any } : "skip");
     const getAIInsights = useAction(api.ai.getFarmerInsights);
     const toggleReward = useMutation(api.analytics.toggleLoyaltyReward);
     const [aiInsights, setAiInsights] = useState<string | null>(null);
@@ -233,7 +234,7 @@ const FarmerAnalytics = () => {
                                             onClick={async () => {
                                                 try {
                                                     await toggleReward({
-                                                        farmerId: user?.userId as any,
+                                                        farmerId: convexUserId as any,
                                                         buyerId: loyalty.buyerId as any,
                                                         active: !loyalty.isRewarded
                                                     });

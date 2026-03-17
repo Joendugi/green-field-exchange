@@ -1,12 +1,9 @@
 import { createContext, useContext, ReactNode, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { getMyProfile, getMyRole, ProfileRow } from "@/integrations/supabase/profiles";
-import { useIdentityBridge } from "@/contexts/IdentityBridge";
 
 interface AuthContextType {
     user: ProfileRow | null;
-    /** The Convex document ID for the current user (resolved via email lookup). */
-    convexUserId: string | null;
     role: string | null;
     loading: boolean;
     isAuthenticated: boolean;
@@ -17,12 +14,12 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-    const { convexUserId } = useIdentityBridge();
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [authLoading, setAuthLoading] = useState(true);
 
     const [profile, setProfile] = useState<ProfileRow | null>(null);
     const [role, setRole] = useState<string | null>(null);
+    const [profileLoaded, setProfileLoaded] = useState(false);
 
     useEffect(() => {
         let active = true;
@@ -88,8 +85,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         }
     };
 
-    const [profileLoaded, setProfileLoaded] = useState(false);
-
     const loading = authLoading || (isAuthenticated && !profileLoaded);
 
     const logout = async () => {
@@ -103,7 +98,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return (
         <AuthContext.Provider value={{
             user: profile,
-            convexUserId,
             role,
             loading,
             isAuthenticated,

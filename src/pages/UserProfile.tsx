@@ -1,6 +1,4 @@
 import { useNavigate, useParams } from "react-router-dom";
-import { useQuery, useMutation } from "convex/react";
-import { api } from "../../convex/_generated/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -8,26 +6,56 @@ import { Badge } from "@/components/ui/badge";
 import { UserPlus, UserMinus, ArrowLeft, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import Navbar from "@/components/Navbar";
-import { Id } from "../../convex/_generated/dataModel";
 import { useAuth } from "@/contexts/AuthContext";
+import { useSupabaseQuery } from "@/hooks/useSupabaseQuery";
+import { getUserProfile, getRole } from "@/integrations/supabase/profiles";
+import { getCounts, getFollowers, isFollowing, followUser, unfollowUser } from "@/integrations/supabase/follows";
+import { getUserPosts } from "@/integrations/supabase/posts";
+import { useQueryClient } from "@tanstack/react-query";
 
 const UserProfile = () => {
   const { userId } = useParams();
   const navigate = useNavigate();
-  const { user: currentUser, isAuthenticated, convexUserId } = useAuth();
-  const targetUserId = userId as Id<"users">;
+  const { user: currentUser, isAuthenticated } = useAuth();
+  const queryClient = useQueryClient();
+  const targetUserId = userId as string;
 
-  // Convex Queries
-  const profile = useQuery(api.users.getUserProfile, { userId: targetUserId });
-  const userRole = useQuery(api.users.getRole, { userId: targetUserId });
-  const counts = useQuery(api.follows.getCounts, { userId: targetUserId });
-  const followers = useQuery(api.follows.getFollowers, { userId: targetUserId });
-  const isFollowing = useQuery(api.follows.isFollowing, { followingId: targetUserId });
-  const posts = useQuery(api.posts.getUserPosts, { userId: targetUserId });
-
-  // Convex Mutations
-  const follow = useMutation(api.follows.follow);
-  const unfollow = useMutation(api.follows.unfollow);
+  // Supabase Queries
+  const { data: profileData, isLoading } = useSupabaseQuery<any>(
+    ["profile", targetUserId],
+    () => getUserProfile(targetUserId)
+  );
+  const profile: any = profileData;
+  
+  const { data: userRoleData } = useSupabaseQuery<any>(
+    ["role", targetUserId],
+    () => getRole(targetUserId)
+  );
+  const userRole: any = userRoleData;
+  
+  const { data: countsData } = useSupabaseQuery<any>(
+    ["follows_count", targetUserId],
+    () => getCounts(targetUserId)
+  );
+  const counts: any = countsData;
+  
+  const { data: followersData } = useSupabaseQuery<any>(
+    ["followers", targetUserId],
+    () => getFollowers(targetUserId)
+  );
+  const followers: any = followersData;
+  
+  const { data: followingStatusData } = useSupabaseQuery<any>(
+    ["isFollowing", targetUserId],
+    () => isFollowing(targetUserId)
+  );
+  const followingStatus: any = followingStatusData;
+  
+  const { data: postsData } = useSupabaseQuery<any>(
+    ["user_posts", targetUserId],
+    () => getUserPosts(targetUserId)
+  );
+  const posts: any = postsData;
 
   const handleFollowToggle = async () => {
     try {
@@ -36,19 +64,21 @@ const UserProfile = () => {
         return;
       }
 
-      if (isFollowing) {
-        await unfollow({ followingId: targetUserId });
+      if (followingStatus) {
+        await unfollowUser(targetUserId);
         toast.success("Unfollowed!");
       } else {
-        await follow({ followingId: targetUserId });
+        await followUser(targetUserId);
         toast.success("Following!");
       }
+      queryClient.invalidateQueries({ queryKey: ["isFollowing", targetUserId] });
+      queryClient.invalidateQueries({ queryKey: ["follows_count", targetUserId] });
     } catch (error: any) {
       toast.error(error.message);
     }
   };
 
-  if (profile === undefined) {
+  if (isLoading || profile === undefined) {
     return (
       <div className="min-h-screen bg-background">
         <Navbar />
@@ -116,13 +146,13 @@ const UserProfile = () => {
                   </div>
                 )}
               </div>
-              {convexUserId !== targetUserId && (
+              {currentUser?.id !== targetUserId && (
                 <Button
-                  variant={isFollowing ? "outline" : "default"}
+                  variant={followingStatus ? "outline" : "default"}
                   onClick={handleFollowToggle}
                   className="w-full md:w-auto"
                 >
-                  {isFollowing ? (
+                  {followingStatus ? (
                     <>
                       <UserMinus className="mr-2 h-4 w-4" />
                       Unfollow
@@ -183,8 +213,8 @@ const UserProfile = () => {
             <div className="space-y-4">
               <h3 className="text-lg font-bold">Posts ({posts?.length ?? 0})</h3>
               <div className="grid gap-4">
-                {posts?.map((post) => (
-                  <Card key={post._id} className="border-none shadow-sm bg-muted/20 overflow-hidden hover:bg-muted/30 transition-colors">
+                {posts?.map((post: any) => (
+                  <Card key={post.id} className="border-none shadow-sm bg-muted/20 overflow-hidden hover:bg-muted/30 transition-colors">
                     <CardContent className="p-5">
                       <p className="whitespace-pre-wrap mb-4 text-foreground/90 leading-relaxed">{post.content}</p>
                       {post.image_url && (

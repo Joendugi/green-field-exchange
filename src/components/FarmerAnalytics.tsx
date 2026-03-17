@@ -1,20 +1,23 @@
-import { useQuery, useAction } from "convex/react";
 import { useEffect, useState } from "react";
-import { api } from "../../convex/_generated/api";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DollarSign, TrendingUp, Map, Search, Package, ArrowUpRight, Loader2, Sparkles, Lightbulb, AlertCircle, CheckCircle2, Calendar, Gift } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import { useMutation } from "convex/react";
 import { toast } from "sonner";
+import { useSupabaseQuery } from "@/hooks/useSupabaseQuery";
+import { getFarmerAnalytics, getAIInsights, toggleLoyaltyReward } from "@/integrations/supabase/analytics";
 
 const FarmerAnalytics = () => {
-    const { user, convexUserId } = useAuth();
-    const analytics = useQuery(api.analytics.getFarmerAnalytics, convexUserId ? { farmerId: convexUserId as any } : "skip");
-    const getAIInsights = useAction(api.ai.getFarmerInsights);
-    const toggleReward = useMutation(api.analytics.toggleLoyaltyReward);
+    const { user } = useAuth();
+    
+    // Supabase query
+    const { data: analytics, isLoading } = useSupabaseQuery<any>(
+      ["farmerAnalytics", user?.id || ""],
+      () => getFarmerAnalytics(user?.id!),
+      { enabled: !!user?.id }
+    );
     const [aiInsights, setAiInsights] = useState<string | null>(null);
     const [isGenerating, setIsGenerating] = useState(false);
 
@@ -33,9 +36,9 @@ const FarmerAnalytics = () => {
             };
             fetchInsights();
         }
-    }, [analytics, aiInsights, isGenerating, getAIInsights]);
+    }, [analytics, aiInsights, isGenerating]);
 
-    if (!analytics) {
+    if (isLoading || !analytics) {
         return (
             <div className="flex items-center justify-center p-12">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -233,9 +236,9 @@ const FarmerAnalytics = () => {
                                             className="h-7 text-[10px] px-2"
                                             onClick={async () => {
                                                 try {
-                                                    await toggleReward({
-                                                        farmerId: convexUserId as any,
-                                                        buyerId: loyalty.buyerId as any,
+                                                    await toggleLoyaltyReward({
+                                                        farmerId: user?.id!,
+                                                        buyerId: loyalty.buyerId,
                                                         active: !loyalty.isRewarded
                                                     });
                                                     toast.success(loyalty.isRewarded ? "Reward removed" : "10% Loyalty reward activated!");

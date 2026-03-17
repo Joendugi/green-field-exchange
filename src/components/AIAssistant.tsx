@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
-import { useAction, useQuery } from "convex/react";
-import { api } from "../../convex/_generated/api";
+import { useSupabaseQuery } from "@/hooks/useSupabaseQuery";
+import { getChatHistory, chatWithAI } from "@/integrations/supabase/analytics";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -18,22 +18,26 @@ const AIAssistant = () => {
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
-  const history = useQuery(api.ai.listHistory);
-  const chatAction = useAction((api as any).ai.chat);
+  const { data: historyData } = useSupabaseQuery<any>(
+    ["aiChatHistoryFull"],
+    () => getChatHistory()
+  );
+  
+  const history: any[] = historyData || [];
 
-  // Load history into messages state on mount
+  // Load history into messages state on update
   useEffect(() => {
     if (history && history.length > 0) {
       // Sort history by creation time and map to the format expected by the UI
       const formattedHistory = [...history]
-        .sort((a, b) => a.created_at - b.created_at)
+        .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
         .map(msg => ({
           role: msg.role,
           content: msg.content
         }));
       setMessages(formattedHistory);
     }
-  }, [history]);
+  }, [historyData]);
 
   const handleSendMessage = async () => {
     if (!input.trim()) return;
@@ -45,9 +49,7 @@ const AIAssistant = () => {
     setIsLoading(true);
 
     try {
-      const response = await chatAction({
-        messages: updatedMessages.map(m => ({ role: m.role, content: m.content }))
-      });
+      const response = await chatWithAI(updatedMessages.map(m => ({ role: m.role, content: m.content })));
 
       const assistantMessage = {
         role: "assistant",

@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
-import { useMutation, useQuery } from "convex/react";
-import { api } from "../../convex/_generated/api";
+import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,10 +28,6 @@ const PasswordReset = () => {
   const [step, setStep] = useState(token || emailParam ? 2 : 1);
   const [isRequesting, setIsRequesting] = useState(false);
 
-  const verifyTokenResult = useQuery(api.passwordReset.verifyResetToken, token ? { token } : "skip");
-  const resetPassword = useMutation(api.passwordReset.resetPassword);
-  const requestResetCode = useMutation(api.passwordReset.requestPasswordReset);
-
   useEffect(() => {
     if (emailParam) {
       setEmail(emailParam);
@@ -51,11 +46,11 @@ const PasswordReset = () => {
     setError("");
 
     try {
-      const result = await requestResetCode({ email });
-      if (result.success) {
-        toast.success(result.message);
-        setStep(2);
-      }
+      const { error: resetError } = await supabase.auth.resetPasswordForEmail(email);
+      if (resetError) throw resetError;
+      
+      toast.success("Reset code sent! Check your email.");
+      setStep(2);
     } catch (err: any) {
       setError(err.message || "Failed to send reset code");
     } finally {
@@ -80,22 +75,29 @@ const PasswordReset = () => {
 
     setIsLoading(true);
     try {
-      const result = await resetPassword({
-        token: token || undefined,
-        email: email || undefined,
-        otp: otp || undefined,
-        newPassword: password
-      });
-
-      if (result.success) {
-        setIsSuccess(true);
-        toast.success("Password reset successfully!");
-
-        // Redirect to login after 3 seconds
-        setTimeout(() => {
-          navigate("/auth");
-        }, 3000);
+      if (token) {
+        // If they have a token, we might need to handle it differetly or assume they are already logged in from the link.
+        // Actually Supabase reset links usually log the user in temporarily so they can call updateUser:
+        const { error: updateError } = await supabase.auth.updateUser({ password });
+        if (updateError) throw updateError;
+      } else if (otp) {
+        // Verify OTP first which logs them in, then update password
+        const { error: verifyError } = await supabase.auth.verifyOtp({ email, token: otp, type: 'recovery' });
+        if (verifyError) throw verifyError;
+        
+        const { error: updateError } = await supabase.auth.updateUser({ password });
+        if (updateError) throw updateError;
+      } else {
+        throw new Error("Missing reset code or token");
       }
+
+      setIsSuccess(true);
+      toast.success("Password reset successfully!");
+
+      // Redirect to login after 3 seconds
+      setTimeout(() => {
+        navigate("/auth");
+      }, 3000);
     } catch (err: any) {
       setError(err.message || "Failed to reset password");
     } finally {

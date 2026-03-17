@@ -1,7 +1,5 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { useQuery, useMutation, useAction } from "convex/react";
-import { api } from "../../convex/_generated/api";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,7 +13,9 @@ import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/contexts/AuthContext";
 import { useIdentityBridge } from "@/contexts/IdentityBridge";
-import { listProductsWithProfiles } from "@/integrations/supabase/products";
+import { listProductsWithProfiles, getSmartMatches } from "@/integrations/supabase/products";
+import { createOrder } from "@/integrations/supabase/orders";
+import { createOffer } from "@/integrations/supabase/offers";
 import { ExternalLink, Tag, Megaphone, ShieldCheck, Zap } from "lucide-react";
 
 const Marketplace = () => {
@@ -32,17 +32,16 @@ const Marketplace = () => {
   const [offerQuantity, setOfferQuantity] = useState("");
   const [offerMessage, setOfferMessage] = useState("");
 
-  const aiMatches = useAction(api.matching.getAUMatching);
   const [smartMatches, setSmartMatches] = useState<any[]>([]);
   const [isMatching, setIsMatching] = useState(false);
   const { isConvexAuthReady, convexUserId } = useIdentityBridge();
 
   useEffect(() => {
-    if (isAuthenticated && isConvexAuthReady && convexUserId) {
+    if (isAuthenticated) {
       const getMatches = async () => {
         setIsMatching(true);
         try {
-          const result = await aiMatches({ limit: 4 });
+          const result = await getSmartMatches({ limit: 4 });
           setSmartMatches(result);
         } catch (e) {
           console.error("AI Matching failed:", e);
@@ -52,7 +51,7 @@ const Marketplace = () => {
       };
       getMatches();
     }
-  }, [isAuthenticated, isConvexAuthReady, convexUserId, aiMatches]);
+  }, [isAuthenticated]);
 
   // Supabase products
   const [products, setProducts] = useState<any[]>([]);
@@ -77,31 +76,8 @@ const Marketplace = () => {
     };
     void load();
   }, [categoryFilter, searchQuery]);
+  // Orders & Offers
 
-
-  // Convex Mutations (orders/offers still on Convex)
-  const createOrder = useMutation(api.orders.create);
-  const createOffer = useMutation(api.offers.createOffer);
-
-  const renderProductSkeletons = () => (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-      {Array.from({ length: 6 }).map((_, idx) => (
-        <Card key={idx} className="p-4">
-          <Skeleton className="h-40 w-full rounded-lg" />
-          <div className="space-y-3 mt-4">
-            <Skeleton className="h-6 w-3/4" />
-            <Skeleton className="h-4 w-full" />
-            <Skeleton className="h-4 w-1/2" />
-            <div className="flex items-center justify-between">
-              <Skeleton className="h-6 w-24" />
-              <Skeleton className="h-6 w-16" />
-            </div>
-            <Skeleton className="h-10 w-full" />
-          </div>
-        </Card>
-      ))}
-    </div>
-  );
 
   const handleMakeOffer = async (product: any) => {
     try {
@@ -124,7 +100,7 @@ const Marketplace = () => {
       }
 
       await createOffer({
-        productId: product.id,
+        product_id: product.id,
         quantity,
         amount_per_unit: price,
         message: offerMessage,
@@ -138,6 +114,26 @@ const Marketplace = () => {
       toast.error(error.message);
     }
   };
+
+  const renderProductSkeletons = () => (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {Array.from({ length: 6 }).map((_, idx) => (
+        <Card key={idx} className="p-4">
+          <Skeleton className="h-40 w-full rounded-lg" />
+          <div className="space-y-3 mt-4">
+            <Skeleton className="h-6 w-3/4" />
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-1/2" />
+            <div className="flex items-center justify-between">
+              <Skeleton className="h-6 w-24" />
+              <Skeleton className="h-6 w-16" />
+            </div>
+            <Skeleton className="h-10 w-full" />
+          </div>
+        </Card>
+      ))}
+    </div>
+  );
 
   const isLoadingRecommendations = false; // stubbed for now
   const recommendations = [];
@@ -164,7 +160,7 @@ const Marketplace = () => {
       }
 
       await createOrder({
-        productId: selectedProduct.id,
+        product_id: selectedProduct.id,
         quantity: quantity,
         delivery_address: deliveryAddress,
         payment_type: "cash_on_delivery", // Default
@@ -248,7 +244,7 @@ const Marketplace = () => {
               ) : (
                 smartMatches.map((product) => (
                   <Card
-                    key={product._id}
+                    key={product.id}
                     className="min-w-[280px] border-indigo-100 hover:border-indigo-300 hover:shadow-md transition-all cursor-pointer group"
                     onClick={() => {
                       setSearchQuery(product.name);
@@ -294,8 +290,8 @@ const Marketplace = () => {
           </CardHeader>
           <CardContent>
             <div className="flex gap-4 overflow-x-auto pb-2 custom-scrollbar">
-              {recommendations.map((product) => (
-                <Card key={product._id} className="min-w-[250px] hover:shadow-md transition-shadow">
+              {recommendations.map((product: any) => (
+                <Card key={product.id} className="min-w-[250px] hover:shadow-md transition-shadow">
                   <CardHeader className="p-4">
                     <CardTitle className="text-sm">{product.name}</CardTitle>
                     <Badge variant="secondary" className="w-fit">{product.category}</Badge>
@@ -343,12 +339,12 @@ const Marketplace = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {displayItems.map((item: any, idx) => {
             if (item.isAd) {
-              return <SponsoredAdCard key={item._id} ad={item} />;
+              return <SponsoredAdCard key={item.id} ad={item} />;
             }
 
             const product = item;
             return (
-              <Card key={product._id} className="hover-lift overflow-hidden">
+              <Card key={product.id} className="hover-lift overflow-hidden">
                 <CardHeader>
                   <div className="aspect-[4/3] bg-secondary rounded-lg mb-4 overflow-hidden">
                     {product.image_url ? (

@@ -1,7 +1,5 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { useMutation } from "convex/react";
-import { api } from "../../convex/_generated/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -20,7 +18,6 @@ import { ensureMyRole, upsertMyProfile } from "@/integrations/supabase/profiles"
 const Auth = () => {
   const navigate = useNavigate();
   const { isAuthenticated, loading: authLoading, refreshProfile } = useAuth();
-  const requestPasswordReset = useMutation(api.passwordReset.requestPasswordReset);
 
   const [isLoading, setIsLoading] = useState(false);
   const [email, setEmail] = useState("");
@@ -117,20 +114,18 @@ const Auth = () => {
 
     setIsResetLoading(true);
     try {
-      const result = await requestPasswordReset({
-        email: resetEmail,
-        origin: window.location.origin
+      const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
+        redirectTo: `${window.location.origin}/password-reset`,
       });
 
-      if (result.success) {
-        toast.success("Security code sent! Check your email.");
-        // Redirect or show a message explaining how to use the code
-        setTimeout(() => {
-          navigate(`/password-reset?email=${encodeURIComponent(resetEmail)}`);
-        }, 1500);
-        setShowForgotPassword(false);
-        setResetEmail("");
-      }
+      if (error) throw error;
+
+      toast.success("Security code sent! Check your email.");
+      setTimeout(() => {
+        navigate(`/password-reset?email=${encodeURIComponent(resetEmail)}`);
+      }, 1500);
+      setShowForgotPassword(false);
+      setResetEmail("");
     } catch (error: any) {
       toast.error(error.message || "Failed to send reset link");
     } finally {

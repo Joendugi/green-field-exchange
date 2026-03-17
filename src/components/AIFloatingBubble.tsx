@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
-import { useAction, useQuery } from "convex/react";
-import { api } from "../../convex/_generated/api";
+import { useSupabaseQuery } from "@/hooks/useSupabaseQuery";
+import { getChatHistory, chatWithAI } from "@/integrations/supabase/analytics";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
@@ -18,8 +18,12 @@ const AIFloatingBubble = () => {
   const [isLoading, setIsLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  const history = useQuery(api.ai.listHistory);
-  const chatAction = useAction((api as any).ai.chat);
+  const { data: historyData } = useSupabaseQuery<any>(
+    ["aiChatHistory"],
+    () => getChatHistory(),
+    { enabled: isAuthenticated }
+  );
+  const history: any[] = historyData || [];
 
   useEffect(() => {
     if (history && history.length > 0) {
@@ -56,10 +60,7 @@ const AIFloatingBubble = () => {
     setIsLoading(true);
 
     try {
-      const response = await chatAction({
-        messages: updatedMessages.map(m => ({ role: m.role, content: m.content }))
-      });
-
+      const response = await chatWithAI(updatedMessages.map(m => ({ role: m.role, content: m.content })));
       setMessages((prev) => [...prev, { role: "assistant", content: response }]);
     } catch (error: any) {
       toast.error("Failed to get AI response");

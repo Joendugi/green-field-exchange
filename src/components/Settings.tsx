@@ -1,54 +1,71 @@
-import { useQuery, useMutation } from "convex/react";
-import { api } from "../../convex/_generated/api";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
+import { useState, useEffect } from "react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Moon, Sun, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+
+const DEFAULT_SETTINGS = {
+  notifications_enabled: true,
+  notifications_orders: true,
+  notifications_social: true,
+  notifications_system: true,
+  ai_assistant_enabled: true,
+  dark_mode: false,
+};
 
 const Settings = () => {
   const { isAuthenticated } = useAuth();
-  const settings = useQuery(api.users.getSettings);
-  const updateSettingsMutation = useMutation(api.users.updateSettings);
+  
+  const [currentSettings, setCurrentSettings] = useState<typeof DEFAULT_SETTINGS | undefined>(undefined);
+
+  useEffect(() => {
+    // Simulate loading settings from DB / load from local storage
+    const loadSettings = () => {
+      const stored = localStorage.getItem("user_settings");
+      if (stored) {
+        try {
+          setCurrentSettings({ ...DEFAULT_SETTINGS, ...JSON.parse(stored) });
+        } catch (e) {
+          setCurrentSettings(DEFAULT_SETTINGS);
+        }
+      } else {
+        setCurrentSettings(DEFAULT_SETTINGS);
+      }
+    };
+    loadSettings();
+  }, []);
 
   const updateSetting = async (key: string, value: boolean) => {
+    if (!currentSettings) return;
     try {
-      await updateSettingsMutation({ [key]: value });
+      const newSettings = { ...currentSettings, [key]: value };
+      setCurrentSettings(newSettings);
+      localStorage.setItem("user_settings", JSON.stringify(newSettings));
+      
+      // If toggling dark mode globally, we might want to emit the theme change event here, though ThemeToggle handles that mostly
+      if (key === 'dark_mode') {
+         localStorage.setItem("theme", value ? "dark" : "light");
+         window.dispatchEvent(new CustomEvent("theme-change", { detail: { darkMode: value } }));
+         if (value) document.documentElement.classList.add("dark");
+         else document.documentElement.classList.remove("dark");
+      }
+      
       toast.success("Setting updated!");
     } catch (error: any) {
       toast.error("Failed to update setting");
     }
   };
 
-  if (settings === undefined) {
+  if (currentSettings === undefined) {
     return (
       <div className="flex justify-center py-12">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
   }
-
-  if (!settings && isAuthenticated) {
-    // Settings don't exist yet, mutation will create them on first update or we can trigger it
-    return (
-      <div className="text-center py-12">
-        <Button onClick={() => updateSetting("notifications_enabled", true)}>
-          Initialize Settings
-        </Button>
-      </div>
-    );
-  }
-
-  const currentSettings = settings || {
-    notifications_enabled: true,
-    notifications_orders: true,
-    notifications_social: true,
-    notifications_system: true,
-    ai_assistant_enabled: true,
-    dark_mode: false,
-  };
 
   return (
     <div className="space-y-6 max-w-2xl">

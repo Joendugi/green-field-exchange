@@ -1,8 +1,5 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useQuery, useMutation } from "convex/react";
-import { api } from "../../convex/_generated/api";
-import { Id } from "../../convex/_generated/dataModel";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -10,25 +7,31 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Package, CheckCircle, XCircle, MessageSquare, Clock3, ShieldCheck, Star, Undo2, DollarSign, AlertCircle, CreditCard } from "lucide-react";
+import { Package, CheckCircle, XCircle, MessageSquare, Clock3, ShieldCheck, Star, Undo2, DollarSign, AlertCircle, CreditCard, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { useSupabaseQuery } from "@/hooks/useSupabaseQuery";
+import { getMyOrders, updateOrderStatus, payOrder, releasePayment, disputeOrder } from "@/integrations/supabase/orders";
+import { submitReview } from "@/integrations/supabase/reviews";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface MyOrdersProps {
   userRole?: string | null;
 }
 
 const MyOrders = ({ userRole: propRole }: MyOrdersProps) => {
-  const { user, convexUserId } = useAuth();
-  // Passing "skip" if no userRole? No, userRole can be null initially.
-  const orders = useQuery(api.orders.list, {}) || [];
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+  const navigate = useNavigate();
 
-  const updateStatus = useMutation(api.orders.updateStatus);
-  const payOrderM = useMutation(api.orders.payOrder);
-  const releasePayment = useMutation(api.escrow.releasePayment);
-  const disputeOrderM = useMutation(api.escrow.disputeOrder);
-  const submitReview = useMutation(api.reviews.submitRating);
+  const { data: maybeOrders, isLoading } = useSupabaseQuery<any[]>(
+    ["orders", user?.id || ""],
+    () => getMyOrders(),
+    { enabled: !!user }
+  );
+
+  const orders = (maybeOrders || []) as any[];
 
   const [statusFilter, setStatusFilter] = useState("all");
   const [searchTerm, setSearchTerm] = useState("");
@@ -46,12 +49,11 @@ const MyOrders = ({ userRole: propRole }: MyOrdersProps) => {
   const [isDisputeModalOpen, setIsDisputeModalOpen] = useState(false);
   const [disputeReason, setDisputeReason] = useState("");
 
-  const navigate = useNavigate();
-
-  const handleReleasePayment = async (orderId: Id<"orders">) => {
+  const handleReleasePayment = async (orderId: string) => {
     try {
       if (!window.confirm("Confirm that you have received the items? This will release the funds to the farmer.")) return;
-      await releasePayment({ orderId });
+      await releasePayment(orderId);
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
       toast.success("Payment released to the farmer!");
     } catch (error: any) {
       toast.error(error.message);
@@ -64,7 +66,8 @@ const MyOrders = ({ userRole: propRole }: MyOrdersProps) => {
     try {
       // Simulate external payment gateway latency
       await new Promise(r => setTimeout(r, 2000));
-      await payOrderM({ orderId: paymentOrder._id });
+      await payOrder(paymentOrder.id);
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
       toast.dismiss(loadingToast);
       toast.success("Payment successful! Funds are now securely placed in Escrow.");
       setIsPaymentModalOpen(false);
@@ -82,7 +85,8 @@ const MyOrders = ({ userRole: propRole }: MyOrdersProps) => {
     }
     const loadingToast = toast.loading("Filing dispute...");
     try {
-      await disputeOrderM({ orderId: disputeOrder._id, reason: disputeReason });
+      await disputeOrder(disputeOrder.id, disputeReason);
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
       toast.dismiss(loadingToast);
       toast.success("Dispute filed successfully. An admin will review your case.");
       setIsDisputeModalOpen(false);
@@ -98,9 +102,8 @@ const MyOrders = ({ userRole: propRole }: MyOrdersProps) => {
     if (!reviewOrder) return;
     try {
       await submitReview({
-        orderId: reviewOrder._id,
-        productId: reviewOrder.productId,
-        farmerId: reviewOrder.farmerId,
+        order_id: reviewOrder.id,
+        farmer_id: reviewOrder.farmer_id,
         rating,
         comment,
       });
@@ -115,19 +118,20 @@ const MyOrders = ({ userRole: propRole }: MyOrdersProps) => {
   };
 
   const filteredOrders = useMemo(() => {
-    return orders.filter((order: any) => {
+    const ordersArray = (maybeOrders || []) as any[];
+    return ordersArray.filter((order: any) => {
       const matchesStatus = statusFilter === "all" || order.status === statusFilter;
       const matchesSearch = searchTerm
-        ? [order.product?.name, order.buyer?.full_name, order.farmer?.full_name]
+        ? [order.products?.name, order.buyer?.full_name, order.farmer?.full_name]
           .filter(Boolean)
           .some((value) => value.toLowerCase().includes(searchTerm.toLowerCase()))
         : true;
-      const orderDate = new Date(order._creationTime).toISOString().split("T")[0];
+      const orderDate = new Date(order.created_at).toISOString().split("T")[0];
       const matchesStart = startDate ? orderDate >= startDate : true;
       const matchesEnd = endDate ? orderDate <= endDate : true;
       return matchesStatus && matchesSearch && matchesStart && matchesEnd;
     });
-  }, [orders, statusFilter, searchTerm, startDate, endDate]);
+  }, [maybeOrders, statusFilter, searchTerm, startDate, endDate]);
 
   const timelineSteps = [
     { key: "pending", label: "Order Placed" },
@@ -181,23 +185,24 @@ const MyOrders = ({ userRole: propRole }: MyOrdersProps) => {
   };
 
   const handleMessage = (order: any) => {
-    const isSeller = convexUserId === order.farmerId;
+    const isSeller = user?.id === order.farmer_id;
     const recipient = isSeller ? order.buyer?.full_name : order.farmer?.full_name;
     navigate("/social", {
       state: {
         prefill: {
           recipient,
-          recipientId: isSeller ? order.buyerId : order.farmerId,
-          subject: `Regarding order #${order._id}`,
-          body: `Hi ${recipient?.split(" ")[0] || "there"}, about ${order.product?.name}...`,
+          recipientId: isSeller ? order.buyer_id : order.farmer_id,
+          subject: `Regarding order #${order.id}`,
+          body: `Hi ${recipient?.split(" ")[0] || "there"}, about ${order.products?.name}...`,
         },
       },
     });
   };
 
-  const handleUpdateStatus = async (orderId: Id<"orders">, newStatus: string) => {
+  const handleUpdateStatus = async (orderId: string, newStatus: string) => {
     try {
-      await updateStatus({ orderId, status: newStatus });
+      await updateOrderStatus(orderId, newStatus);
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
       toast.success(`Order ${newStatus}`);
     } catch (error: any) {
       console.error("Error updating status:", error);
@@ -234,6 +239,14 @@ const MyOrders = ({ userRole: propRole }: MyOrdersProps) => {
 
     return <Badge variant={variants[status] || "outline"}>{status.charAt(0).toUpperCase() + status.slice(1)}</Badge>;
   };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center p-12">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -288,12 +301,12 @@ const MyOrders = ({ userRole: propRole }: MyOrdersProps) => {
 
       <div className="space-y-4">
         {filteredOrders.map((order: any) => {
-          const isSeller = convexUserId === order.farmerId;
+          const isSeller = user?.id === order.farmer_id;
           return (
-            <Card key={order._id} className={order.escrow_status === 'held' ? "border-blue-200" : ""}>
+            <Card key={order.id} className={order.escrow_status === 'held' ? "border-blue-200" : ""}>
               <CardHeader>
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-lg">{order.product?.name}</CardTitle>
+                  <CardTitle className="text-lg">{order.products?.name}</CardTitle>
                   <div className="flex gap-2">
                     <Badge variant="outline">{isSeller ? "Sale" : "Purchase"}</Badge>
                     {getStatusBadge(order)}
@@ -307,7 +320,7 @@ const MyOrders = ({ userRole: propRole }: MyOrdersProps) => {
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                   <div>
                     <span className="text-muted-foreground">Quantity:</span>
-                    <p className="font-semibold">{order.quantity} {order.product?.unit}</p>
+                    <p className="font-semibold">{order.quantity} {order.products?.unit}</p>
                   </div>
                   <div>
                     <span className="text-muted-foreground">Total Price:</span>
@@ -320,7 +333,7 @@ const MyOrders = ({ userRole: propRole }: MyOrdersProps) => {
                   <div>
                     <span className="text-muted-foreground">Order Date:</span>
                     <p className="font-semibold">
-                      {new Date(order._creationTime).toLocaleDateString()}
+                      {new Date(order.created_at).toLocaleDateString()}
                     </p>
                   </div>
                 </div>
@@ -347,7 +360,7 @@ const MyOrders = ({ userRole: propRole }: MyOrdersProps) => {
 
                   {!isSeller && order.escrow_status === "held" && (
                     <>
-                      <Button size="sm" onClick={() => handleReleasePayment(order._id)} className="bg-emerald-600 hover:bg-emerald-700">
+                      <Button size="sm" onClick={() => handleReleasePayment(order.id)} className="bg-emerald-600 hover:bg-emerald-700">
                         <CheckCircle className="mr-2 h-4 w-4" /> Confirm Receipt & Pay
                       </Button>
                       <Button size="sm" variant="outline" className="text-red-600 border-red-200 hover:bg-red-50" onClick={() => { setDisputeOrder(order); setIsDisputeModalOpen(true); }}>
@@ -368,7 +381,7 @@ const MyOrders = ({ userRole: propRole }: MyOrdersProps) => {
                   <div className="flex gap-2">
                     <Button
                       size="sm"
-                      onClick={() => handleUpdateStatus(order._id, "accepted")}
+                      onClick={() => handleUpdateStatus(order.id, "accepted")}
                       className="flex-1"
                     >
                       <CheckCircle className="mr-2 h-4 w-4" />
@@ -377,7 +390,7 @@ const MyOrders = ({ userRole: propRole }: MyOrdersProps) => {
                     <Button
                       size="sm"
                       variant="destructive"
-                      onClick={() => handleUpdateStatus(order._id, "cancelled")}
+                      onClick={() => handleUpdateStatus(order.id, "cancelled")}
                       className="flex-1"
                     >
                       <XCircle className="mr-2 h-4 w-4" />
@@ -389,7 +402,7 @@ const MyOrders = ({ userRole: propRole }: MyOrdersProps) => {
                 {isSeller && order.status === "accepted" && (
                   <Button
                     size="sm"
-                    onClick={() => handleUpdateStatus(order._id, "completed")}
+                    onClick={() => handleUpdateStatus(order.id, "completed")}
                     className="w-full"
                   >
                     <CheckCircle className="mr-2 h-4 w-4" />

@@ -1,6 +1,4 @@
 import { useState, useEffect, useRef } from "react";
-import { useQuery, useMutation } from "convex/react";
-import { api } from "../../convex/_generated/api";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   Bell,
@@ -39,21 +37,30 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import ThemeToggle from "./ThemeToggle";
 import { formatDistanceToNow } from "date-fns";
 import AIFloatingBubble from "./AIFloatingBubble";
+import { useSupabaseQuery } from "@/hooks/useSupabaseQuery";
+import { getMyNotifications, markNotificationRead, markAllNotificationsRead } from "@/integrations/supabase/notifications";
+import { getUnreadMessagesCount } from "@/integrations/supabase/messages";
+import { useQueryClient } from "@tanstack/react-query";
 
 const Navbar = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { isAuthenticated, logout, user, role } = useAuth();
+  const queryClient = useQueryClient();
 
-  const isSupabaseOnly = import.meta.env.MODE === "supabase-only";
+  const { data: notificationsData } = useSupabaseQuery<any>(
+    ["notifications"],
+    () => getMyNotifications(),
+    { enabled: isAuthenticated }
+  );
+  const notifications: any[] = (notificationsData as any[]) || [];
 
-  // Convex Queries
-  const notifications = useQuery(api.notifications.list, !isSupabaseOnly ? {} : "skip") || [];
-  const unreadMessagesCount = useQuery(api.messages.unreadCount, !isSupabaseOnly ? {} : "skip") || 0;
-
-  // Mutations
-  const markRead = useMutation(api.notifications.markRead);
-  const markAllRead = useMutation(api.notifications.markAllRead);
+  const { data: unreadMessagesCountData } = useSupabaseQuery<any>(
+    ["unreadMessagesCount"],
+    () => getUnreadMessagesCount(),
+    { enabled: isAuthenticated }
+  );
+  const unreadMessagesCount: number = (unreadMessagesCountData as number) || 0;
 
   // Derived state
   const unreadCount = notifications.filter((n) => !n.is_read).length;
@@ -103,7 +110,8 @@ const Navbar = () => {
   const handleNotificationClick = async (notification: any) => {
     if (!notification.is_read) {
       try {
-        await markRead({ notificationId: notification._id });
+        await markNotificationRead(notification.id);
+        queryClient.invalidateQueries({ queryKey: ["notifications"] });
       } catch (e) {
         console.error(e);
       }
@@ -121,7 +129,8 @@ const Navbar = () => {
 
   const handleMarkAllRead = async () => {
     try {
-      await markAllRead();
+      await markAllNotificationsRead();
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
     } catch (e) {
       console.error(e);
     }
@@ -202,14 +211,14 @@ const Navbar = () => {
                     <div className="divide-y">
                       {notifications.map((notification) => (
                         <button
-                          key={notification._id}
+                          key={notification.id}
                           className={`w-full text-left px-4 py-3 hover:bg-muted/60 transition-colors ${notification.is_read ? "opacity-60" : "bg-primary/5"}`}
                           onClick={() => handleNotificationClick(notification)}
                         >
                           <div className="flex items-center justify-between text-sm mb-1">
                             <span className="font-semibold">{notification.title}</span>
                             <span className="text-xs text-muted-foreground">
-                              {formatDistanceToNow(new Date(notification._creationTime), { addSuffix: true })}
+                              {formatDistanceToNow(new Date(notification.created_at), { addSuffix: true })}
                             </span>
                           </div>
                           <p className="text-sm text-muted-foreground line-clamp-2">{notification.message}</p>

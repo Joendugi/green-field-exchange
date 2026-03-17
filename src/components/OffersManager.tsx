@@ -1,6 +1,4 @@
 import { useState } from "react";
-import { useQuery, useMutation } from "convex/react";
-import { api } from "../../convex/_generated/api";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -11,12 +9,20 @@ import { Handshake, MessageSquare, Check, X, ArrowRight, Loader2, Package } from
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { getMyOffers, respondOffer, finalizeCheckout } from "@/integrations/supabase/offers";
+import { useSupabaseQuery } from "@/hooks/useSupabaseQuery";
+import { useQueryClient } from "@tanstack/react-query";
 
 const OffersManager = () => {
-    const { user, convexUserId } = useAuth();
-    const offers = useQuery(api.offers.listForUser);
-    const respondMutation = useMutation(api.offers.respond);
-    const checkoutMutation = useMutation(api.offers.finalizeCheckout);
+    const { user } = useAuth();
+    const queryClient = useQueryClient();
+
+    const { data: offersData, isLoading: offersLoading } = useSupabaseQuery<any>(
+        ["offers", user?.id],
+        () => getMyOffers(),
+        { enabled: !!user?.id }
+    );
+    const offers = offersData || [];
 
     const [counterAmount, setCounterAmount] = useState("");
     const [counterMessage, setCounterMessage] = useState("");
@@ -26,7 +32,7 @@ const OffersManager = () => {
 
     const handleRespond = async (offerId: any, status: string, amount?: number) => {
         try {
-            await respondMutation({
+            await respondOffer({
                 offerId,
                 status,
                 amount_per_unit: amount,
@@ -35,6 +41,7 @@ const OffersManager = () => {
             toast.success(`Offer ${status}!`);
             setCounterAmount("");
             setCounterMessage("");
+            queryClient.invalidateQueries({ queryKey: ["offers", user?.id] });
         } catch (error: any) {
             toast.error(error.message);
         }
@@ -43,19 +50,20 @@ const OffersManager = () => {
     const handleCheckout = async () => {
         if (!selectedOffer || !checkoutAddress) return;
         try {
-            await checkoutMutation({
-                offerId: selectedOffer._id,
+            await finalizeCheckout({
+                offerId: selectedOffer.id,
                 delivery_address: checkoutAddress,
             });
             toast.success("Order finalized! Redirecting to orders...");
             setIsCheckoutOpen(false);
             setCheckoutAddress("");
+            queryClient.invalidateQueries({ queryKey: ["offers", user?.id] });
         } catch (error: any) {
             toast.error(error.message);
         }
     };
 
-    if (offers === undefined) {
+    if (offersLoading) {
         return (
             <div className="flex justify-center p-12">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -77,23 +85,23 @@ const OffersManager = () => {
 
             <div className="grid gap-6">
                 {offers.map((offer: any) => {
-                    const isSeller = convexUserId === offer.farmerId;
+                    const isSeller = user?.id === offer.farmer_id;
                     return (
-                        <Card key={offer._id} className={offer.status === 'accepted' ? "border-emerald-200 bg-emerald-50/20" : ""}>
+                        <Card key={offer.id} className={offer.status === 'accepted' ? "border-emerald-200 bg-emerald-50/20" : ""}>
                             <CardHeader className="pb-4">
                                 <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-4">
                                         <div className="h-12 w-12 bg-muted rounded-lg flex items-center justify-center overflow-hidden">
-                                            {offer.product?.image_url ? (
-                                                <img src={offer.product.image_url} className="h-full w-full object-cover" />
+                                            {offer.products?.image_url ? (
+                                                <img src={offer.products.image_url} className="h-full w-full object-cover" />
                                             ) : (
                                                 <Package className="h-6 w-6 text-muted-foreground" />
                                             )}
                                         </div>
                                         <div>
-                                            <CardTitle className="text-lg">{offer.product?.name}</CardTitle>
+                                            <CardTitle className="text-lg">{offer.products?.name}</CardTitle>
                                             <CardDescription>
-                                                {isSeller ? `Buyer: ${offer.buyerName}` : `Seller: ${offer.farmerName}`}
+                                                {isSeller ? `Offer from Buyer` : `Offer to Farmer`}
                                             </CardDescription>
                                         </div>
                                     </div>
@@ -106,11 +114,11 @@ const OffersManager = () => {
                                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                                     <div className="p-3 bg-muted/40 rounded-xl">
                                         <p className="text-xs text-muted-foreground mb-1">Negotiated Price</p>
-                                        <p className="text-xl font-bold text-primary">${offer.amount_per_unit}/{offer.product?.unit}</p>
+                                        <p className="text-xl font-bold text-primary">${offer.amount_per_unit}/{offer.products?.unit}</p>
                                     </div>
                                     <div className="p-3 bg-muted/40 rounded-xl">
                                         <p className="text-xs text-muted-foreground mb-1">Quantity</p>
-                                        <p className="text-xl font-bold">{offer.quantity} {offer.product?.unit}</p>
+                                        <p className="text-xl font-bold">{offer.quantity} {offer.products?.unit}</p>
                                     </div>
                                     <div className="p-3 bg-muted/40 rounded-xl">
                                         <p className="text-xs text-muted-foreground mb-1">Total Agreed</p>
@@ -118,7 +126,7 @@ const OffersManager = () => {
                                     </div>
                                     <div className="p-3 bg-muted/40 rounded-xl">
                                         <p className="text-xs text-muted-foreground mb-1">Last Action</p>
-                                        <p className="text-sm font-semibold capitalize">{offer.last_offered_by === offer.farmerId ? 'Seller' : 'Buyer'} Update</p>
+                                        <p className="text-sm font-semibold capitalize">{offer.last_offered_by === offer.farmer_id ? 'Seller' : 'Buyer'} Update</p>
                                     </div>
                                 </div>
 
@@ -132,10 +140,10 @@ const OffersManager = () => {
                                 {offer.status === 'pending' && (
                                     <div className="pt-2 border-t flex flex-col md:flex-row gap-4 items-center">
                                         {/* Only show response buttons if they aren't the one who made the last offer */}
-                                        {((isSeller && offer.last_offered_by !== offer.farmerId) ||
-                                            (!isSeller && offer.last_offered_by !== offer.buyerId)) ? (
+                                        {((isSeller && offer.last_offered_by !== offer.farmer_id) ||
+                                            (!isSeller && offer.last_offered_by !== offer.buyer_id)) ? (
                                             <>
-                                                <Button size="sm" className="bg-emerald-600 w-full md:w-auto" onClick={() => handleRespond(offer._id, "accepted")}>
+                                                <Button size="sm" className="bg-emerald-600 w-full md:w-auto" onClick={() => handleRespond(offer.id, "accepted")}>
                                                     <Check className="mr-2 h-4 w-4" /> Accept Price
                                                 </Button>
 
@@ -152,7 +160,7 @@ const OffersManager = () => {
                                                         </DialogHeader>
                                                         <div className="space-y-4 py-4">
                                                             <div className="space-y-2">
-                                                                <Label>Counter Price (per {offer.product?.unit})</Label>
+                                                                <Label>Counter Price (per {offer.products?.unit})</Label>
                                                                 <Input
                                                                     type="number"
                                                                     value={counterAmount}
@@ -170,7 +178,7 @@ const OffersManager = () => {
                                                             </div>
                                                             <Button
                                                                 className="w-full"
-                                                                onClick={() => handleRespond(offer._id, "countered", parseFloat(counterAmount))}
+                                                                onClick={() => handleRespond(offer.id, "countered", parseFloat(counterAmount))}
                                                                 disabled={!counterAmount}
                                                             >
                                                                 Send Counter
@@ -179,7 +187,7 @@ const OffersManager = () => {
                                                     </DialogContent>
                                                 </Dialog>
 
-                                                <Button size="sm" variant="destructive" className="w-full md:w-auto" onClick={() => handleRespond(offer._id, "rejected")}>
+                                                <Button size="sm" variant="destructive" className="w-full md:w-auto" onClick={() => handleRespond(offer.id, "rejected")}>
                                                     <X className="mr-2 h-4 w-4" /> Reject
                                                 </Button>
                                             </>

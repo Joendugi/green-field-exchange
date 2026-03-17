@@ -1,6 +1,4 @@
 import { useState } from "react";
-import { useQuery, useMutation, useAction } from "convex/react";
-import { api } from "../../convex/_generated/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -9,7 +7,15 @@ import { Users, Package, ShoppingCart, TrendingUp, Download, Activity, Badge as 
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { exportToCSV } from "@/lib/dataExport";
-import { Id } from "../../convex/_generated/dataModel";
+import { useSupabaseQuery } from "@/hooks/useSupabaseQuery";
+import { useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import {
+  getStats, listUsers, getAllVerificationRequests, listPosts, listProducts, listEmailLogs,
+  getAdminAuditLogs, getRecentActivity, getGrowthStats, getAdminSettings, updateAdminSettings,
+  banUser, updateRole, broadcastNotification, hidePost, hideProduct, toggleFeatured,
+  togglePostFeatured, bulkTogglePostFeatured
+} from "@/integrations/supabase/admin";
 
 import AdminPrivilegeManager from "./AdminPrivilegeManager";
 import VerificationRequestManager from "./VerificationRequestManager";
@@ -24,10 +30,10 @@ import { EscrowTab } from "./admin/EscrowTab";
 import { MarketHeatmap } from "./admin/MarketHeatmap";
 import type { NewAd } from "./admin/AdsTab";
 
-type SettingsKey = "force_dark_mode" | "enable_beta_features" | "enable_ads_portal" | "enable_bulk_tools";
+export type SettingsKey = "force_dark_mode" | "enable_beta_features" | "enable_ads_portal" | "enable_bulk_tools";
 
 type AdminSettingsState = {
-  _id?: Id<"admin_settings">;
+  id?: string;
   force_dark_mode: boolean;
   enable_beta_features: boolean;
   enable_ads_portal: boolean;
@@ -42,31 +48,35 @@ const defaultAdminSettings: AdminSettingsState = {
 };
 
 const AdminDashboard = () => {
-  // ─── Queries ────────────────────────────────────────────────────────────
-  const stats = useQuery(api.admin.getStats) || { users: 0, products: 0, orders: 0, revenue: 0 };
-  const users = useQuery(api.admin.listUsers);
-  const verificationRequests = useQuery(api.admin.listVerificationRequests);
-  const posts = useQuery(api.admin.listPosts);
-  const products = useQuery(api.admin.listProducts);
-  const advertisements = useQuery(api.advertisements.list);
-  const adminSettingsData = useQuery(api.adminSettings.get);
-  const auditLogs = useQuery(api.admin.listAuditLogs) ?? [];
-  const emailLogs = useQuery(api.admin.listEmailLogs);
-  const recentActivity = useQuery(api.admin.getRecentActivity) ?? [];
-  const growthStats = useQuery(api.admin.getGrowthStats) ?? [];
+  const queryClient = useQueryClient();
 
-  // ─── Mutations ──────────────────────────────────────────────────────────
-  const broadcastNotification = useAction(api.admin.broadcastNotification);
-  const banUser = useMutation(api.admin.banUser);
-  const verifyUser = useMutation(api.admin.handleVerification);
-  const updateRole = useMutation(api.admin.updateRole);
-  const updateSettings = useMutation(api.adminSettings.update);
-  const upsertAd = useMutation(api.advertisements.upsert);
-  const toggleFeaturedP = useMutation(api.admin.toggleFeatured);
-  const hidePostM = useMutation(api.admin.hidePost);
-  const hideProductM = useMutation(api.admin.hideProduct);
-  const togglePostFeaturedM = useMutation(api.posts.togglePostFeatured);
-  const bulkTogglePostFeaturedM = useMutation(api.posts.bulkTogglePostFeatured);
+  // ─── Queries ────────────────────────────────────────────────────────────
+  // ─── Queries ────────────────────────────────────────────────────────────
+  const { data: statsData } = useSupabaseQuery<any>(["admin", "stats"], getStats);
+  const { data: usersData } = useSupabaseQuery<any[]>(["admin", "users"], listUsers);
+  const { data: verificationRequestsData } = useSupabaseQuery<any[]>(["admin", "verificationRequests"], () => getAllVerificationRequests());
+  const { data: postsData } = useSupabaseQuery<any[]>(["admin", "posts"], listPosts);
+  const { data: productsData } = useSupabaseQuery<any[]>(["admin", "products"], listProducts);
+  const { data: advertisementsData } = useSupabaseQuery<any[]>(["admin", "advertisements"], async () => {
+    const { data } = await supabase.from("advertisements").select("*").order("created_at", { ascending: false });
+    return data || [];
+  });
+  const { data: adminSettingsData } = useSupabaseQuery<any>(["admin", "settings"], getAdminSettings);
+  const { data: auditLogsData } = useSupabaseQuery<any[]>(["admin", "auditLogs"], () => getAdminAuditLogs(100));
+  const { data: emailLogsData } = useSupabaseQuery<any[]>(["admin", "emailLogs"], listEmailLogs);
+  const { data: recentActivityData } = useSupabaseQuery<any[]>(["admin", "recentActivity"], getRecentActivity);
+  const { data: growthStatsData } = useSupabaseQuery<any[]>(["admin", "growthStats"], getGrowthStats);
+
+  const stats: any = statsData || { users: 0, products: 0, orders: 0, revenue: 0 };
+  const users: any[] = usersData || [];
+  const verificationRequests: any[] = verificationRequestsData || [];
+  const posts: any[] = postsData || [];
+  const products: any[] = productsData || [];
+  const advertisements: any[] = advertisementsData || [];
+  const auditLogs: any[] = auditLogsData || [];
+  const emailLogs: any[] = emailLogsData || [];
+  const recentActivity: any[] = recentActivityData || [];
+  const growthStats: any[] = growthStatsData || [];
 
   // ─── State ──────────────────────────────────────────────────────────────
   const [searchQuery, setSearchQuery] = useState("");
@@ -81,17 +91,12 @@ const AdminDashboard = () => {
 
   // ─── Loading guard (AFTER all hooks) ────────────────────────────────────
   const isLoading =
-    users === undefined ||
-    verificationRequests === undefined ||
-    posts === undefined ||
-    products === undefined ||
-    advertisements === undefined ||
-    adminSettingsData === undefined;
+    !statsData && !usersData && !postsData; // Simplistic loading check
 
   if (isLoading) return <AdminDashboardSkeleton />;
 
   const adminSettings: AdminSettingsState = adminSettingsData
-    ? { ...adminSettingsData, _id: adminSettingsData._id }
+    ? { ...adminSettingsData, id: adminSettingsData.id }
     : defaultAdminSettings;
 
   // ─── Handlers ───────────────────────────────────────────────────────────
@@ -110,23 +115,25 @@ const AdminDashboard = () => {
   const handleAdminSettingChange = async (key: SettingsKey, value: boolean) => {
     setSettingsSavingKey(key);
     try {
-      await updateSettings({
+      await updateAdminSettings({
         force_dark_mode: key === "force_dark_mode" ? value : adminSettings.force_dark_mode,
         enable_beta_features: key === "enable_beta_features" ? value : adminSettings.enable_beta_features,
         enable_ads_portal: key === "enable_ads_portal" ? value : adminSettings.enable_ads_portal,
         enable_bulk_tools: key === "enable_bulk_tools" ? value : adminSettings.enable_bulk_tools,
       });
       toast.success("Setting updated");
+      queryClient.invalidateQueries({ queryKey: ["admin", "settings"] });
     } catch (e: any) {
       toast.error("Failed: " + e.message);
     }
     setSettingsSavingKey(null);
   };
 
-  const handleBanUser = async (userId: Id<"users">, ban: boolean) => {
+  const handleBanUser = async (userId: string, ban: boolean) => {
     try {
-      await banUser({ userId, ban, reason: banReason });
+      await banUser(userId, ban, banReason);
       toast.success(ban ? "User banned" : "User unbanned");
+      queryClient.invalidateQueries({ queryKey: ["admin", "users"] });
       setBanDialogOpen(false);
       setBanReason("");
       setSelectedUser(null);
@@ -135,10 +142,11 @@ const AdminDashboard = () => {
     }
   };
 
-  const handleChangeRole = async (userId: Id<"users">, role: string) => {
+  const handleChangeRole = async (userId: string, role: string) => {
     try {
-      await updateRole({ userId, role });
+      await updateRole(userId, role);
       toast.success(`Role updated to ${role}`);
+      queryClient.invalidateQueries({ queryKey: ["admin", "users"] });
     } catch (e: any) {
       toast.error(e.message);
     }
@@ -169,7 +177,7 @@ const AdminDashboard = () => {
 
   const handleSaveAd = async (ad: NewAd) => {
     try {
-      await upsertAd({
+      const { error } = await supabase.from("advertisements").upsert({
         title: ad.title,
         description: ad.description,
         image_url: ad.image_url,
@@ -177,70 +185,69 @@ const AdminDashboard = () => {
         status: ad.status,
         budget: typeof ad.budget === "string" ? parseFloat(ad.budget) : ad.budget,
       });
+      if (error) throw error;
       toast.success("Advertisement published");
+      queryClient.invalidateQueries({ queryKey: ["admin", "advertisements"] });
     } catch (e: any) {
       toast.error(e.message);
     }
   };
 
-  const handleToggleAd = async (adId: Id<"advertisements">, active: boolean) => {
+  const handleToggleAd = async (adId: string, active: boolean) => {
     try {
-      const current = advertisements.find((a: any) => a._id === adId);
-      if (!current) return;
-      await upsertAd({
-        id: adId,
-        title: current.title,
-        description: current.description ?? "",
-        image_url: current.image_url ?? "",
-        target_url: current.target_url,
-        status: active ? "active" : "paused",
-        budget: current.budget,
-      });
+      const { error } = await supabase.from("advertisements").update({ status: active ? "active" : "paused" }).eq("id", adId);
+      if (error) throw error;
       toast.success(`Ad ${active ? "activated" : "paused"}`);
+      queryClient.invalidateQueries({ queryKey: ["admin", "advertisements"] });
     } catch (e: any) {
       toast.error(e.message);
     }
   };
 
-  const handleHidePost = async (postId: Id<"posts">, hide: boolean) => {
+  const handleHidePost = async (postId: string, hide: boolean) => {
     try {
-      await hidePostM({ postId, hide });
+      await hidePost({ postId, hide });
       toast.success(hide ? "Post hidden" : "Post restored");
+      queryClient.invalidateQueries({ queryKey: ["admin", "posts"] });
     } catch (e: any) {
       toast.error(e.message);
     }
   };
 
-  const handleHideProduct = async (productId: Id<"products">, hide: boolean) => {
+  const handleHideProduct = async (productId: string, hide: boolean) => {
     try {
-      await hideProductM({ productId, hide });
+      await hideProduct({ productId, hide });
       toast.success(hide ? "Product hidden" : "Product restored");
+      queryClient.invalidateQueries({ queryKey: ["admin", "products"] });
     } catch (e: any) {
       toast.error(e.message);
     }
   };
 
-  const handleToggleFeatured = async (productId: Id<"products">, featured: boolean) => {
+  const handleToggleFeatured = async (productId: string, featured: boolean) => {
     try {
-      await toggleFeaturedP({ productId, featured });
+      await toggleFeatured({ productId, featured });
       toast.success(featured ? "Product featured" : "Product unfeatured");
+      queryClient.invalidateQueries({ queryKey: ["admin", "products"] });
     } catch (e: any) {
       toast.error(e.message);
     }
   };
 
-  const handleTogglePostFeatured = async (postId: Id<"posts">, featured: boolean) => {
+  const handleTogglePostFeatured = async (postId: string, featured: boolean) => {
     try {
-      await togglePostFeaturedM({ postId, isFeatured: featured });
+      await togglePostFeatured({ postId, isFeatured: featured });
       toast.success(featured ? "Story featured" : "Story unfeatured");
+      queryClient.invalidateQueries({ queryKey: ["admin", "posts"] });
     } catch (e: any) {
       toast.error(e.message);
     }
   };
 
-  const handleBulkTogglePostFeatured = async (postIds: Id<"posts">[], featured: boolean) => {
+  const handleBulkTogglePostFeatured = async (postIds: string[], featured: boolean) => {
     try {
-      await bulkTogglePostFeaturedM({ postIds, isFeatured: featured });
+      await bulkTogglePostFeatured({ postIds, isFeatured: featured });
+      queryClient.invalidateQueries({ queryKey: ["admin", "posts"] });
     } catch (e: any) {
       toast.error(e.message);
       throw e;

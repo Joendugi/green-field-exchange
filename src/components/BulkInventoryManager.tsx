@@ -1,7 +1,5 @@
 import { useState } from "react";
-import { useMutation } from "convex/react";
-import { api } from "../../convex/_generated/api";
-import { Id } from "../../convex/_generated/dataModel";
+import { bulkUpdateProducts } from "@/integrations/supabase/products";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,7 +15,6 @@ interface BulkInventoryManagerProps {
 }
 
 const BulkInventoryManager = ({ selectedIds, onComplete }: BulkInventoryManagerProps) => {
-    const bulkUpdate = useMutation(api.products.bulkUpdate);
     const [isOpen, setIsOpen] = useState(false);
     const [isUpdating, setIsUpdating] = useState(false);
 
@@ -45,10 +42,7 @@ const BulkInventoryManager = ({ selectedIds, onComplete }: BulkInventoryManagerP
                 return;
             }
 
-            await bulkUpdate({
-                ids: selectedIds as Id<"products">[],
-                changes: updatePayload
-            });
+            await bulkUpdateProducts(selectedIds, updatePayload);
 
             toast.success(`Successfully updated ${selectedIds.length} products`);
             setIsOpen(false);

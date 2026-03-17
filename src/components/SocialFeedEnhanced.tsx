@@ -1,22 +1,23 @@
-import { useEffect, useState, useRef } from "react";
-import { useQuery, useMutation } from "convex/react";
-import { api } from "../../convex/_generated/api";
+import { useEffect, useState, useRef, useMemo } from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Heart, MessageCircle, Repeat2, UserPlus, UserMinus, Image as ImageIcon, Video, Loader2, HelpCircle, BookOpen, Lightbulb, CheckCircle2, Tags } from "lucide-react";
+import { Heart, MessageCircle, Repeat2, UserPlus, UserMinus, Image as ImageIcon, Video, Loader2, HelpCircle, BookOpen, Lightbulb, CheckCircle2, Tags, Star } from "lucide-react";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Star } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import { Id } from "../../convex/_generated/dataModel";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useSupabaseQuery } from "@/hooks/useSupabaseQuery";
+import { getPosts, createPost, toggleLike, addComment } from "@/integrations/supabase/posts";
+import { followUser, unfollowUser, getFollowing } from "@/integrations/supabase/follows";
+import { useQueryClient } from "@tanstack/react-query";
 
 const SocialFeedEnhanced = () => {
-  const { user: currentUser, isAuthenticated, role, convexUserId } = useAuth();
+  const { user: currentUser, isAuthenticated, role } = useAuth();
+  const queryClient = useQueryClient();
   const [newPostContent, setNewPostContent] = useState("");
   const [postType, setPostType] = useState("social");
   const [tags, setTags] = useState("");
@@ -28,34 +29,33 @@ const SocialFeedEnhanced = () => {
   const [activeTab, setActiveTab] = useState("all");
   const [followingUsers, setFollowingUsers] = useState<Set<string>>(new Set());
 
-  // Convex Queries
-  const allPosts = useQuery(api.posts.getPosts, { 
-    limit: 50,
-    type: activeTab === "all" ? undefined : activeTab 
-  });
+  // Supabase Queries
+  const { data: posts = [], isLoading: isLoadingPosts } = useSupabaseQuery<any[]>(
+    ["posts", activeTab],
+    () => getPosts()
+  );
 
-  // Mutations
-  const createPostMutation = useMutation(api.posts.createPost);
-  const likePost = useMutation(api.posts.likePost);
-  const unlikePost = useMutation(api.posts.unlikePost);
-  const repostPost = useMutation(api.posts.repostPost);
-  const unrepostPost = useMutation(api.posts.unrepostPost);
-  const addCommentMutation = useMutation(api.posts.addComment);
-  const followMutation = useMutation(api.follows.follow);
-  const unfollowMutation = useMutation(api.follows.unfollow);
-  const generateUploadUrl = useMutation(api.users.generateUploadUrl);
-  const toggleFeatured = useMutation(api.posts.togglePostFeatured);
-  const toggleSolution = useMutation(api.posts.toggleCommentSolution);
+  useEffect(() => {
+    if (currentUser) {
+        getFollowing().then(ids => setFollowingUsers(new Set(ids)));
+    }
+  }, [currentUser]);
 
-  const filteredPosts = allPosts?.filter(post => {
-    if (!searchQuery) return true;
-    const query = searchQuery.toLowerCase();
-    return (
-      post.content?.toLowerCase().includes(query) ||
-      post.profiles?.full_name?.toLowerCase().includes(query) ||
-      post.profiles?.username?.toLowerCase().includes(query)
-    );
-  }) || [];
+  const filteredPosts = useMemo(() => {
+    const postsArray = (posts || []) as any[];
+    return postsArray.filter(post => {
+      // Type filtering (handled by query usually, but doing it here too for safety)
+      if (activeTab !== "all" && post.type !== activeTab) return false;
+      
+      if (!searchQuery) return true;
+      const query = searchQuery.toLowerCase();
+      return (
+        post.content?.toLowerCase().includes(query) ||
+        post.profiles?.full_name?.toLowerCase().includes(query) ||
+        post.profiles?.username?.toLowerCase().includes(query)
+      );
+    });
+  }, [posts, searchQuery, activeTab]);
 
   const handleMediaChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -84,51 +84,30 @@ const SocialFeedEnhanced = () => {
       }
 
       let imageUrl = undefined;
-      let videoUrl = undefined;
-
+      // TODO: Implement Supabase Storage upload
       if (mediaFile) {
-        const postUrl = await generateUploadUrl();
-        const result = await fetch(postUrl, {
-          method: "POST",
-          headers: { "Content-Type": mediaFile.type },
-          body: mediaFile,
-        });
-        const { storageId } = await result.json();
-
-        // In a real app we'd get the URL from the storageId
-        // For now we'll assume the backend provides it or we use storageId
-        imageUrl = storageId; // Using storageId as placeholder for simplicity
+        toast.info("Media upload not fully implemented yet - creating text-only post");
       }
 
-      await createPostMutation({
+      await createPost({
         content: newPostContent,
-        image_url: imageUrl,
-        video_url: videoUrl,
         type: postType,
-        tags: tags.split(",").map(t => t.trim()).filter(t => t !== ""),
+        tags: tags.split(",").map(tag => tag.trim()).filter(Boolean),
+        image_url: imageUrl,
       });
 
       toast.success("Post created!");
       setNewPostContent("");
-      setPostType("social");
-      setTags("");
       setMediaFile(null);
       setMediaPreview("");
+      setTags("");
+      queryClient.invalidateQueries({ queryKey: ["posts"] });
     } catch (error: any) {
       toast.error(error.message);
     }
   };
 
-  const handleToggleSolution = async (commentId: Id<"post_comments">, isSolution: boolean) => {
-    try {
-      await toggleSolution({ commentId, isSolution });
-      toast.success(isSolution ? "Solution marked!" : "Solution removed");
-    } catch (e: any) {
-      toast.error(e.message);
-    }
-  };
-
-  const handleFollowToggle = async (targetUserId: Id<"users">, isCurrentlyFollowing: boolean) => {
+  const handleFollowToggle = async (targetUserId: string, isCurrentlyFollowing: boolean) => {
     try {
       if (!isAuthenticated) {
         toast.error("Please login to follow");
@@ -136,7 +115,7 @@ const SocialFeedEnhanced = () => {
       }
 
       if (isCurrentlyFollowing) {
-        await unfollowMutation({ followingId: targetUserId });
+        await unfollowUser(targetUserId);
         setFollowingUsers(prev => {
           const next = new Set(prev);
           next.delete(targetUserId);
@@ -144,8 +123,12 @@ const SocialFeedEnhanced = () => {
         });
         toast.success("Unfollowed!");
       } else {
-        await followMutation({ followingId: targetUserId });
-        setFollowingUsers(prev => new Set(prev).add(targetUserId));
+        await followUser(targetUserId);
+        setFollowingUsers(prev => {
+          const next = new Set(prev);
+          next.add(targetUserId);
+          return next;
+        });
         toast.success("Following!");
       }
     } catch (error: any) {
@@ -153,57 +136,43 @@ const SocialFeedEnhanced = () => {
     }
   };
 
-  const handleLikeToggle = async (postId: Id<"posts">, isLiked: boolean) => {
+  const handleLikeToggle = async (postId: string, isLiked: boolean) => {
     try {
       if (!isAuthenticated) return;
-      if (isLiked) {
-        await unlikePost({ postId });
-      } else {
-        await likePost({ postId });
-      }
+      await toggleLike(postId);
+      queryClient.invalidateQueries({ queryKey: ["posts"] });
     } catch (error: any) {
       toast.error(error.message);
     }
   };
 
-  const handleRepostToggle = async (postId: Id<"posts">, isReposted: boolean) => {
-    try {
-      if (!isAuthenticated) return;
-      if (isReposted) {
-        await unrepostPost({ postId });
-        toast.success("Repost removed!");
-      } else {
-        await repostPost({ postId });
-        toast.success("Reposted!");
-      }
-    } catch (error: any) {
-      toast.error(error.message);
-    }
+  const handleRepostToggle = async (postId: string, isReposted: boolean) => {
+    toast.info("Reposting not implemented in Supabase yet");
   };
 
-  const handleAddComment = async (postId: Id<"posts">) => {
-    const content = commentInputs[postId as string];
+  const handleAddComment = async (postId: string) => {
+    const content = commentInputs[postId];
     if (!content?.trim()) return;
 
     try {
       if (!isAuthenticated) return;
-      await addCommentMutation({ postId, content });
-      setCommentInputs({ ...commentInputs, [postId as string]: "" });
+      await addComment(postId, content);
+      setCommentInputs({ ...commentInputs, [postId]: "" });
+      queryClient.invalidateQueries({ queryKey: ["posts"] });
     } catch (error: any) {
       toast.error(error.message);
     }
   };
 
-  const handleToggleFeatured = async (postId: Id<"posts">, isFeatured: boolean) => {
-    try {
-      await toggleFeatured({ postId, isFeatured: !isFeatured });
-      toast.success(isFeatured ? "Removed from Farmer Stories" : "Added to Farmer Stories!");
-    } catch (error: any) {
-      toast.error(error.message);
-    }
+  const handleToggleFeatured = async (postId: string, isFeatured: boolean) => {
+    toast.info("Featured status management moving to Admin Dashboard with Supabase");
   };
 
-  if (allPosts === undefined) {
+  const handleToggleSolution = async (commentId: string, isSolution: boolean) => {
+     toast.info("Solution marking coming soon with Supabase Edge Functions");
+  };
+
+  if (isLoadingPosts) {
     return (
       <div className="flex justify-center py-12">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -344,14 +313,14 @@ const SocialFeedEnhanced = () => {
         )}
 
         <div className="space-y-8 mt-12">
-          {(!allPosts || allPosts.length === 0) ? (
+          {(!filteredPosts || filteredPosts.length === 0) ? (
             <div className="text-center py-20 bg-card/20 rounded-3xl border border-dashed border-primary/20">
               <h3 className="text-2xl font-bold text-muted-foreground">The fields are quiet...</h3>
               <p className="text-muted-foreground mt-2">Start a conversation to see it here!</p>
             </div>
           ) : (
-            allPosts.map((post: any) => (
-              <Card key={post._id} className="border-primary/5 hover:border-primary/20 transition-all duration-500 shadow-sm hover:shadow-2xl group overflow-hidden bg-card/40 backdrop-blur-md rounded-3xl border-l-4 border-l-transparent hover:border-l-primary/40">
+            filteredPosts.map((post: any) => (
+              <Card key={post.id} className="border-primary/5 hover:border-primary/20 transition-all duration-500 shadow-sm hover:shadow-2xl group overflow-hidden bg-card/40 backdrop-blur-md rounded-3xl border-l-4 border-l-transparent hover:border-l-primary/40">
                 <CardHeader className="pb-3 px-8 pt-8 relative">
                   <div className="flex justify-between items-start">
                     <div className="flex gap-4">
@@ -388,14 +357,14 @@ const SocialFeedEnhanced = () => {
                         </CardDescription>
                       </div>
                     </div>
-                    {isAuthenticated && post.userId !== convexUserId && (
+                    {isAuthenticated && post.user_id !== currentUser?.id && (
                       <Button
                         variant="ghost"
                         size="sm"
                         className="h-10 text-primary hover:bg-primary/10 rounded-xl font-bold border border-primary/10 hover:border-primary/30 transition-all shadow-sm"
-                        onClick={() => handleFollowToggle(post.userId, followingUsers.has(post.userId))}
+                        onClick={() => handleFollowToggle(post.user_id, followingUsers.has(post.user_id))}
                       >
-                        {followingUsers.has(post.userId) ? (
+                        {followingUsers.has(post.user_id) ? (
                           <>
                             <UserMinus className="h-4 w-4 mr-2 text-red-500" /> Unfollow
                           </>
@@ -446,10 +415,10 @@ const SocialFeedEnhanced = () => {
                       <Button
                         variant="ghost"
                         size="sm"
-                        className={`h-11 hover:bg-red-50 hover:text-red-500 transition-all rounded-xl px-5 ${post.isLiked ? "text-red-500 bg-red-50/80 shadow-sm" : "text-muted-foreground/60"}`}
-                        onClick={() => handleLikeToggle(post._id, post.isLiked)}
+                        className={`h-11 hover:bg-red-50 hover:text-red-500 transition-all rounded-xl px-5 ${post.is_liked ? "text-red-500 bg-red-50/80 shadow-sm" : "text-muted-foreground/60"}`}
+                        onClick={() => handleLikeToggle(post.id, post.is_liked)}
                       >
-                        <Heart className={`h-5 w-5 mr-2 ${post.isLiked ? "fill-current scale-125" : "group-hover:scale-110"} transition-all duration-300`} />
+                        <Heart className={`h-5 w-5 mr-2 ${post.is_liked ? "fill-current scale-125" : "group-hover:scale-110"} transition-all duration-300`} />
                         <span className="font-bold text-base">{post.post_likes?.length || 0}</span>
                       </Button>
                       <Button variant="ghost" size="sm" className="h-11 hover:bg-blue-50 text-muted-foreground/60 hover:text-blue-500 transition-all rounded-xl px-5">
@@ -459,8 +428,8 @@ const SocialFeedEnhanced = () => {
                       <Button
                         variant="ghost"
                         size="sm"
-                        className={`h-11 hover:bg-green-50 hover:text-green-500 transition-all rounded-xl px-5 ${post.isReposted ? "text-green-500 bg-green-50/80 shadow-sm" : "text-muted-foreground/60"}`}
-                        onClick={() => handleRepostToggle(post._id, post.isReposted)}
+                        className={`h-11 hover:bg-green-50 hover:text-green-500 transition-all rounded-xl px-5 ${post.is_reposted ? "text-green-500 bg-green-50/80 shadow-sm" : "text-muted-foreground/60"}`}
+                        onClick={() => handleRepostToggle(post.id, post.is_reposted)}
                       >
                         <Repeat2 className="h-5 w-5 mr-2" />
                         <span className="font-bold text-base">{post.post_reposts?.length || 0}</span>
@@ -471,7 +440,7 @@ const SocialFeedEnhanced = () => {
                         variant="ghost"
                         size="sm"
                         className={`h-11 ${post.is_featured ? "text-amber-500 bg-amber-50" : "text-muted-foreground/60"} hover:text-amber-600 hover:bg-amber-100 transition-all rounded-xl px-5`}
-                        onClick={() => handleToggleFeatured(post._id, !!post.is_featured)}
+                        onClick={() => handleToggleFeatured(post.id, !!post.is_featured)}
                       >
                         <Star className={`h-5 w-5 mr-2 ${post.is_featured ? "fill-current" : ""}`} />
                         <span className="font-bold">{post.is_featured ? "Featured" : "Boost"}</span>
@@ -511,7 +480,7 @@ const SocialFeedEnhanced = () => {
                               <p className="text-[15px] text-foreground/80 leading-relaxed font-medium">{comment.content}</p>
                               
                               {/* Solution Action for Authors */}
-                              {isAuthenticated && convexUserId === post.userId && post.type === "question" && (
+                              {isAuthenticated && currentUser?.id === post.user_id && post.type === "question" && (
                                 <div className="mt-4 pt-3 border-t border-primary/5">
                                   <Button
                                     variant="ghost"
@@ -523,7 +492,7 @@ const SocialFeedEnhanced = () => {
                                         : "text-emerald-600 bg-emerald-50 hover:bg-emerald-100"
                                       }
                                     `}
-                                    onClick={() => handleToggleSolution(comment._id, !comment.is_solution)}
+                                    onClick={() => handleToggleSolution(comment.id, !comment.is_solution)}
                                   >
                                     {comment.is_solution ? "Remove Solution" : "Accept as Solution"}
                                   </Button>
@@ -539,14 +508,14 @@ const SocialFeedEnhanced = () => {
                       <div className="flex gap-4 items-center group/input mt-4">
                         <Input
                           placeholder={post.type === "question" ? "Share your answer or expertise..." : "Join the conversation..."}
-                          value={commentInputs[post._id as string] || ""}
-                          onChange={(e) => setCommentInputs({ ...commentInputs, [post._id as string]: e.target.value })}
+                          value={commentInputs[post.id] || ""}
+                          onChange={(e) => setCommentInputs({ ...commentInputs, [post.id]: e.target.value })}
                           className="flex-1 bg-muted/60 border-2 border-transparent h-14 rounded-2xl px-6 text-base focus-visible:ring-primary/40 focus-visible:border-primary/20 transition-all group-hover/input:bg-muted/80 shadow-inner"
                         />
                         <Button
                           size="icon"
                           className="h-14 w-14 rounded-2xl bg-primary hover:bg-primary/90 shadow-2xl shadow-primary/20 transition-all hover:scale-110 active:scale-90"
-                          onClick={() => handleAddComment(post._id)}
+                          onClick={() => handleAddComment(post.id)}
                         >
                           <BookOpen className="h-6 w-6 rotate-90 transform" />
                         </Button>

@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 import type { ChangeEvent, DragEvent, FormEvent } from "react";
-import { useQuery, useMutation, useAction } from "convex/react";
-import { api } from "../../convex/_generated/api";
-import { Doc, Id } from "../../convex/_generated/dataModel";
+import { useSupabaseQuery } from "@/hooks/useSupabaseQuery";
+import { supabase } from "@/integrations/supabase/client";
+import { getUserProfile } from "@/integrations/supabase/profiles";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,8 +17,7 @@ import { toast } from "sonner";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import { useIdentityBridge } from "@/contexts/IdentityBridge";
-import { getMyProducts, createProduct, updateProduct, deleteProduct } from "@/integrations/supabase/products";
+import { getMyProducts, createProduct, updateProduct, deleteProduct, predictPrice } from "@/integrations/supabase/products";
 import VerificationRequestDialog from "./VerificationRequestDialog";
 import BulkInventoryManager from "./BulkInventoryManager";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -30,8 +29,7 @@ type PricePrediction = {
 
 const MyProducts = () => {
   const navigate = useNavigate();
-  const { isAuthenticated } = useAuth();
-  const { convexUserId } = useIdentityBridge();
+  const { user } = useAuth();
 
   // Supabase products
   const [products, setProducts] = useState<any[]>([]);
@@ -55,17 +53,14 @@ const MyProducts = () => {
 
   const isSupabaseOnly = import.meta.env.MODE === "supabase-only";
 
-  // Convex Data (keep for settings/verification for now)
-  const profile = useQuery(api.users.getProfile, !isSupabaseOnly ? {} : "skip");
-  const settings = useQuery(api.users.getSettings, !isSupabaseOnly ? {} : "skip");
+  // Supabase Data
+  const { data: profile } = useSupabaseQuery<any>(
+    ["profile", user?.id],
+    () => getUserProfile(user?.id as string),
+    { enabled: !!user?.id }
+  );
 
-  // Use convexUserId for verification checks instead of profile.userId
-  const isVerified = (profile as any)?.verified || false;
-
-  // Convex Mutations (keep for verification for now)
-  const generateUploadUrl = useMutation(api.products.generateUploadUrl);
-  const predictPriceAction = useAction(api.products.predictPrice);
-  const requestVerificationMutation = useMutation(api.verification.createVerificationRequest);
+  const isVerified = profile?.verified || false;
 
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<any | null>(null);
@@ -97,26 +92,41 @@ const MyProducts = () => {
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [isDragActive, setIsDragActive] = useState(false);
 
-  const aiAssistantEnabled = settings?.ai_assistant_enabled ?? true;
-  // schema for user_settings didn't have enable_ai_assistant, but `email_notifications` etc.
-  // I'll assume true or check schema.
+  const [aiAssistantEnabled, setAiAssistantEnabled] = useState(true);
+
+  useEffect(() => {
+    const stored = localStorage.getItem("user_settings");
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored);
+        setAiAssistantEnabled(parsed.ai_assistant_enabled ?? true);
+      } catch (e) {
+        // use default
+      }
+    }
+  }, []);
 
   const steps = ["Details", "Pricing", "Media & Review"];
 
   const handleUploadMedia = async (file: File) => {
-    try {
-      const postUrl = await generateUploadUrl();
-      const result = await fetch(postUrl, {
-        method: "POST",
-        headers: { "Content-Type": file.type },
-        body: file,
-      });
-      const { storageId } = await result.json();
-      return storageId;
-    } catch (error) {
-      console.error("Upload failed", error);
-      throw error;
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${Math.random().toString(36).substring(2, 15)}_${Date.now()}.${fileExt}`;
+    const filePath = `products/${fileName}`;
+
+    const { error: uploadError } = await supabase.storage
+       .from("product_images")
+       .upload(filePath, file);
+
+    if (uploadError) {
+       console.error("Upload failed", uploadError);
+       throw uploadError;
     }
+
+    const { data: { publicUrl } } = supabase.storage
+        .from("product_images")
+        .getPublicUrl(filePath);
+
+    return publicUrl;
   };
 
   const handleSubmit = async (e?: FormEvent) => {
@@ -132,7 +142,16 @@ const MyProducts = () => {
 
     setIsUploading(true);
     let imageUrl = formData.image_url;
-    // TODO: migrate image upload to Supabase Storage; for now keep Convex storage
+    
+    if (mediaFile) {
+        try {
+            imageUrl = await handleUploadMedia(mediaFile);
+        } catch (error: any) {
+            toast.error("Failed to upload image.");
+            setIsUploading(false);
+            return;
+        }
+    }
 
     try {
       const productData = {
@@ -200,7 +219,7 @@ const MyProducts = () => {
     try {
       setIsLoadingPrediction(true);
 
-      const prediction = await predictPriceAction({
+      const prediction = await predictPrice({
         category: formData.category,
         location: formData.location
       });

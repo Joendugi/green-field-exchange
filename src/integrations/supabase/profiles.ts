@@ -95,7 +95,7 @@ export async function ensureMyRole(role: string): Promise<void> {
 
 export async function updateMyProfile(changes: Partial<Pick<
   ProfileRow,
-  "username" | "full_name" | "avatar_url" | "bio" | "location" | "website"
+  "username" | "full_name" | "avatar_url" | "bio" | "location" | "website" | "onboarded"
 >>): Promise<ProfileRow> {
   const userId = await getCurrentUserId();
   if (!userId) throw new Error("Not authenticated");
@@ -132,4 +132,27 @@ export async function getMyRole(): Promise<string | null> {
   if (roles.includes("farmer")) return "farmer";
   if (roles.length > 0) return roles[0];
   return null;
+}
+
+export async function getUserProfile(userId: string): Promise<ProfileRow | null> {
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("*")
+    .eq("id", userId)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data ? enrichProfile(data) : null;
+}
+
+export async function getRole(userId: string): Promise<{role: string}> {
+  const { data, error } = await supabase
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", userId)
+    .limit(1)
+    .maybeSingle();
+
+  if (error || !data) return { role: "farmer" }; // Default fallback
+  return data as { role: string };
 }

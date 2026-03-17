@@ -1,6 +1,8 @@
 import { useState } from "react";
-import { useQuery, useMutation } from "convex/react";
-import { api } from "../../convex/_generated/api";
+import { useSupabaseQuery } from "@/hooks/useSupabaseQuery";
+import { getMyNotifications, markNotificationRead } from "@/integrations/supabase/notifications";
+import { getCounts } from "@/integrations/supabase/follows";
+import { useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,13 +33,24 @@ import { requestMyVerification, updateMyProfile } from "@/integrations/supabase/
 const Profile = () => {
   const { user: profile, role } = useAuth();
 
-  // Queries
-  const notifications = useQuery(api.notifications.list) || [];
-  const followerCount = useQuery(api.users.getFollowersCount, {}); // Defaults to auth user
-  const navigate = useNavigate();
+  // Queries & Mutations
+  const queryClient = useQueryClient();
+  
+  const { data: notificationsData } = useSupabaseQuery<any>(
+    ["notifications"],
+    () => getMyNotifications(),
+    { enabled: !!profile }
+  );
+  const notifications: any[] = (notificationsData as any[]) || [];
 
-  // Mutations
-  const markRead = useMutation(api.notifications.markRead);
+  const { data: countsData } = useSupabaseQuery<any>(
+    ["follows_count", profile?.id],
+    () => getCounts(profile?.id as string),
+    { enabled: !!profile?.id }
+  );
+  const followerCount = (countsData as any)?.followers ?? 0;
+
+  const navigate = useNavigate();
 
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({
@@ -91,9 +104,10 @@ const Profile = () => {
     }
   };
 
-  const handleMarkRead = async (id: Id<"notifications">) => {
+  const handleMarkRead = async (id: string) => {
     try {
-      await markRead({ notificationId: id });
+      await markNotificationRead(id);
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
     } catch (e) {
       console.error(e);
     }
@@ -404,18 +418,18 @@ const Profile = () => {
           ) : (
             <div className="space-y-3">
               {notifications.slice(0, 5).map((notif, idx) => (
-                <div key={notif._id}>
+                <div key={notif.id}>
                   <div
-                    className={`flex items-start gap-3 p-3 rounded-lg transition-colors ${!notif.is_read ? "bg-primary/5" : "hover:bg-muted/50"
+                    className={`flex items-start gap-3 p-3 rounded-lg transition-colors ${!notif.is_read ? "bg-primary/5 cursor-pointer" : "hover:bg-muted/50"
                       }`}
-                    onClick={() => !notif.is_read && handleMarkRead(notif._id)}
+                    onClick={() => !notif.is_read && handleMarkRead(notif.id)}
                   >
-                    <div className={`w-2 h-2 rounded-full mt-2 ${!notif.is_read ? "bg-primary" : "bg-muted"}`} />
+                    <div className={`w-2 h-2 rounded-full mt-2 flex-shrink-0 ${!notif.is_read ? "bg-primary" : "bg-muted"}`} />
                     <div className="flex-1 min-w-0">
                       <p className="font-medium text-sm">{notif.title}</p>
                       <p className="text-sm text-muted-foreground truncate">{notif.message}</p>
                       <p className="text-xs text-muted-foreground mt-1">
-                        {new Date(notif._creationTime).toLocaleString()}
+                        {new Date(notif.created_at).toLocaleString()}
                       </p>
                     </div>
                   </div>

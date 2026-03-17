@@ -1,6 +1,4 @@
 import { useState, useEffect } from "react";
-import { useMutation } from "convex/react";
-import { api } from "../../convex/_generated/api";
 import {
   Dialog,
   DialogContent,
@@ -23,8 +21,7 @@ interface OnboardingProps {
 const STEP_STORAGE_KEY = "onboarding:step";
 
 const Onboarding = ({ open, onComplete, onDismiss }: OnboardingProps) => {
-  const { user: currentUser, role, convexUserId } = useAuth();
-  const updateProfile = useMutation(api.users.updateProfile);
+  const { user: currentUser, role, refreshProfile } = useAuth();
 
   const commonStart = [
     {
@@ -94,9 +91,11 @@ const Onboarding = ({ open, onComplete, onDismiss }: OnboardingProps) => {
   const handleComplete = async () => {
     try {
       if (currentUser) {
-        await updateProfile({ onboarding_completed: true });
+        const { updateMyProfile } = await import("@/integrations/supabase/profiles");
+        await updateMyProfile({ onboarded: true });
+        await refreshProfile();
         // Mark in local storage as well for instant feedback
-        localStorage.setItem(`onboarding_completed_${convexUserId}`, "true");
+        localStorage.setItem(`onboarding_completed_${currentUser.id}`, "true");
       }
 
       onComplete();

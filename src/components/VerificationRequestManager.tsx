@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { useQuery, useMutation } from "convex/react";
-import { api } from "../../convex/_generated/api";
-import { Id } from "../../convex/_generated/dataModel";
+import { useSupabaseQuery } from "@/hooks/useSupabaseQuery";
+import { getAllVerificationRequests, updateVerificationRequest, logAdminAction } from "@/integrations/supabase/admin";
+import { useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -13,27 +13,35 @@ import { CheckCircle, XCircle, Eye, MessageSquare, Calendar, User, MapPin, Shiel
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 
 const VerificationRequestManager = () => {
-  const verificationRequests = useQuery(api.admin.listVerificationRequests) || [];
-  const handleVerification = useMutation(api.admin.handleVerification);
+  const { data: verificationRequestsData } = useSupabaseQuery<any>(
+    ["verificationRequests"],
+    () => getAllVerificationRequests()
+  );
+  
+  const verificationRequests: any[] = verificationRequestsData || [];
+  const queryClient = useQueryClient();
 
   const [selectedRequest, setSelectedRequest] = useState<any>(null);
   const [notesDialogOpen, setNotesDialogOpen] = useState(false);
   const [notes, setNotes] = useState("");
   const [action, setAction] = useState<"approve" | "reject">("approve");
 
-  const logView = useMutation(api.admin.logDocumentView);
-
-  const handleLogView = (requestId: Id<"verification_requests">) => {
-    logView({ requestId }).catch(console.error);
+  const handleLogView = async (requestId: string) => {
+    try {
+        await logAdminAction("view_document", "verification", requestId);
+    } catch (e) {
+        console.error(e);
+    }
   };
 
-  const processVerification = async (requestId: Id<"verification_requests">, userId: Id<"users">, approve: boolean) => {
+  const processVerification = async (requestId: string, userId: string, approve: boolean) => {
     try {
-      await handleVerification({ requestId, approve, notes: notes.trim() || undefined });
+      await updateVerificationRequest(requestId, userId, approve ? "approved" : "rejected", notes.trim() || undefined);
       toast.success(approve ? "Verification request approved" : "Verification request rejected");
       setNotesDialogOpen(false);
       setNotes("");
       setSelectedRequest(null);
+      queryClient.invalidateQueries({ queryKey: ["verificationRequests"] });
     } catch (error: any) {
       toast.error(error.message);
     }
@@ -82,7 +90,7 @@ const VerificationRequestManager = () => {
           </CardHeader>
           <CardContent className="space-y-4">
             {pendingRequests.map((request: any) => (
-              <div key={request._id} className="border rounded-lg p-4 bg-yellow-50 border-yellow-200">
+              <div key={request.id} className="border rounded-lg p-4 bg-yellow-50 border-yellow-200">
                 <div className="flex justify-between items-start mb-3">
                   <div>
                     <h3 className="font-semibold text-lg">{request.profiles?.full_name || "Unknown User"}</h3>
@@ -91,7 +99,7 @@ const VerificationRequestManager = () => {
                   <div className="flex items-center gap-2">
                     {getStatusBadge(request.status)}
                     <span className="text-xs text-muted-foreground">
-                      {new Date(request._creationTime).toLocaleDateString()}
+                      {new Date(request.created_at).toLocaleDateString()}
                     </span>
                   </div>
                 </div>
@@ -101,7 +109,7 @@ const VerificationRequestManager = () => {
                     <div className="flex items-center gap-2 text-sm">
                       <User className="h-4 w-4 text-muted-foreground" />
                       <span className="font-medium">User ID:</span>
-                      <code className="bg-muted px-2 py-1 rounded text-xs">{request.userId}</code>
+                      <code className="bg-muted px-2 py-1 rounded text-xs">{request.user_id}</code>
                     </div>
                     {request.profiles?.location && (
                       <div className="flex items-center gap-2 text-sm">
@@ -115,7 +123,7 @@ const VerificationRequestManager = () => {
                     <div className="flex items-center gap-2 text-sm">
                       <Calendar className="h-4 w-4 text-muted-foreground" />
                       <span className="font-medium">Requested:</span>
-                      <span>{new Date(request._creationTime).toLocaleString()}</span>
+                      <span>{new Date(request.created_at).toLocaleString()}</span>
                     </div>
                     <div className="flex items-center gap-2 text-sm">
                       <Shield className="h-4 w-4 text-muted-foreground" />
@@ -129,7 +137,7 @@ const VerificationRequestManager = () => {
                   <div className="mb-4">
                     <Label className="text-sm font-medium mb-2 block">Supporting Documents</Label>
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-                      {request.documentUrls?.map((url: string, idx: number) => {
+                      {request.documents?.map((url: string, idx: number) => {
                         const isImage = url.match(/\.(jpg|jpeg|png|webp|gif|svg)$|storage/i);
                         return (
                           <div key={idx} className="group relative rounded-lg border bg-card overflow-hidden transition-all hover:ring-2 hover:ring-primary">
@@ -143,7 +151,7 @@ const VerificationRequestManager = () => {
                               )}
                             </AspectRatio>
                             <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-                              <Button size="icon" variant="ghost" className="text-white" asChild onClick={() => handleLogView(request._id)}>
+                              <Button size="icon" variant="ghost" className="text-white" asChild onClick={() => handleLogView(request.id)}>
                                 <a href={url} target="_blank" rel="noopener noreferrer">
                                   <ExternalLink className="h-4 w-4" />
                                 </a>
@@ -161,7 +169,7 @@ const VerificationRequestManager = () => {
                 ) : null}
 
                 <div className="flex gap-2">
-                  <Dialog open={notesDialogOpen && selectedRequest?._id === request._id} onOpenChange={(open) => {
+                  <Dialog open={notesDialogOpen && selectedRequest?.id === request.id} onOpenChange={(open) => {
                     setNotesDialogOpen(open);
                     if (!open) {
                       setSelectedRequest(null);
@@ -175,7 +183,7 @@ const VerificationRequestManager = () => {
                         onClick={() => {
                           setSelectedRequest(request);
                           setAction("approve");
-                          handleLogView(request._id);
+                          handleLogView(request.id);
                         }}
                         className="bg-green-600 hover:bg-green-700"
                       >
@@ -207,7 +215,7 @@ const VerificationRequestManager = () => {
                         </Button>
                         <Button
                           className="bg-green-600 hover:bg-green-700"
-                          onClick={() => processVerification(request._id, request.userId, true)}
+                          onClick={() => processVerification(request.id, request.user_id, true)}
                         >
                           Approve Verification
                         </Button>
@@ -215,7 +223,7 @@ const VerificationRequestManager = () => {
                     </DialogContent>
                   </Dialog>
 
-                  <Dialog open={notesDialogOpen && selectedRequest?._id === request._id} onOpenChange={(open) => {
+                  <Dialog open={notesDialogOpen && selectedRequest?.id === request.id} onOpenChange={(open) => {
                     setNotesDialogOpen(open);
                     if (!open) {
                       setSelectedRequest(null);
@@ -230,7 +238,7 @@ const VerificationRequestManager = () => {
                         onClick={() => {
                           setSelectedRequest(request);
                           setAction("reject");
-                          handleLogView(request._id);
+                          handleLogView(request.id);
                         }}
                       >
                         <XCircle className="h-4 w-4 mr-1" />
@@ -262,7 +270,7 @@ const VerificationRequestManager = () => {
                         </Button>
                         <Button
                           variant="destructive"
-                          onClick={() => processVerification(request._id, request.userId, false)}
+                          onClick={() => processVerification(request.id, request.user_id, false)}
                           disabled={!notes.trim()}
                         >
                           Reject Verification
@@ -277,7 +285,7 @@ const VerificationRequestManager = () => {
                     onClick={() => {
                       setSelectedRequest(request);
                       setNotesDialogOpen(true);
-                      handleLogView(request._id);
+                      handleLogView(request.id);
                     }}
                   >
                     <Eye className="h-4 w-4 mr-1" />
@@ -304,7 +312,7 @@ const VerificationRequestManager = () => {
           </CardHeader>
           <CardContent className="space-y-4">
             {processedRequests.map((request: any) => (
-              <div key={request._id} className="border rounded-lg p-4">
+              <div key={request.id} className="border rounded-lg p-4">
                 <div className="flex justify-between items-start mb-2">
                   <div>
                     <h3 className="font-semibold">{request.profiles?.full_name || "Unknown User"}</h3>
@@ -313,7 +321,7 @@ const VerificationRequestManager = () => {
                   <div className="flex items-center gap-2">
                     {getStatusBadge(request.status)}
                     <span className="text-xs text-muted-foreground">
-                      {new Date(request.updated_at || request._creationTime).toLocaleDateString()}
+                      {new Date(request.updated_at || request.created_at).toLocaleDateString()}
                     </span>
                   </div>
                 </div>

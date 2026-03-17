@@ -9,48 +9,68 @@ export type NotificationRow = {
   link?: string;
   metadata?: any;
   created_at: string;
+  user_id: string;
 };
-
-export async function getCurrentUserId(): Promise<string | null> {
-  const { data, error } = await supabase.auth.getUser();
-  if (error) throw error;
-  return data.user?.id ?? null;
-}
 
 // Notifications
 export async function getMyNotifications(unreadOnly = false, limit = 50): Promise<NotificationRow[]> {
-  const { data, error } = await supabase.rpc("get_my_notifications", {
-    p_unread_only: unreadOnly,
-    p_limit: limit,
-  });
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  if (authError || !user) throw new Error("Not authenticated");
 
+  let query = supabase
+    .from("notifications")
+    .select("*")
+    .eq("user_id", user.id)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  if (unreadOnly) {
+    query = query.eq("is_read", false);
+  }
+
+  const { data, error } = await query;
   if (error) throw error;
   return (data as NotificationRow[]) ?? [];
 }
 
 export async function getUnreadNotificationCount(): Promise<number> {
-  const { data, error } = await supabase.rpc("get_unread_notification_count");
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  if (authError || !user) return 0;
+
+  const { count, error } = await supabase
+    .from("notifications")
+    .select("*", { count: 'exact', head: true })
+    .eq("user_id", user.id)
+    .eq("is_read", false);
 
   if (error) throw error;
-  return (data as number) ?? 0;
+  return count ?? 0;
 }
 
 export async function markNotificationRead(notificationId: string): Promise<void> {
-  const { error } = await supabase.rpc("mark_notification_read", {
-    p_notification_id: notificationId,
-  });
+  const { error } = await supabase
+    .from("notifications")
+    .update({ is_read: true })
+    .eq("id", notificationId);
 
   if (error) throw error;
 }
 
 export async function markAllNotificationsRead(): Promise<number> {
-  const { data, error } = await supabase.rpc("mark_all_notifications_read");
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  if (authError || !user) return 0;
+
+  const { data, error } = await supabase
+    .from("notifications")
+    .update({ is_read: true })
+    .eq("user_id", user.id)
+    .eq("is_read", false)
+    .select("id");
 
   if (error) throw error;
-  return (data as number) ?? 0;
+  return data?.length ?? 0;
 }
 
-// Service role functions (for backend use only)
 export async function createNotification(
   userId: string,
   title: string,
@@ -59,32 +79,20 @@ export async function createNotification(
   link?: string,
   metadata?: any
 ): Promise<string> {
-  const { data, error } = await supabase.rpc("create_notification", {
-    p_user_id: userId,
-    p_title: title,
-    p_message: message,
-    p_type: type ?? null,
-    p_link: link ?? null,
-    p_metadata: metadata ?? null,
-  });
+  const { data, error } = await supabase
+    .from("notifications")
+    .insert({
+      user_id: userId,
+      title,
+      message,
+      type: type ?? null,
+      link: link ?? null,
+      metadata: metadata ?? null,
+      is_read: false
+    })
+    .select("id")
+    .single();
 
   if (error) throw error;
-  return data as string;
-}
-
-// Real-time subscription
-export function subscribeToNotifications(callback: (payload: any) => void) {
-  return supabase
-    .channel('notifications')
-    .on(
-      'postgres_changes',
-      {
-        event: '*',
-        schema: 'public',
-        table: 'notifications',
-        filter: `user_id=eq.${supabase.auth.getUser().then(({ data }) => data.user?.id)}`
-      },
-      callback
-    )
-    .subscribe();
+  return data.id as string;
 }

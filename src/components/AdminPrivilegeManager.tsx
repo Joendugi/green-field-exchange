@@ -1,8 +1,5 @@
 import { useState } from "react";
-import { useQuery, useMutation } from "convex/react";
-import { api } from "../../convex/_generated/api";
-import { Id } from "../../convex/_generated/dataModel";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,11 +8,14 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { Search, UserPlus, Shield, Crown, AlertTriangle, CheckCircle, XCircle } from "lucide-react";
+import { useSupabaseQuery } from "@/hooks/useSupabaseQuery";
+import { useQueryClient } from "@tanstack/react-query";
+import { listUsers, updateRole, banUser } from "@/integrations/supabase/admin";
 
 const AdminPrivilegeManager = () => {
-  const users = useQuery(api.admin.listUsers) || [];
-  const updateRole = useMutation(api.admin.updateRole);
-  const banUser = useMutation(api.admin.banUser);
+  const queryClient = useQueryClient();
+  const { data: usersData } = useSupabaseQuery<any[]>(["admin", "users"], listUsers);
+  const users = usersData || [];
 
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedUser, setSelectedUser] = useState<any>(null);
@@ -30,19 +30,21 @@ const AdminPrivilegeManager = () => {
     user.email?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const handleRoleChange = async (userId: Id<"users">, role: string) => {
+  const handleRoleChange = async (userId: string, role: string) => {
     try {
-      await updateRole({ userId, role });
+      await updateRole(userId, role);
       toast.success(`Role updated to ${role} successfully`);
+      queryClient.invalidateQueries({ queryKey: ["admin", "users"] });
     } catch (error: any) {
       toast.error(error.message);
     }
   };
 
-  const handleBanUser = async (userId: Id<"users">, ban: boolean) => {
+  const handleBanUser = async (userId: string, ban: boolean) => {
     try {
-      await banUser({ userId, ban, reason: banReason });
+      await banUser(userId, ban, banReason);
       toast.success(ban ? "User banned successfully" : "User unbanned successfully");
+      queryClient.invalidateQueries({ queryKey: ["admin", "users"] });
       setBanDialogOpen(false);
       setBanReason("");
       setSelectedUser(null);
@@ -112,7 +114,7 @@ const AdminPrivilegeManager = () => {
           const isBanned = user.is_banned;
 
           return (
-            <Card key={user._id} className={`${isBanned ? "bg-red-50 border-red-200" : ""}`}>
+            <Card key={user.id} className={`${isBanned ? "bg-red-50 border-red-200" : ""}`}>
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
                   <div className="flex-1">
@@ -136,7 +138,7 @@ const AdminPrivilegeManager = () => {
                     <div className="text-sm text-muted-foreground space-y-1">
                       <p>Email: {user.email || "No email"}</p>
                       <p>Location: {user.location || "No location"}</p>
-                      <p>Joined: {new Date(user._creationTime).toLocaleDateString()}</p>
+                      <p>Joined: {new Date(user.created_at).toLocaleDateString()}</p>
                       {isBanned && user.ban_reason && (
                         <p className="text-red-600">Ban reason: {user.ban_reason}</p>
                       )}
@@ -146,7 +148,7 @@ const AdminPrivilegeManager = () => {
                   <div className="flex items-center gap-2">
                     <Select
                       value={currentRole}
-                      onValueChange={(value) => handleRoleChange(user._id, value)}
+                      onValueChange={(value) => handleRoleChange(user.id, value)}
                       disabled={isBanned}
                     >
                       <SelectTrigger className="w-32">
@@ -163,14 +165,14 @@ const AdminPrivilegeManager = () => {
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => handleBanUser(user._id, false)}
+                        onClick={() => handleBanUser(user.id, false)}
                         className="text-green-600 hover:text-green-700"
                       >
                         <CheckCircle className="h-4 w-4 mr-1" />
                         Unban
                       </Button>
                     ) : (
-                      <Dialog open={banDialogOpen && selectedUser?._id === user._id} onOpenChange={(open) => {
+                      <Dialog open={banDialogOpen && selectedUser?.id === user.id} onOpenChange={(open) => {
                         setBanDialogOpen(open);
                         if (!open) {
                           setSelectedUser(null);
@@ -211,7 +213,7 @@ const AdminPrivilegeManager = () => {
                             </Button>
                             <Button
                               variant="destructive"
-                              onClick={() => handleBanUser(user._id, true)}
+                              onClick={() => handleBanUser(user.id, true)}
                               disabled={!banReason.trim()}
                             >
                               Confirm Ban

@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { useMutation } from "convex/react";
-import { api } from "../../convex/_generated/api";
+import { supabase } from "@/integrations/supabase/client";
+import { createVerificationRequest } from "@/integrations/supabase/admin";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -15,8 +15,6 @@ interface VerificationRequestDialogProps {
 }
 
 const VerificationRequestDialog = ({ open, onOpenChange }: VerificationRequestDialogProps) => {
-    const generateUploadUrl = useMutation(api.files.generateUploadUrl);
-    const createRequest = useMutation(api.verification.createVerificationRequest);
 
     const [files, setFiles] = useState<File[]>([]);
     const [isUploading, setIsUploading] = useState(false);
@@ -47,30 +45,44 @@ const VerificationRequestDialog = ({ open, onOpenChange }: VerificationRequestDi
         setUploadProgress(0);
 
         try {
-            const storageIds = [];
+            const documentUrls = [];
             for (let i = 0; i < files.length; i++) {
                 const file = files[i];
+                
+                // Create a unique file name
+                const fileExt = file.name.split('.').pop();
+                const fileName = `${Math.random().toString(36).substring(2, 15)}_${Date.now()}.${fileExt}`;
+                const filePath = `verifications/${fileName}`;
 
-                // 1. Generate upload URL
-                const uploadUrl = await generateUploadUrl();
+                // Upload to Supabase Storage
+                // We assume there's a bucket named `verification_documents` or general `uploads`
+                // Let's use `verification_documents` for this example
+                const { error: uploadError, data } = await supabase.storage
+                    .from("verification_documents")
+                    .upload(filePath, file);
 
-                // 2. Upload file
-                const result = await fetch(uploadUrl, {
-                    method: "POST",
-                    headers: { "Content-Type": file.type },
-                    body: file,
-                });
+                if (uploadError) {
+                    console.error("Upload failed", uploadError);
+                    toast.error(`Failed to upload ${file.name}`);
+                    continue; // Skip failed uploads but continue with others
+                }
 
-                if (!result.ok) throw new Error(`Failed to upload ${file.name}`);
+                // Get public URL
+                const { data: { publicUrl } } = supabase.storage
+                    .from("verification_documents")
+                    .getPublicUrl(filePath);
 
-                const { storageId } = await result.json();
-                storageIds.push(storageId);
+                documentUrls.push(publicUrl);
 
                 setUploadProgress(Math.round(((i + 1) / files.length) * 100));
             }
 
+            if (documentUrls.length === 0) {
+               throw new Error("No files were successfully uploaded");
+            }
+
             // 3. Create verification request
-            await createRequest({ documents: storageIds });
+            await createVerificationRequest(documentUrls);
 
             toast.success("Verification request submitted successfully!");
             onOpenChange(false);

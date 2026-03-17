@@ -1,6 +1,4 @@
 import { useEffect, useState, useRef } from "react";
-import { useQuery, useMutation } from "convex/react";
-import { api } from "../../convex/_generated/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -10,11 +8,15 @@ import { Send, MessageSquare, Search, Plus, Loader2 } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
-import { Id } from "../../convex/_generated/dataModel";
+import { useSupabaseQuery } from "@/hooks/useSupabaseQuery";
+import { getConversations, getMessages, sendMessage, markAsRead, startConversation, searchUsers } from "@/integrations/supabase/messages";
+import { useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 
 const Messages = () => {
-  const { user: currentUser, isAuthenticated, convexUserId } = useAuth();
-  const [selectedConversationId, setSelectedConversationId] = useState<Id<"conversations"> | null>(null);
+  const { user: currentUser, isAuthenticated } = useAuth();
+  const queryClient = useQueryClient();
+  const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
   const [newMessage, setNewMessage] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [userSearchTerm, setUserSearchTerm] = useState("");
@@ -22,23 +24,58 @@ const Messages = () => {
   const [isNewConvoOpen, setIsNewConvoOpen] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // Convex Queries
-  const conversations = useQuery(api.messages.getConversations);
-  const messages = useQuery(api.messages.getMessages, selectedConversationId ? { conversationId: selectedConversationId } : "skip");
-  const searchResults = useQuery(api.users.searchUsers, { query: userSearchTerm });
+  // Supabase Queries
+  const { data: conversations = [], isLoading: isLoadingConvos } = useSupabaseQuery<any[]>(
+    ["conversations", currentUser?.id || ""],
+    () => getConversations(),
+    { enabled: !!currentUser }
+  );
 
-  // Mutations
-  const sendMessageMutation = useMutation(api.messages.sendMessage);
-  const markAsRead = useMutation(api.messages.markAsRead);
-  const startConversationMutation = useMutation(api.messages.startConversation);
+  const { data: messages = [], isLoading: isLoadingMessages } = useSupabaseQuery<any[]>(
+    ["messages", selectedConversationId || ""],
+    () => getMessages(selectedConversationId!),
+    { enabled: !!selectedConversationId }
+  );
 
-  const selectedConversation = conversations?.find(c => c._id === selectedConversationId);
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (userSearchTerm) {
+        searchUsers(userSearchTerm).then(setSearchResults);
+    } else {
+        setSearchResults([]);
+    }
+  }, [userSearchTerm]);
+
+  const selectedConversation = conversations?.find(c => c.id === selectedConversationId);
 
   useEffect(() => {
     if (selectedConversationId) {
-      markAsRead({ conversationId: selectedConversationId });
+      markAsRead(selectedConversationId);
     }
   }, [selectedConversationId, messages?.length]);
+
+  // Real-time subscription
+  useEffect(() => {
+    if (!selectedConversationId) return;
+
+    const channel = supabase
+      .channel(`room:${selectedConversationId}`)
+      .on('postgres_changes', { 
+          event: 'INSERT', 
+          schema: 'public', 
+          table: 'messages',
+          filter: `conversation_id=eq.${selectedConversationId}`
+      }, (payload) => {
+          queryClient.invalidateQueries({ queryKey: ["messages", selectedConversationId] });
+          queryClient.invalidateQueries({ queryKey: ["conversations"] });
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [selectedConversationId]);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -51,26 +88,27 @@ const Messages = () => {
 
     const content = newMessage.trim();
     setNewMessage("");
+    setIsSending(true);
 
     try {
-      await sendMessageMutation({
-        conversationId: selectedConversationId,
-        content: content,
-      }).catch((error) => {
-        toast.error(error.message);
-        setNewMessage(content);
-      });
+      await sendMessage(selectedConversationId, content);
+      queryClient.invalidateQueries({ queryKey: ["messages", selectedConversationId] });
+      queryClient.invalidateQueries({ queryKey: ["conversations"] });
     } catch (error: any) {
-      console.error(error);
+      toast.error(error.message);
+      setNewMessage(content);
+    } finally {
+      setIsSending(false);
     }
   };
 
-  const handleStartChat = async (otherUserId: Id<"users">) => {
+  const handleStartChat = async (otherUserId: string) => {
     try {
-      const convoId = await startConversationMutation({ otherUserId });
+      const convoId = await startConversation(otherUserId);
       setSelectedConversationId(convoId);
       setUserSearchTerm("");
       setIsNewConvoOpen(false);
+      queryClient.invalidateQueries({ queryKey: ["conversations"] });
     } catch (error: any) {
       toast.error(error.message);
     }
@@ -117,11 +155,11 @@ const Messages = () => {
                   <ScrollArea className="h-[300px] border rounded-md p-2">
                     {userSearchTerm.length > 0 ? (
                       <div className="space-y-2">
-                        {searchResults?.filter(u => u.userId !== convexUserId).map((user) => (
+                        {searchResults?.filter(u => u.id !== currentUser?.id).map((user) => (
                           <div
-                            key={user._id}
+                            key={user.id}
                             className="flex items-center gap-3 p-2 hover:bg-muted rounded-md cursor-pointer transition-colors"
-                            onClick={() => handleStartChat(user.userId)}
+                            onClick={() => handleStartChat(user.id)}
                           >
                             <Avatar className="h-10 w-10">
                               <AvatarImage src={user.avatar_url} />
@@ -168,21 +206,21 @@ const Messages = () => {
             <div className="divide-y divide-border">
               {conversations.map((conversation) => (
                 <div
-                  key={conversation._id}
-                  className={`p-4 cursor-pointer hover:bg-muted/50 transition-colors flex items-center gap-3 relative ${selectedConversationId === conversation._id ? "bg-muted/80" : ""
+                  key={conversation.id}
+                  className={`p-4 cursor-pointer hover:bg-muted/50 transition-colors flex items-center gap-3 relative ${selectedConversationId === conversation.id ? "bg-muted/80" : ""
                     }`}
-                  onClick={() => setSelectedConversationId(conversation._id)}
+                  onClick={() => setSelectedConversationId(conversation.id)}
                 >
                   <Avatar className="h-12 w-12 border-2 border-background shadow-sm">
-                    <AvatarImage src={conversation.otherProfile?.avatar_url} />
+                    <AvatarImage src={conversation.otherUser?.avatar_url} />
                     <AvatarFallback className="bg-primary/5 text-primary">
-                      {conversation.otherProfile?.full_name?.[0]?.toUpperCase() || "U"}
+                      {conversation.otherUser?.full_name?.[0]?.toUpperCase() || "U"}
                     </AvatarFallback>
                   </Avatar>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between mb-0.5">
                       <p className="font-semibold text-sm truncate">
-                        {conversation.otherProfile?.full_name || "Unknown User"}
+                        {conversation.otherUser?.full_name || "Unknown User"}
                       </p>
                       <span className="text-[10px] text-muted-foreground whitespace-nowrap">
                         {new Date(conversation.updated_at).toLocaleDateString()}
@@ -190,7 +228,7 @@ const Messages = () => {
                     </div>
                     {conversation.last_message && (
                       <p className="text-xs text-muted-foreground truncate pr-4">
-                        {conversation.last_sender_id === convexUserId ? "You: " : ""}{conversation.last_message}
+                        {conversation.last_sender_id === currentUser?.id ? "You: " : ""}{conversation.last_message}
                       </p>
                     )}
                   </div>
@@ -217,13 +255,13 @@ const Messages = () => {
             <CardHeader className="border-b shrink-0 py-4">
               <div className="flex items-center gap-3">
                 <Avatar className="h-10 w-10">
-                  <AvatarImage src={selectedConversation?.otherProfile?.avatar_url} />
+                  <AvatarImage src={selectedConversation?.otherUser?.avatar_url} />
                   <AvatarFallback>
-                    {selectedConversation?.otherProfile?.full_name?.[0]?.toUpperCase() || "U"}
+                    {selectedConversation?.otherUser?.full_name?.[0]?.toUpperCase() || "U"}
                   </AvatarFallback>
                 </Avatar>
                 <div>
-                  <CardTitle className="text-base">{selectedConversation?.otherProfile?.full_name}</CardTitle>
+                  <CardTitle className="text-base">{selectedConversation?.otherUser?.full_name}</CardTitle>
                   <p className="text-xs text-emerald-500 font-medium">Online</p>
                 </div>
               </div>
@@ -232,10 +270,10 @@ const Messages = () => {
               <ScrollArea className="flex-1 p-4">
                 <div className="space-y-4 pr-4">
                   {messages?.map((message, index) => {
-                    const isMe = message.senderId === convexUserId;
+                    const isMe = message.sender_id === currentUser?.id;
                     return (
                       <div
-                        key={message._id}
+                        key={message.id}
                         className={`flex ${isMe ? "justify-end" : "justify-start"}`}
                       >
                         <div

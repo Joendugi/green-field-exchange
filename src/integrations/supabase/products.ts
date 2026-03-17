@@ -192,3 +192,34 @@ export async function listProductsWithProfiles(params: {
     profiles: profileMap[p.farmer_id],
   }));
 }
+
+export async function bulkUpdateProducts(
+  ids: string[],
+  changes: Partial<Pick<ProductRow, "price" | "quantity" | "is_available" | "location">>
+): Promise<void> {
+  const userId = await getCurrentUserId();
+  if (!userId || ids.length === 0) return;
+
+  const { error } = await supabase
+    .from("products")
+    .update(changes)
+    .in("id", ids)
+    .eq("farmer_id", userId);
+
+  if (error) throw error;
+}
+
+export async function predictPrice(params: { category: string, location: string }): Promise<{ suggested_price: number, confidence: string }> {
+  // Mock price prediction
+  const basePrice = params.category === "vegetables" ? 5 : 10;
+  const variation = Math.random() * 4;
+  return {
+    suggested_price: Number((basePrice + variation).toFixed(2)),
+    confidence: "Medium"
+  };
+}
+
+export async function getSmartMatches(params: { limit?: number } = {}): Promise<any[]> {
+    const limitAmount = params.limit || 4;
+    return await listProductsWithProfiles({ limit: limitAmount });
+}

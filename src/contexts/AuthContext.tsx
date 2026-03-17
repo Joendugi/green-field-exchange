@@ -11,6 +11,7 @@ interface AuthContextType {
     loading: boolean;
     isAuthenticated: boolean;
     logout: () => Promise<void>;
+    refreshProfile: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -76,6 +77,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             active = false;
         };
     }, [isAuthenticated]);
+    
+    const refreshProfile = async () => {
+        try {
+            const [p, r] = await Promise.all([getMyProfile(), getMyRole()]);
+            setProfile(p);
+            setRole(r);
+        } catch (error) {
+            console.error("Failed to refresh profile", error);
+        }
+    };
 
     const [profileLoaded, setProfileLoaded] = useState(false);
 
@@ -96,7 +107,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             role,
             loading,
             isAuthenticated,
-            logout
+            logout,
+            refreshProfile
         }}>
             {children}
         </AuthContext.Provider>

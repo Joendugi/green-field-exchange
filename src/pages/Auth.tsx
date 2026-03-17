@@ -19,7 +19,7 @@ import { ensureMyRole, upsertMyProfile } from "@/integrations/supabase/profiles"
 
 const Auth = () => {
   const navigate = useNavigate();
-  const { isAuthenticated, loading: authLoading } = useAuth();
+  const { isAuthenticated, loading: authLoading, refreshProfile } = useAuth();
   const requestPasswordReset = useMutation(api.passwordReset.requestPasswordReset);
 
   const [isLoading, setIsLoading] = useState(false);
@@ -47,13 +47,13 @@ const Auth = () => {
             });
             await ensureMyRole(role);
             localStorage.removeItem("pending_signup_profile");
+            await refreshProfile();
             toast.success("Profile created successfully!");
           } catch (error) {
             console.error("Failed to finalize profile:", error);
-            // We don't remove the item so we can retry or the user can try later
           }
         }
-        navigate("/");
+        navigate("/dashboard");
       }
     };
 

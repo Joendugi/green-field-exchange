@@ -1,13 +1,20 @@
 -- ============================================================================
--- FULL SUPABASE MIGRATION SCRIPT
--- Green Field Exchange - Complete Database Schema
+-- HELPERS AND EXTENSIONS
 -- ============================================================================
--- Run this in your Supabase SQL Editor in one go
--- ============================================================================
-
 -- First, ensure we have the required extensions
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+
+-- has_role helper with SECURITY DEFINER to avoid policy recursion
+CREATE OR REPLACE FUNCTION public.has_role(p_user_id UUID, p_role TEXT)
+RETURNS BOOLEAN AS $$
+BEGIN
+  RETURN EXISTS (
+    SELECT 1 FROM public.user_roles 
+    WHERE user_id = p_user_id AND role = p_role
+  );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- ============================================================================
 -- PROFILES AND USER ROLES
@@ -322,23 +329,11 @@ CREATE POLICY "Users can view own roles" ON user_roles
 
 DROP POLICY IF EXISTS "Admins can view all roles" ON user_roles;
 CREATE POLICY "Admins can view all roles" ON user_roles
-  FOR SELECT USING (
-    EXISTS (
-      SELECT 1 FROM user_roles ur
-      WHERE ur.user_id = auth.uid()
-        AND ur.role = 'admin'
-    )
-  );
+  FOR SELECT USING (public.has_role(auth.uid(), 'admin'));
 
 DROP POLICY IF EXISTS "Admins can manage roles" ON user_roles;
 CREATE POLICY "Admins can manage roles" ON user_roles
-  FOR ALL USING (
-    EXISTS (
-      SELECT 1 FROM user_roles ur
-      WHERE ur.user_id = auth.uid()
-        AND ur.role = 'admin'
-    )
-  );
+  FOR ALL USING (public.has_role(auth.uid(), 'admin'));
 
 -- Products RLS
 DROP POLICY IF EXISTS "Users can view all products" ON products;

@@ -7,7 +7,6 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Search, Ban, CheckCircle } from "lucide-react";
-import { Id } from "../../../convex/_generated/dataModel";
 
 interface UsersTabProps {
     users: any[];
@@ -19,8 +18,8 @@ interface UsersTabProps {
     setSelectedUser: (u: any) => void;
     banReason: string;
     setBanReason: (v: string) => void;
-    onChangeRole: (userId: Id<"users">, role: string) => Promise<void>;
-    onBanUser: (userId: Id<"users">, ban: boolean) => Promise<void>;
+    onChangeRole: (userId: string, role: string) => Promise<void>;
+    onBanUser: (userId: string, ban: boolean) => Promise<void>;
 }
 
 export const UsersTab = ({
@@ -65,7 +64,7 @@ export const UsersTab = ({
                 <div className="space-y-4">
                     {filtered.map((user: any) => (
                         <div
-                            key={user._id}
+                            key={user.id}
                             className={`flex items-center justify-between p-4 border rounded-lg ${user.is_banned ? "bg-destructive/10 border-destructive/50" : ""}`}
                         >
                             <div className="flex-1">
@@ -90,7 +89,7 @@ export const UsersTab = ({
                             <div className="flex items-center gap-2">
                                 <Select
                                     defaultValue={user.user_roles?.[0]?.role || "user"}
-                                    onValueChange={(value) => onChangeRole(user._id, value)}
+                                    onValueChange={(value) => onChangeRole(user.id, value)}
                                 >
                                     <SelectTrigger className="w-28">
                                         <SelectValue />
@@ -104,12 +103,12 @@ export const UsersTab = ({
                                 </Select>
 
                                 {user.is_banned ? (
-                                    <Button size="sm" variant="outline" onClick={() => onBanUser(user._id, false)}>
+                                    <Button size="sm" variant="outline" onClick={() => onBanUser(user.id, false)}>
                                         <CheckCircle className="h-4 w-4 mr-1" /> Unban
                                     </Button>
                                 ) : (
                                     <Dialog
-                                        open={banDialogOpen && selectedUser?._id === user._id}
+                                        open={banDialogOpen && selectedUser?.id === user.id}
                                         onOpenChange={(open) => {
                                             setBanDialogOpen(open);
                                             if (!open) setSelectedUser(null);
@@ -131,7 +130,7 @@ export const UsersTab = ({
                                             </div>
                                             <DialogFooter>
                                                 <Button variant="outline" onClick={() => setBanDialogOpen(false)}>Cancel</Button>
-                                                <Button variant="destructive" onClick={() => onBanUser(user._id, true)}>Confirm Ban</Button>
+                                                <Button variant="destructive" onClick={() => onBanUser(user.id, true)}>Confirm Ban</Button>
                                             </DialogFooter>
                                         </DialogContent>
                                     </Dialog>
@@ -144,3 +143,4 @@ export const UsersTab = ({
         </Card>
     );
 };
+

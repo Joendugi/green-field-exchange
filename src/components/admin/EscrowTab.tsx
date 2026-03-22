@@ -1,40 +1,64 @@
 import { useState } from "react";
-import { useQuery, useMutation } from "convex/react";
-import { api } from "../../../convex/_generated/api";
-import { Id } from "../../../convex/_generated/dataModel";
+import { useQueryClient } from "@tanstack/react-query";
+import { useSupabaseQuery } from "@/hooks/useSupabaseQuery";
+import { listDisputedOrders, resolveDispute } from "@/integrations/supabase/admin";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { AlertCircle, PackageOpen, Undo2, CheckCircle } from "lucide-react";
+import { AlertCircle, PackageOpen, Undo2, CheckCircle, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 export const EscrowTab = () => {
-  const disputedOrders = useQuery(api.escrow.listDisputedOrders) || [];
-  const resolveDisputeM = useMutation(api.escrow.resolveDispute);
+  const queryClient = useQueryClient();
+  const { data: disputedOrders = [], isLoading } = useSupabaseQuery<any[]>(
+    ["admin", "disputedOrders"],
+    listDisputedOrders
+  );
 
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
   const [resolutionType, setResolutionType] = useState<"refund" | "release" | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
 
   const handleResolve = async () => {
     if (!selectedOrder || !resolutionType) return;
     
+    setIsProcessing(true);
     const loadingToast = toast.loading(`Processing ${resolutionType}...`);
     try {
-      await resolveDisputeM({ orderId: selectedOrder._id, resolution: resolutionType });
+      await resolveDispute({ 
+        orderId: selectedOrder.id, 
+        resolution: resolutionType 
+      });
+      
       toast.dismiss(loadingToast);
       toast.success(
         resolutionType === "refund" 
           ? "Buyer has been refunded and order cancelled." 
           : "Funds released to the farmer."
       );
+      
+      // Invalidate queries to refresh list
+      queryClient.invalidateQueries({ queryKey: ["admin", "disputedOrders"] });
+      queryClient.invalidateQueries({ queryKey: ["admin", "stats"] });
+      
       setSelectedOrder(null);
       setResolutionType(null);
     } catch (error: any) {
       toast.dismiss(loadingToast);
       toast.error(error.message);
+    } finally {
+      setIsProcessing(false);
     }
   };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center p-12">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   if (disputedOrders.length === 0) {
     return (
@@ -61,10 +85,12 @@ export const EscrowTab = () => {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
         {disputedOrders.map((order: any) => (
-          <Card key={order._id} className="border-destructive/30 border-2 overflow-hidden flex flex-col">
+          <Card key={order.id} className="border-destructive/30 border-2 overflow-hidden flex flex-col">
             <CardHeader className="pb-3 bg-destructive/5">
               <div className="flex justify-between items-start gap-2">
-                <CardTitle className="text-base md:text-lg font-bold truncate leading-tight">{order.product?.name || "Unknown Product"}</CardTitle>
+                <CardTitle className="text-base md:text-lg font-bold truncate leading-tight">
+                    {order.product?.name || "Unknown Product"}
+                </CardTitle>
                 <Badge variant="destructive" className="shrink-0 text-[10px] uppercase tracking-wider">Disputed</Badge>
               </div>
               <CardDescription className="font-medium">
@@ -83,7 +109,7 @@ export const EscrowTab = () => {
                 </div>
                 <div className="flex justify-between items-center pt-1 border-t border-border/40">
                   <span className="text-xs text-muted-foreground">Order ID:</span>
-                  <span className="text-xs font-mono">#{order._id.slice(0, 8)}</span>
+                  <span className="text-xs font-mono">#{order.id.slice(0, 8)}</span>
                 </div>
               </div>
               
@@ -107,7 +133,7 @@ export const EscrowTab = () => {
         ))}
       </div>
 
-      <Dialog open={!!selectedOrder} onOpenChange={(open) => !open && setSelectedOrder(null)}>
+      <Dialog open={!!selectedOrder} onOpenChange={(open) => !open && !isProcessing && setSelectedOrder(null)}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Confirm {resolutionType === "refund" ? "Refund to Buyer" : "Release to Farmer"}</DialogTitle>
@@ -118,12 +144,14 @@ export const EscrowTab = () => {
             </DialogDescription>
           </DialogHeader>
           <div className="flex justify-end gap-2 mt-4">
-            <Button variant="outline" onClick={() => setSelectedOrder(null)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setSelectedOrder(null)} disabled={isProcessing}>Cancel</Button>
             <Button 
               variant={resolutionType === "refund" ? "destructive" : "default"}
               className={resolutionType === "release" ? "bg-emerald-600 hover:bg-emerald-700" : ""}
               onClick={handleResolve}
+              disabled={isProcessing}
             >
+              {isProcessing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Confirm {resolutionType === "refund" ? "Refund" : "Release"}
             </Button>
           </div>
@@ -132,3 +160,4 @@ export const EscrowTab = () => {
     </div>
   );
 };
+

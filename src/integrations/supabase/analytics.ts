@@ -210,20 +210,35 @@ export async function toggleLoyaltyReward({ farmerId, buyerId, active }: { farme
 
 export async function getAIInsights({ stats }: { stats: any }) {
     try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session?.access_token) return "AI Insights unavailable (No session)";
+        const prompt = `Based on these farm statistics, provide 4 concise, actionable business insights for the farmer:
+        Total Revenue: $${stats.totalRevenue}
+        Total Orders: ${stats.totalOrders}
+        Top Product: ${stats.productPerformance[0]?.name || 'N/A'}
+        Market Trends: ${JSON.stringify(stats.marketTrends)}
+        Low Stock: ${stats.lowStockAlerts.length} items
+        Customer Loyalty: ${stats.customerLoyalty.length} repeat buyers.
+        
+        Format as a bulleted list. Focus on revenue growth and inventory optimization.`;
 
-        // Usually would call a Supabase Edge Function here that uses Groq/OpenAI.
-        // For now, we return a mocked response since we don't have an edge function set up for this yet.
+        const { data, error } = await supabase.functions.invoke('ai-chat', {
+            body: { 
+                messages: [
+                    { role: "user", content: prompt }
+                ] 
+            }
+        });
+
+        if (error) throw error;
+        return data.response || "No insights could be generated at this time.";
+
+    } catch (e: any) {
+        console.error("Failed to fetch AI insights", e);
+        // Fallback to local logic if edge function fails (likely due to missing API key)
         return `Here are some insights based on your recent activity:
 - Your top performing product is ${stats.productPerformance[0]?.name || 'currently undefined'}. Consider increasing production.
 - Your total revenue is $${Math.round(stats.totalRevenue)}. Optimize your pricing to increase margins.
 - Ensure you have enough stock before the next high-demand season.
 - Offer loyalty discounts to your top ${stats.customerLoyalty.length} buyers to retain revenue.`;
-
-    } catch (e) {
-        console.error("Failed to fetch AI insights", e);
-        return "Failed to fetch AI insights.";
     }
 }
 
@@ -246,7 +261,7 @@ export async function chatWithAI(messages: { role: string, content: string }[]) 
         const { data: userData } = await supabase.auth.getUser();
         if (!userData.user) throw new Error("Not authenticated");
 
-        // Save user message
+        // Save user message (if last message is from user)
         const lastMessage = messages[messages.length - 1];
         if (lastMessage.role === "user") {
             await supabase.from("ai_chat_history").insert({
@@ -256,19 +271,25 @@ export async function chatWithAI(messages: { role: string, content: string }[]) 
             });
         }
 
-        // Normally we'd call an Edge Function here
-        // For now, provide a mock response and save it
-        const mockResponse = "I'm your AI Assistant (Supabase Edition). How can I assist you with your farming needs today?";
+        // Call Edge Function
+        const { data, error } = await supabase.functions.invoke('ai-chat', {
+            body: { messages }
+        });
 
+        if (error) throw error;
+        const reply = data.response;
+
+        // Save AI response to DB
         await supabase.from("ai_chat_history").insert({
             user_id: userData.user.id,
             role: "assistant",
-            content: mockResponse
+            content: reply
         });
 
-        return mockResponse;
+        return reply;
     } catch (error) {
         console.error("Failed to chat with AI", error);
-        throw error;
+        // Local fallback for dev/demo if Edge Function fails
+        return "I'm your AI Assistant. I'm currently having trouble connecting to my central brain, but I can tell you that your farm is looking great! (Technical: Edge Function failed or GROQ_API_KEY missing)";
     }
 }

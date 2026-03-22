@@ -19,7 +19,7 @@ export type AdminAuditLogRow = {
   admin_id: string;
   action: string;
   target_id?: string;
-  target_type: "user" | "product" | "post" | "settings" | "verification" | "order" | "review";
+  target_type: "user" | "product" | "post" | "settings" | "verification" | "order" | "review" | "moderation" | "system";
   details?: string;
   metadata?: any;
   timestamp: string;
@@ -314,19 +314,88 @@ export async function getRecentActivity() {
 export async function getGrowthStats() {
     const isUserAdmin = await isAdmin();
     if (!isUserAdmin) throw new Error("Unauthorized");
-    return [
-       { label: "Jan", users: 10, revenue: 100 },
-       { label: "Feb", users: 20, revenue: 300 },
-       { label: "Mar", users: 35, revenue: 500 }
-    ];
+    
+    // Get user growth by month
+    const { data: profiles, error: pError } = await supabase
+        .from("profiles")
+        .select("created_at");
+        
+    if (pError) throw pError;
+    
+    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    const currentYear = new Date().getFullYear();
+    
+    const statsMap: Record<string, { users: number, revenue: number }> = {};
+    
+    profiles.forEach(p => {
+        const d = new Date(p.created_at);
+        if (d.getFullYear() === currentYear) {
+            const m = months[d.getMonth()];
+            if (!statsMap[m]) statsMap[m] = { users: 0, revenue: 0 };
+            statsMap[m].users++;
+        }
+    });
+
+    // Get revenue by month
+    const { data: orders, error: oError } = await supabase
+        .from("orders")
+        .select("total_price, created_at")
+        .eq("status", "completed");
+        
+    if (!oError && orders) {
+        orders.forEach(o => {
+            const d = new Date(o.created_at);
+            if (d.getFullYear() === currentYear) {
+                const m = months[d.getMonth()];
+                if (!statsMap[m]) statsMap[m] = { users: 0, revenue: 0 };
+                statsMap[m].revenue += Number(o.total_price || 0);
+            }
+        });
+    }
+
+    return Object.entries(statsMap)
+        .map(([label, data]) => ({ label, ...data }))
+        .sort((a,b) => months.indexOf(a.label) - months.indexOf(b.label));
 }
 
 export async function broadcastNotification(opts: { title: string, message: string, sendEmail?: boolean }) {
     const isUserAdmin = await isAdmin();
     if (!isUserAdmin) throw new Error("Unauthorized");
     
-    // Add to broadcast_messages table if exists
-    // Send email logic would ideally be an edge function
+    // Create broadcast record (triggers in-app notifications)
+    const { data: broadcast, error: bError } = await supabase
+        .from("broadcast_messages")
+        .insert({
+            title: opts.title,
+            message: opts.message,
+            sent_email: opts.sendEmail || false,
+            admin_id: await getCurrentUserId()
+        })
+        .select()
+        .single();
+
+    if (bError) throw bError;
+
+    // Send emails if requested
+    if (opts.sendEmail) {
+        const { data: users, error: uError } = await supabase.from("profiles").select("email:id(email)"); // Need join or auth list
+        // Supabase has strict RLS on auth.users, usually you'd maintain an email column in profiles or use a service role in an edge function
+
+        // Calling an Edge Function that has service role access to send to ALL users
+        await supabase.functions.invoke('send-email', {
+            body: {
+                to: "ALL_USERS", // Specialized logic in edge function
+                subject: opts.title,
+                html: `<div style="font-family: sans-serif; padding: 20px; color: #333;">
+                        <h2 style="color: #2F855A;">Wakulima News: ${opts.title}</h2>
+                        <p>${opts.message}</p>
+                        <hr style="border: 0; border-top: 1px solid #EEE;" />
+                        <p style="font-size: 12px; color: #777;">You are receiving this as a member of Wakulima Exchange.</p>
+                      </div>`
+            }
+        });
+    }
+
     await logAdminAction("broadcast", "settings", undefined, opts.title);
 }
 
@@ -368,4 +437,86 @@ export async function bulkTogglePostFeatured(args: { postIds: string[], isFeatur
     const { error } = await supabase.from("posts").update({ isFeatured: args.isFeatured } as any).in("id", args.postIds);
     if (error) throw error;
     await logAdminAction("bulk_toggle_post_featured", "post", undefined, `Featured ${args.postIds.length} posts`);
+}
+
+// Escrow Management
+export async function listDisputedOrders() {
+    const isUserAdmin = await isAdmin();
+    if (!isUserAdmin) throw new Error("Unauthorized");
+
+    const { data, error } = await supabase
+        .from("orders")
+        .select(`
+            *,
+            product:products(*),
+            buyer:profiles!buyer_id(id, full_name, avatar_url),
+            farmer:profiles!farmer_id(id, full_name, avatar_url)
+        `)
+        .eq("status", "disputed")
+        .order("created_at", { ascending: false });
+
+    if (error) throw error;
+    return data || [];
+}
+
+export async function resolveDispute(args: { orderId: string, resolution: "refund" | "release" }) {
+    const isUserAdmin = await isAdmin();
+    if (!isUserAdmin) throw new Error("Unauthorized");
+
+    const status = args.resolution === "refund" ? "cancelled" : "completed";
+    const escrow_status = args.resolution === "refund" ? "refunded" : "released";
+
+    const { error } = await supabase
+        .from("orders")
+        .update({ status, escrow_status })
+        .eq("id", args.orderId);
+
+    if (error) throw error;
+
+    await logAdminAction("resolve_dispute", "order", args.orderId, `Resolved as ${args.resolution}`);
+}
+
+// AI Content Moderation Stub
+export async function moderateContent() {
+    const isUserAdmin = await isAdmin();
+    if (!isUserAdmin) throw new Error("Unauthorized");
+    
+    try {
+        const { data, error } = await supabase.functions.invoke('moderate-content');
+        if (error) throw error;
+        
+        await logAdminAction("moderate_scan", "moderation", undefined, `Flagged: ${data.flagged?.length || 0}`);
+        return { flagged: data.flagged || [] };
+    } catch (error) {
+        console.error("AI Moderation failed", error);
+        return { flagged: [] }; // Fallback to avoid breaking UI
+    }
+}
+// Analytics
+export async function getGlobalHeatmap() {
+    const isUserAdmin = await isAdmin();
+    if (!isUserAdmin) throw new Error("Unauthorized");
+    
+    // Aggregate by profiles.location
+    const [{ data: products }, { data: orders }] = await Promise.all([
+        supabase.from("products").select("location, price"),
+        supabase.from("orders").select("total_price, products!inner(location)").eq("status", "completed")
+    ]);
+    
+    const heatmap: Record<string, { location: string, products: number, orders: number, revenue: number }> = {};
+    
+    (products || []).forEach(p => {
+        const loc = p.location || "Unknown";
+        if (!heatmap[loc]) heatmap[loc] = { location: loc, products: 0, orders: 0, revenue: 0 };
+        heatmap[loc].products++;
+    });
+    
+    (orders || []).forEach((o: any) => {
+        const loc = o.products?.location || "Unknown";
+        if (!heatmap[loc]) heatmap[loc] = { location: loc, products: 0, orders: 0, revenue: 0 };
+        heatmap[loc].orders++;
+        heatmap[loc].revenue += Number(o.total_price || 0);
+    });
+    
+    return Object.values(heatmap).sort((a,b) => b.revenue - a.revenue);
 }

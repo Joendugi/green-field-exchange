@@ -98,3 +98,27 @@ export async function getUserPosts(userId: string) {
     if (error) throw error;
     return data;
 }
+// Stories
+export async function getFeaturedStories() {
+    const { data, error } = await supabase
+        .from("posts")
+        .select("*, profiles:user_id(*)")
+        .eq("is_featured", true)
+        .order("created_at", { ascending: false });
+
+    if (error) throw error;
+    return data || [];
+}
+
+// Admin actions
+export async function updatePostFeaturedStatus(postId: string, isFeatured: boolean) {
+    const { data, error } = await supabase
+        .from("posts")
+        .update({ is_featured: isFeatured })
+        .eq("id", postId)
+        .select()
+        .single();
+
+    if (error) throw error;
+    return data;
+}

@@ -34,43 +34,41 @@ export async function listProducts(params: {
   limit?: number;
   cursor?: string;
 } = {}): Promise<ProductRow[]> {
-  let query = supabase
-    .from("products")
-    .select("*, profiles:profiles(full_name, avatar_url, verified)")
-    .eq("is_available", true)
-    .gt("quantity", 0)
-    .eq("is_hidden", false);
-
-  if (params.category) {
-    query = query.eq("category", params.category);
-  }
-
-  if (params.search) {
-    query = query.or(`name.ilike.%${params.search}%,description.ilike.%${params.search}%`);
-  }
-
-  if (params.cursor) {
-    query = query.lt("created_at", params.cursor);
-  }
-
-  query = query
-    .order("is_featured", { ascending: false })
-    .order("created_at", { ascending: false });
-
-  if (params.limit) {
-    query = query.limit(params.limit);
-  } else {
-    query = query.limit(40);
-  }
-
-  const { data, error } = await query;
+  const { data, error } = await supabase.rpc("list_products", {
+    p_category: params.category || null,
+    p_search: params.search || null,
+    p_limit: params.limit || 40,
+    p_cursor: params.cursor || null
+  });
 
   if (error) {
-    console.error("Supabase error in listProducts:", error);
+    console.error("Supabase error in listProducts (RPC):", error);
     throw error;
   }
   
-  return (data as any[]) ?? [];
+  // Since we need profiles, we still might need a follow-up or a better RPC.
+  // For now, let's keep the join behavior by enriching the result manually if needed,
+  // or updating the RPC to return profile data.
+  // The current RPC doesn't return profiles, so we'll fetch them for the returned products.
+  
+  const products = (data as any[]) ?? [];
+  if (products.length === 0) return [];
+
+  const farmerIds = [...new Set(products.map(p => p.farmer_id))];
+  const { data: profiles } = await supabase
+    .from("profiles")
+    .select("id, full_name, avatar_url, verified")
+    .in("id", farmerIds);
+
+  const profileMap = (profiles || []).reduce((acc, p) => {
+    acc[p.id] = p;
+    return acc;
+  }, {} as Record<string, any>);
+
+  return products.map(p => ({
+    ...p,
+    profiles: profileMap[p.farmer_id]
+  }));
 }
 
 export async function createProduct(input: {
@@ -209,14 +207,30 @@ export async function bulkUpdateProducts(
   if (error) throw error;
 }
 
-export async function predictPrice(params: { category: string, location: string }): Promise<{ suggested_price: number, confidence: string }> {
-  // Mock price prediction
-  const basePrice = params.category === "vegetables" ? 5 : 10;
-  const variation = Math.random() * 4;
-  return {
-    suggested_price: Number((basePrice + variation).toFixed(2)),
-    confidence: "Medium"
-  };
+export async function predictPrice(params: { category: string, location: string }): Promise<{ suggested_price: number, confidence: string, reasoning?: string }> {
+  try {
+    const { data, error } = await supabase.functions.invoke('price-prediction', {
+      body: params
+    });
+
+    if (error) throw error;
+    
+    return {
+      suggested_price: data.suggested_price || 0,
+      confidence: data.confidence || "Low",
+      reasoning: data.reasoning
+    };
+  } catch (error) {
+    console.error("Price prediction failed", error);
+    // Local fallback for dev
+    const basePrice = params.category === "vegetables" ? 5 : 10;
+    const variation = Math.random() * 4;
+    return {
+      suggested_price: Number((basePrice + variation).toFixed(2)),
+      confidence: "Low (Local Fallback)",
+      reasoning: "The prediction service is temporarily unavailable. Using category averages."
+    };
+  }
 }
 
 export async function getSmartMatches(params: { limit?: number } = {}): Promise<any[]> {

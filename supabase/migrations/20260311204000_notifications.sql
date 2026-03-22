@@ -191,3 +191,17 @@ CREATE TRIGGER new_message_notification
   AFTER INSERT ON messages
   FOR EACH ROW
   EXECUTE FUNCTION trigger_new_message_notification();
+
+-- Trigger to auto-notify on new orders
+CREATE OR REPLACE FUNCTION trigger_new_order_notification()
+RETURNS TRIGGER AS $$
+BEGIN
+  PERFORM notify_new_order(NEW.id);
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER new_order_notification
+  AFTER INSERT ON orders
+  FOR EACH ROW
+  EXECUTE FUNCTION trigger_new_order_notification();

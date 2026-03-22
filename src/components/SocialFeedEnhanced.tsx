@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Heart, MessageCircle, Repeat2, UserPlus, UserMinus, Image as ImageIcon, Video, Loader2, HelpCircle, BookOpen, Lightbulb, CheckCircle2, Tags, Star } from "lucide-react";
+import { Heart, MessageCircle, Repeat2, UserPlus, UserMinus, Image as ImageIcon, Video, HelpCircle, BookOpen, Lightbulb, CheckCircle2, Tags, Star } from "lucide-react";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -11,8 +11,10 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useSupabaseQuery } from "@/hooks/useSupabaseQuery";
-import { getPosts, createPost, toggleLike, addComment } from "@/integrations/supabase/posts";
+import LoadingSpinner from "@/components/ui/LoadingSpinner";
+import { getPosts, createPost, toggleLike, addComment, updatePostFeaturedStatus } from "@/integrations/supabase/posts";
 import { followUser, unfollowUser, getFollowing } from "@/integrations/supabase/follows";
+import { uploadFile } from "@/integrations/supabase/storage";
 import { useQueryClient } from "@tanstack/react-query";
 
 const SocialFeedEnhanced = () => {
@@ -28,6 +30,7 @@ const SocialFeedEnhanced = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState("all");
   const [followingUsers, setFollowingUsers] = useState<Set<string>>(new Set());
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Supabase Queries
   const { data: posts = [], isLoading: isLoadingPosts } = useSupabaseQuery<any[]>(
@@ -83,10 +86,12 @@ const SocialFeedEnhanced = () => {
         return;
       }
 
+      setIsSubmitting(true);
       let imageUrl = undefined;
-      // TODO: Implement Supabase Storage upload
+      
       if (mediaFile) {
-        toast.info("Media upload not fully implemented yet - creating text-only post");
+        const { publicUrl } = await uploadFile('post-media', mediaFile);
+        imageUrl = publicUrl;
       }
 
       await createPost({
@@ -96,7 +101,7 @@ const SocialFeedEnhanced = () => {
         image_url: imageUrl,
       });
 
-      toast.success("Post created!");
+      toast.success("Post published to the fields!");
       setNewPostContent("");
       setMediaFile(null);
       setMediaPreview("");
@@ -104,6 +109,8 @@ const SocialFeedEnhanced = () => {
       queryClient.invalidateQueries({ queryKey: ["posts"] });
     } catch (error: any) {
       toast.error(error.message);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -147,7 +154,7 @@ const SocialFeedEnhanced = () => {
   };
 
   const handleRepostToggle = async (postId: string, isReposted: boolean) => {
-    toast.info("Reposting not implemented in Supabase yet");
+    toast.info("Reposting functionality is coming soon to the Supabase migration!");
   };
 
   const handleAddComment = async (postId: string) => {
@@ -165,17 +172,23 @@ const SocialFeedEnhanced = () => {
   };
 
   const handleToggleFeatured = async (postId: string, isFeatured: boolean) => {
-    toast.info("Featured status management moving to Admin Dashboard with Supabase");
+    try {
+        await updatePostFeaturedStatus(postId, !isFeatured);
+        toast.success(isFeatured ? "Removed from featured" : "Post featured on home page!");
+        queryClient.invalidateQueries({ queryKey: ["posts"] });
+    } catch (error: any) {
+        toast.error("Admin only: " + error.message);
+    }
   };
 
   const handleToggleSolution = async (commentId: string, isSolution: boolean) => {
-     toast.info("Solution marking coming soon with Supabase Edge Functions");
+     toast.info("Solution marking is planned for the next Phase of Supabase Edge Functions");
   };
 
   if (isLoadingPosts) {
     return (
-      <div className="flex justify-center py-12">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <div className="flex justify-center py-24">
+        <LoadingSpinner size="lg" />
       </div>
     );
   }
@@ -453,7 +466,7 @@ const SocialFeedEnhanced = () => {
                     {post.post_comments?.length > 0 && (
                       <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
                         {post.post_comments.map((comment: any) => (
-                          <div key={comment._id} className={`
+                          <div key={comment.id} className={`
                             flex gap-4 p-5 rounded-3xl transition-all border-2 
                             ${comment.is_solution ? "bg-emerald-50/60 border-emerald-200 shadow-md shadow-emerald-100" : "bg-muted/30 border-transparent hover:border-primary/5"}
                           `}>

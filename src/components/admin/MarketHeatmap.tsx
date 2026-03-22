@@ -1,14 +1,17 @@
-import { useQuery } from "convex/react";
-import { api } from "../../../convex/_generated/api";
+import { useSupabaseQuery } from "@/hooks/useSupabaseQuery";
+import { getGlobalHeatmap } from "@/integrations/supabase/admin";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { MapPin, ShoppingBag, TrendingUp, DollarSign, Globe, Loader2 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 
 export const MarketHeatmap = () => {
-    const heatmapData = useQuery(api.analytics.getGlobalHeatmap);
+    const { data: heatmapData, isLoading } = useSupabaseQuery<any[]>(
+        ["admin", "heatmap"],
+        getGlobalHeatmap
+    );
 
-    if (!heatmapData) {
+    if (isLoading || !heatmapData) {
         return (
             <div className="flex items-center justify-center py-20">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -66,6 +69,7 @@ export const MarketHeatmap = () => {
                                     <Progress 
                                         value={(region.revenue / maxRevenue) * 100} 
                                         className="h-3 bg-muted rounded-full overflow-hidden" 
+                                        indicatorClassName={idx === 0 ? 'bg-primary' : idx === 1 ? 'bg-emerald-500' : 'bg-blue-500'}
                                     />
                                 </div>
                             ))}
@@ -114,3 +118,4 @@ export const MarketHeatmap = () => {
         </div>
     );
 };
+

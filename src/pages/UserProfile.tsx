@@ -3,9 +3,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { UserPlus, UserMinus, ArrowLeft, Loader2 } from "lucide-react";
+import { UserPlus, UserMinus, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 import Navbar from "@/components/Navbar";
+import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSupabaseQuery } from "@/hooks/useSupabaseQuery";
 import { getUserProfile, getRole } from "@/integrations/supabase/profiles";
@@ -82,8 +83,8 @@ const UserProfile = () => {
     return (
       <div className="min-h-screen bg-background">
         <Navbar />
-        <div className="container mx-auto px-4 py-8 flex justify-center">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <div className="container mx-auto px-4 py-24 flex justify-center">
+          <LoadingSpinner size="lg" />
         </div>
       </div>
     );

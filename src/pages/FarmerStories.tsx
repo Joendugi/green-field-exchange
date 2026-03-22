@@ -3,16 +3,20 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Star, MapPin, Calendar, Heart, Share2, Quote, Loader2, MessageCircle } from "lucide-react";
-import { useQuery } from "convex/react";
-import { api } from "../../convex/_generated/api";
-import { formatDistanceToNow } from "date-fns";
+import { Star, MapPin, Calendar, Heart, Share2, Quote, MessageCircle } from "lucide-react";
+import { useSupabaseQuery } from "@/hooks/useSupabaseQuery";
+import LoadingSpinner from "@/components/ui/LoadingSpinner";
+import { getFeaturedStories } from "@/integrations/supabase/posts";
+import { formatDistanceToNow, parseISO } from "date-fns";
 import { useNavigate } from "react-router-dom";
 
 const FarmerStories = () => {
   const navigate = useNavigate();
   const [selectedCategory, setSelectedCategory] = useState("all");
-  const featuredPosts = useQuery(api.posts.getFeaturedStories) || [];
+  const { data: featuredPosts = [], isLoading } = useSupabaseQuery<any[]>(
+      ["posts", "featuredStories"],
+      getFeaturedStories
+  );
 
   const staticStories = [
     {
@@ -27,7 +31,8 @@ const FarmerStories = () => {
       products: 45,
       joinedDate: "2023-06-15",
       isStatic: true,
-      impact: "Feeds 200+ families weekly"
+      impact: "Feeds 200+ families weekly",
+      image: undefined
     },
     {
       id: "s2",
@@ -41,7 +46,8 @@ const FarmerStories = () => {
       products: 32,
       joinedDate: "2023-03-20",
       isStatic: true,
-      impact: "Preserved 150-acre family farm"
+      impact: "Preserved 150-acre family farm",
+      image: undefined
     }
   ];
 
@@ -53,8 +59,8 @@ const FarmerStories = () => {
   ];
 
   // Interleave featured posts into stories
-  const postsAsStories = featuredPosts.map(post => ({
-    id: post._id,
+  const postsAsStories = (featuredPosts || []).map((post: any) => ({
+    id: post.id,
     name: post.profiles?.full_name || post.profiles?.username || "Wakulima Farmer",
     location: post.profiles?.location || "Unknown Location",
     avatar: post.profiles?.avatar_url,
@@ -63,10 +69,10 @@ const FarmerStories = () => {
     category: "community",
     rating: (Math.random() * (5.0 - 4.5) + 4.5).toFixed(1), // Visual aesthetic
     products: Math.floor(Math.random() * 20) + 5,
-    joinedDate: post._creationTime,
+    joinedDate: post.created_at,
     isStatic: false,
     image: post.image_url,
-    impact: `Active since ${formatDistanceToNow(post._creationTime)} ago`
+    impact: `Active since ${formatDistanceToNow(parseISO(post.created_at))} ago`
   }));
 
   const combinedStories = [...staticStories, ...postsAsStories];
@@ -124,9 +130,9 @@ const FarmerStories = () => {
 
       {/* Stories Grid */}
       <section className="container mx-auto px-4 py-16">
-        {featuredPosts === undefined ? (
-          <div className="flex items-center justify-center p-20">
-            <Loader2 className="h-12 w-12 animate-spin text-primary" />
+        {isLoading ? (
+          <div className="flex items-center justify-center p-40">
+            <LoadingSpinner size="xl" />
           </div>
         ) : (
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -235,3 +241,4 @@ const FarmerStories = () => {
 };
 
 export default FarmerStories;
+

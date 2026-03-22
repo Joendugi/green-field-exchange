@@ -1,6 +1,14 @@
 import { useState, useEffect } from "react";
-import { useQuery, useMutation } from "convex/react";
-import { api } from "../../convex/_generated/api";
+import { useSupabaseQuery } from "@/hooks/useSupabaseQuery";
+import { 
+  getMetaAnalytics, 
+  getMetaAdCampaigns, 
+  getMetaAudiences,
+  trackMetaPixel,
+  trackMetaConversion,
+  createMetaAdCampaign,
+  createMetaCustomAudience
+} from "@/integrations/supabase/metaAds";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,25 +35,33 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
+import { useQueryClient } from "@tanstack/react-query";
 
 const MetaAds = () => {
-  const { user, convexUserId } = useAuth();
+  const { user, profile } = useAuth();
+  const queryClient = useQueryClient();
 
   // Queries
-  const analytics = useQuery(api.metaAds.getMetaAnalytics, {
-    dateRange: {
-      start: Date.now() - (30 * 24 * 60 * 60 * 1000),
-      end: Date.now(),
-    }
-  });
-  const campaigns = useQuery(api.metaAds.getMetaAdCampaigns, { limit: 10 });
-  const audiences = useQuery(api.metaAds.getMetaAudiences, {});
+  const { data: analytics, isLoading: isLoadingAnalytics } = useSupabaseQuery<any>(
+    ["meta", "analytics"],
+    () => getMetaAnalytics({
+      userId: profile?.id,
+      dateRange: {
+        start: Date.now() - (30 * 24 * 60 * 60 * 1000),
+        end: Date.now(),
+      }
+    })
+  );
 
-  // Mutations
-  const trackPixel = useMutation(api.metaAds.trackMetaPixel);
-  const trackConversion = useMutation(api.metaAds.trackMetaConversion);
-  const createCampaign = useMutation(api.metaAds.createMetaAdCampaign);
-  const createAudience = useMutation(api.metaAds.createMetaCustomAudience);
+  const { data: campaigns, isLoading: isLoadingCampaigns } = useSupabaseQuery<any[]>(
+    ["meta", "campaigns"],
+    () => getMetaAdCampaigns({ userId: profile?.id, limit: 10 })
+  );
+
+  const { data: audiences, isLoading: isLoadingAudiences } = useSupabaseQuery<any[]>(
+    ["meta", "audiences"],
+    () => getMetaAudiences(profile?.id)
+  );
 
   const [activeTab, setActiveTab] = useState("overview");
   const [showCampaignForm, setShowCampaignForm] = useState(false);
@@ -71,41 +87,26 @@ const MetaAds = () => {
   useEffect(() => {
     if (typeof window !== 'undefined') {
       console.log('Meta Pixel integration ready - add YOUR_META_PIXEL_ID to initialize');
-      // In production, uncomment and configure:
-      /*
-      !(function(f,b,e,v,n,t,s)
-      {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
-      n.callMethod.apply(n,arguments):n.queue.push(arguments)};
-      if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
-      n.queue=[];t=b.createElement(e);t.async=!0;
-      t.src=v;s=b.getElementsByTagName(e)[0];
-      s.parentNode.insertBefore(t,s)}(window, document,'script',
-      'https://connect.facebook.net/en_US/fbevents.js');
-      
-      fbq('init', 'YOUR_META_PIXEL_ID');
-      fbq('track', 'PageView');
-      */
     }
   }, []);
 
   const handleCreateCampaign = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!user) {
+    if (!user || !profile) {
       toast.error("Authentication required");
       return;
     }
 
     try {
-      const campaignData = {
+      await createMetaAdCampaign({
         ...campaignForm,
-        userId: convexUserId as any,
-        targetAudience: campaignForm.targetAudience ? (campaignForm.targetAudience as any) : undefined
-      };
-
-      await createCampaign(campaignData);
+        userId: profile.id,
+        targetAudience: campaignForm.targetAudience || undefined
+      });
 
       toast.success("Campaign created successfully!");
+      queryClient.invalidateQueries({ queryKey: ["meta", "campaigns"] });
       setShowCampaignForm(false);
       setCampaignForm({
         campaignName: "",
@@ -125,18 +126,19 @@ const MetaAds = () => {
   const handleCreateAudience = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!user) {
+    if (!user || !profile) {
       toast.error("Authentication required");
       return;
     }
 
     try {
-      await createAudience({
+      await createMetaCustomAudience({
         ...audienceForm,
-        userId: convexUserId as any
+        userId: profile.id
       });
 
       toast.success("Audience created successfully!");
+      queryClient.invalidateQueries({ queryKey: ["meta", "audiences"] });
       setShowAudienceForm(false);
       setAudienceForm({
         audienceName: "",
@@ -150,11 +152,12 @@ const MetaAds = () => {
   };
 
   const handleTrackConversion = async (type: string, value: number) => {
+    if (!profile) return;
     try {
-      await trackConversion({
+      await trackMetaConversion({
         conversionType: type,
         conversionData: { timestamp: Date.now() },
-        userId: convexUserId as any,
+        userId: profile.id,
         value,
         currency: "USD"
       });
@@ -211,29 +214,33 @@ const MetaAds = () => {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {analytics ? (
+            {isLoadingAnalytics ? (
+                <div className="text-center py-8 text-gray-500">
+                    Loading analytics...
+                </div>
+            ) : analytics ? (
               <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-blue-600">{analytics.totalImpressions.toLocaleString()}</div>
+                  <div className="text-2xl font-bold text-blue-600">{analytics.totalImpressions?.toLocaleString() || 0}</div>
                   <div className="text-sm text-gray-600">Impressions</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-green-600">{analytics.totalClicks.toLocaleString()}</div>
+                  <div className="text-2xl font-bold text-green-600">{analytics.totalClicks?.toLocaleString() || 0}</div>
                   <div className="text-sm text-gray-600">Clicks</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-purple-600">{analytics.totalConversions.toLocaleString()}</div>
+                  <div className="text-2xl font-bold text-purple-600">{analytics.totalConversions?.toLocaleString() || 0}</div>
                   <div className="text-sm text-gray-600">Conversions</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-orange-600">{formatCurrency(analytics.totalSpend)}</div>
+                  <div className="text-2xl font-bold text-orange-600">{formatCurrency(analytics.totalSpend || 0)}</div>
                   <div className="text-sm text-gray-600">Total Spend</div>
                 </div>
               </div>
             ) : (
-              <div className="text-center py-8 text-gray-500">
-                Loading analytics...
-              </div>
+                <div className="text-center py-8 text-gray-500">
+                    No analytics data found.
+                </div>
             )}
           </CardContent>
         </Card>
@@ -313,7 +320,7 @@ const MetaAds = () => {
                       </div>
                       <div className="flex justify-between">
                         <span>Total Events</span>
-                        <span className="font-semibold">{analytics.pixelEvents.toLocaleString()}</span>
+                        <span className="font-semibold">{analytics.pixelEvents?.toLocaleString() || 0}</span>
                       </div>
                       <div className="flex justify-between">
                         <span>Active Campaigns</span>
@@ -329,13 +336,15 @@ const MetaAds = () => {
           {/* Campaigns Tab */}
           <TabsContent value="campaigns" className="space-y-6">
             <div className="grid gap-4">
-              {campaigns?.map((campaign) => (
-                <Card key={campaign._id}>
+              {isLoadingCampaigns ? (
+                  <p>Loading campaigns...</p>
+              ) : campaigns?.map((campaign) => (
+                <Card key={campaign.id}>
                   <CardContent className="p-6">
                     <div className="flex items-center justify-between">
                       <div>
-                        <h3 className="text-lg font-semibold">{campaign.campaignName}</h3>
-                        <p className="text-sm text-gray-600">{campaign.campaignObjective}</p>
+                        <h3 className="text-lg font-semibold">{campaign.campaign_name}</h3>
+                        <p className="text-sm text-gray-600">{campaign.campaign_objective}</p>
                       </div>
                       <Badge className={getStatusColor(campaign.status)}>
                         {campaign.status}
@@ -368,16 +377,18 @@ const MetaAds = () => {
           {/* Audiences Tab */}
           <TabsContent value="audiences" className="space-y-6">
             <div className="grid gap-4">
-              {audiences?.map((audience) => (
-                <Card key={audience._id}>
+              {isLoadingAudiences ? (
+                  <p>Loading audiences...</p>
+              ) : audiences?.map((audience) => (
+                <Card key={audience.id}>
                   <CardContent className="p-6">
                     <div className="flex items-center justify-between">
                       <div>
-                        <h3 className="text-lg font-semibold">{audience.audienceName}</h3>
-                        <p className="text-sm text-gray-600">{audience.audienceDescription}</p>
+                        <h3 className="text-lg font-semibold">{audience.audience_name}</h3>
+                        <p className="text-sm text-gray-600">{audience.audience_description}</p>
                       </div>
                       <Badge variant="outline">
-                        {audience.audienceType}
+                        {audience.audience_type}
                       </Badge>
                     </div>
                   </CardContent>
@@ -545,3 +556,4 @@ const MetaAds = () => {
 };
 
 export default MetaAds;
+

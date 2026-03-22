@@ -9,10 +9,6 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
-  define: {
-    // Disable Convex for Supabase-only mode
-    'process.env.CONVEX_DISABLED': 'true'
-  },
   build: {
     rollupOptions: {
       output: {

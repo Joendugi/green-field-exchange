@@ -12,7 +12,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/contexts/AuthContext";
-import { useIdentityBridge } from "@/contexts/IdentityBridge";
 import { listProductsWithProfiles, getSmartMatches } from "@/integrations/supabase/products";
 import { createOrder } from "@/integrations/supabase/orders";
 import { createOffer } from "@/integrations/supabase/offers";
@@ -34,7 +33,6 @@ const Marketplace = () => {
 
   const [smartMatches, setSmartMatches] = useState<any[]>([]);
   const [isMatching, setIsMatching] = useState(false);
-  const { isConvexAuthReady, convexUserId } = useIdentityBridge();
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -437,9 +435,9 @@ const Marketplace = () => {
                           <Button
                             className="flex-1"
                             onClick={() => setSelectedProduct(product)}
-                            disabled={convexUserId && product.farmer_id === convexUserId}
+                            disabled={profile && product.farmer_id === profile.id}
                           >
-                            {convexUserId && product.farmer_id === convexUserId ? "Your Product" : "Place Order"}
+                            {profile && product.farmer_id === profile.id ? "Your Product" : "Place Order"}
                           </Button>
                         </DialogTrigger>
                         <DialogContent>

@@ -2,12 +2,11 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Id } from "../../../convex/_generated/dataModel";
 
 interface AdsTabProps {
     advertisements: any[];
     onSaveAd: (ad: NewAd) => Promise<void>;
-    onToggleAd: (adId: Id<"advertisements">, active: boolean) => Promise<void>;
+    onToggleAd: (adId: string, active: boolean) => Promise<void>;
 }
 
 export type NewAd = {
@@ -81,9 +80,9 @@ export const AdsTab = ({ advertisements, onSaveAd, onToggleAd }: AdsTabProps) =>
                         <p className="text-muted-foreground text-sm text-center py-4">No ads yet</p>
                     )}
                     {advertisements.map((ad: any) => (
-                        <div key={ad._id} className="p-3 border rounded-lg flex justify-between items-center">
+                        <div key={ad.id} className="p-3 border rounded-lg flex justify-between items-center">
                             <span className="font-medium">{ad.title}</span>
-                            <Button size="sm" variant="outline" onClick={() => onToggleAd(ad._id, ad.status !== "active")}>
+                            <Button size="sm" variant="outline" onClick={() => onToggleAd(ad.id, ad.status !== "active")}>
                                 {ad.status === "active" ? "Pause" : "Activate"}
                             </Button>
                         </div>
@@ -93,3 +92,4 @@ export const AdsTab = ({ advertisements, onSaveAd, onToggleAd }: AdsTabProps) =>
         </div>
     );
 };
+

@@ -1,11 +1,9 @@
 import { useState } from "react";
-import { useAction } from "convex/react";
-import { api } from "../../../convex/_generated/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Id } from "../../../convex/_generated/dataModel";
+import { moderateContent } from "@/integrations/supabase/admin";
 import { EyeOff, Eye, Sparkles, Trash2, Star, ShieldAlert, Loader2, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 
@@ -14,11 +12,11 @@ interface ContentTabProps {
     products: any[];
     showHidden: boolean;
     onToggleShowHidden: () => void;
-    onHidePost: (postId: Id<"posts">, hide: boolean) => Promise<void>;
-    onHideProduct: (productId: Id<"products">, hide: boolean) => Promise<void>;
-    onToggleFeatured: (productId: Id<"products">, featured: boolean) => Promise<void>;
-    onTogglePostFeatured: (postId: Id<"posts">, featured: boolean) => Promise<void>;
-    onBulkTogglePostFeatured: (postIds: Id<"posts">[], featured: boolean) => Promise<void>;
+    onHidePost: (postId: string, hide: boolean) => Promise<void>;
+    onHideProduct: (productId: string, hide: boolean) => Promise<void>;
+    onToggleFeatured: (productId: string, featured: boolean) => Promise<void>;
+    onTogglePostFeatured: (postId: string, featured: boolean) => Promise<void>;
+    onBulkTogglePostFeatured: (postIds: string[], featured: boolean) => Promise<void>;
 }
 
 export const ContentTab = ({
@@ -37,7 +35,6 @@ export const ContentTab = ({
     const [bulkLoading, setBulkLoading] = useState(false);
 
     // AI Shield
-    const runModeration = useAction(api.admin.moderateContent);
     const [aiScanning, setAiScanning] = useState(false);
     const [flaggedItems, setFlaggedItems] = useState<Array<{ id: string; type: string; content: string; reason: string; confidence: string }> | null>(null);
 
@@ -45,7 +42,7 @@ export const ContentTab = ({
         setAiScanning(true);
         setFlaggedItems(null);
         try {
-            const result = await runModeration({});
+            const result = await moderateContent();
             setFlaggedItems(result.flagged);
             if (result.flagged.length === 0) {
                 toast.success("✅ AI Shield: No violations detected");
@@ -76,7 +73,7 @@ export const ContentTab = ({
         if (selectedPosts.size === visiblePosts.length) {
             setSelectedPosts(new Set());
         } else {
-            setSelectedPosts(new Set(visiblePosts.map((p: any) => p._id)));
+            setSelectedPosts(new Set(visiblePosts.map((p: any) => p.id)));
         }
     };
 
@@ -84,7 +81,7 @@ export const ContentTab = ({
         if (selectedPosts.size === 0) return;
         setBulkLoading(true);
         try {
-            await Promise.all([...selectedPosts].map(id => onHidePost(id as Id<"posts">, hide)));
+            await Promise.all([...selectedPosts].map(id => onHidePost(id, hide)));
             toast.success(`${selectedPosts.size} post(s) ${hide ? "hidden" : "restored"}`);
             setSelectedPosts(new Set());
         } catch (e: any) {
@@ -98,7 +95,7 @@ export const ContentTab = ({
         if (selectedPosts.size === 0) return;
         setBulkLoading(true);
         try {
-            await onBulkTogglePostFeatured([...selectedPosts] as Id<"posts">[], featured);
+            await onBulkTogglePostFeatured([...selectedPosts], featured);
             toast.success(`${selectedPosts.size} post(s) ${featured ? "featured" : "unfeatured"}`);
             setSelectedPosts(new Set());
         } catch (e: any) {
@@ -121,7 +118,7 @@ export const ContentTab = ({
         if (selectedProducts.size === visibleProducts.length) {
             setSelectedProducts(new Set());
         } else {
-            setSelectedProducts(new Set(visibleProducts.map((p: any) => p._id)));
+            setSelectedProducts(new Set(visibleProducts.map((p: any) => p.id)));
         }
     };
 
@@ -129,7 +126,7 @@ export const ContentTab = ({
         if (selectedProducts.size === 0) return;
         setBulkLoading(true);
         try {
-            await Promise.all([...selectedProducts].map(id => onHideProduct(id as Id<"products">, hide)));
+            await Promise.all([...selectedProducts].map(id => onHideProduct(id, hide)));
             toast.success(`${selectedProducts.size} product(s) ${hide ? "hidden" : "restored"}`);
             setSelectedProducts(new Set());
         } catch (e: any) {
@@ -143,7 +140,7 @@ export const ContentTab = ({
         if (selectedProducts.size === 0) return;
         setBulkLoading(true);
         try {
-            await Promise.all([...selectedProducts].map(id => onToggleFeatured(id as Id<"products">, featured)));
+            await Promise.all([...selectedProducts].map(id => onToggleFeatured(id, featured)));
             toast.success(`${selectedProducts.size} product(s) ${featured ? "featured" : "unfeatured"}`);
             setSelectedProducts(new Set());
         } catch (e: any) {
@@ -220,8 +217,8 @@ export const ContentTab = ({
                                         variant="destructive"
                                         className="h-7 text-xs shrink-0"
                                         onClick={() => {
-                                            if (item.type === "post") onHidePost(item.id as Id<"posts">, true);
-                                            else onHideProduct(item.id as Id<"products">, true);
+                                            if (item.type === "post") onHidePost(item.id, true);
+                                            else onHideProduct(item.id, true);
                                         }}
                                     >
                                         Hide
@@ -276,12 +273,12 @@ export const ContentTab = ({
                         )}
                         {visiblePosts.map((post: any) => (
                             <div
-                                key={post._id}
-                                className={`p-3 border rounded-lg flex items-start gap-3 transition-colors ${selectedPosts.has(post._id) ? "bg-primary/5 border-primary/30" : ""}`}
+                                key={post.id}
+                                className={`p-3 border rounded-lg flex items-start gap-3 transition-colors ${selectedPosts.has(post.id) ? "bg-primary/5 border-primary/30" : ""}`}
                             >
                                 <Checkbox
-                                    checked={selectedPosts.has(post._id)}
-                                    onCheckedChange={() => togglePostSelection(post._id)}
+                                    checked={selectedPosts.has(post.id)}
+                                    onCheckedChange={() => togglePostSelection(post.id)}
                                     className="mt-0.5 shrink-0"
                                 />
                                 <div className="flex-1 min-w-0">
@@ -289,14 +286,14 @@ export const ContentTab = ({
                                     <div className="flex items-center gap-2">
                                         {post.is_hidden && <Badge variant="destructive" className="text-[10px] h-4">Hidden</Badge>}
                                         {post.is_featured && <Badge className="text-[10px] h-4 bg-amber-500"><Sparkles className="h-2 w-2 mr-0.5" />Featured</Badge>}
-                                        <Button size="sm" variant="ghost" className="h-6 text-xs px-2" onClick={() => onHidePost(post._id, !post.is_hidden)}>
+                                        <Button size="sm" variant="ghost" className="h-6 text-xs px-2" onClick={() => onHidePost(post.id, !post.is_hidden)}>
                                             {post.is_hidden ? "Restore" : "Hide"}
                                         </Button>
                                         <Button
                                             size="sm"
                                             variant={post.is_featured ? "default" : "outline"}
                                             className="h-6 text-xs px-2"
-                                            onClick={() => onTogglePostFeatured(post._id, !post.is_featured)}
+                                            onClick={() => onTogglePostFeatured(post.id, !post.is_featured)}
                                         >
                                             {post.is_featured ? "Unfeature" : "Feature"}
                                         </Button>
@@ -349,12 +346,12 @@ export const ContentTab = ({
                         )}
                         {visibleProducts.map((product: any) => (
                             <div
-                                key={product._id}
-                                className={`p-3 border rounded-lg flex items-start gap-3 transition-colors ${selectedProducts.has(product._id) ? "bg-primary/5 border-primary/30" : ""}`}
+                                key={product.id}
+                                className={`p-3 border rounded-lg flex items-start gap-3 transition-colors ${selectedProducts.has(product.id) ? "bg-primary/5 border-primary/30" : ""}`}
                             >
                                 <Checkbox
-                                    checked={selectedProducts.has(product._id)}
-                                    onCheckedChange={() => toggleProductSelection(product._id)}
+                                    checked={selectedProducts.has(product.id)}
+                                    onCheckedChange={() => toggleProductSelection(product.id)}
                                     className="mt-0.5 shrink-0"
                                 />
                                 <div className="flex-1 min-w-0">
@@ -365,14 +362,14 @@ export const ContentTab = ({
                                         {product.is_featured && <Badge className="text-[10px] h-4 bg-amber-500"><Sparkles className="h-2 w-2 mr-0.5" />Featured</Badge>}
                                     </div>
                                     <div className="flex gap-1.5">
-                                        <Button size="sm" variant="ghost" className="h-6 text-xs px-2" onClick={() => onHideProduct(product._id, !product.is_hidden)}>
+                                        <Button size="sm" variant="ghost" className="h-6 text-xs px-2" onClick={() => onHideProduct(product.id, !product.is_hidden)}>
                                             {product.is_hidden ? "Restore" : "Hide"}
                                         </Button>
                                         <Button
                                             size="sm"
                                             variant={product.is_featured ? "default" : "outline"}
                                             className="h-6 text-xs px-2"
-                                            onClick={() => onToggleFeatured(product._id, !product.is_featured)}
+                                            onClick={() => onToggleFeatured(product.id, !product.is_featured)}
                                         >
                                             {product.is_featured ? "Unfeature" : "Feature"}
                                         </Button>
@@ -386,3 +383,4 @@ export const ContentTab = ({
         </div>
     );
 };
+

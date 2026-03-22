@@ -26,13 +26,13 @@ CREATE INDEX IF NOT EXISTS idx_user_settings_user_id ON user_settings(user_id);
 -- User Settings RLS
 ALTER TABLE user_settings ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Users can view own settings" ON user_settings
+DROP POLICY IF EXISTS  ON ; CREATE POLICY  ON user_settings
   FOR SELECT USING (auth.uid() = user_id);
 
-CREATE POLICY "Users can update own settings" ON user_settings
+DROP POLICY IF EXISTS  ON ; CREATE POLICY  ON user_settings
   FOR UPDATE USING (auth.uid() = user_id);
 
-CREATE POLICY "Users can insert own settings" ON user_settings
+DROP POLICY IF EXISTS  ON ; CREATE POLICY  ON user_settings
   FOR INSERT WITH CHECK (auth.uid() = user_id);
 
 -- ============================================================================
@@ -272,12 +272,15 @@ ALTER TABLE price_history ENABLE ROW LEVEL SECURITY;
 ALTER TABLE ai_chat_history ENABLE ROW LEVEL SECURITY;
 
 -- Posts RLS
-CREATE POLICY "Public can view non-hidden posts" ON posts
+DROP POLICY IF EXISTS "Users can view posts" ON posts;
+CREATE POLICY "Users can view posts" ON posts
   FOR SELECT USING (is_hidden = false OR auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can manage own posts" ON posts;
 CREATE POLICY "Users can manage own posts" ON posts
   FOR ALL USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Admins can view all posts" ON posts;
 CREATE POLICY "Admins can view all posts" ON posts
   FOR SELECT USING (
     EXISTS (
@@ -288,20 +291,25 @@ CREATE POLICY "Admins can view all posts" ON posts
   );
 
 -- Post Likes RLS
-CREATE POLICY "Users can view all post likes" ON post_likes
+DROP POLICY IF EXISTS "Post likes are public" ON post_likes;
+CREATE POLICY "Post likes are public" ON post_likes
   FOR SELECT USING (true);
 
-CREATE POLICY "Users can manage own post likes" ON post_likes
+DROP POLICY IF EXISTS "Users can manage own likes" ON post_likes;
+CREATE POLICY "Users can manage own likes" ON post_likes
   FOR ALL USING (auth.uid() = user_id);
 
 -- Post Comments RLS
-CREATE POLICY "Users can view all post comments" ON post_comments
+DROP POLICY IF EXISTS "Comments are public" ON post_comments;
+CREATE POLICY "Comments are public" ON post_comments
   FOR SELECT USING (true);
 
-CREATE POLICY "Users can manage own post comments" ON post_comments
+DROP POLICY IF EXISTS "Users can manage own comments" ON post_comments;
+CREATE POLICY "Users can manage own comments" ON post_comments
   FOR ALL USING (auth.uid() = user_id);
 
-CREATE POLICY "Admins can manage all post comments" ON post_comments
+DROP POLICY IF EXISTS "Admins can update comments" ON post_comments;
+CREATE POLICY "Admins can update comments" ON post_comments
   FOR UPDATE USING (
     EXISTS (
       SELECT 1 FROM user_roles ur
@@ -311,23 +319,29 @@ CREATE POLICY "Admins can manage all post comments" ON post_comments
   );
 
 -- Post Reposts RLS
-CREATE POLICY "Users can view all post reposts" ON post_reposts
+DROP POLICY IF EXISTS "Reposts are public" ON post_reposts;
+CREATE POLICY "Reposts are public" ON post_reposts
   FOR SELECT USING (true);
 
-CREATE POLICY "Users can manage own post reposts" ON post_reposts
+DROP POLICY IF EXISTS "Users can manage own reposts" ON post_reposts;
+CREATE POLICY "Users can manage own reposts" ON post_reposts
   FOR ALL USING (auth.uid() = user_id);
 
 -- Follows RLS
+DROP POLICY IF EXISTS "Users can view own follows" ON follows;
 CREATE POLICY "Users can view own follows" ON follows
   FOR SELECT USING (auth.uid() = follower_id OR auth.uid() = following_id);
 
-CREATE POLICY "Users can manage own follows" ON follows
+DROP POLICY IF EXISTS "Users can follow/unfollow" ON follows;
+CREATE POLICY "Users can follow/unfollow" ON follows
   FOR ALL USING (auth.uid() = follower_id);
 
-CREATE POLICY "Public can view follow counts" ON follows
+DROP POLICY IF EXISTS "Follows are public" ON follows;
+CREATE POLICY "Follows are public" ON follows
   FOR SELECT USING (true);
 
 -- Meta Pixel Events RLS
+DROP POLICY IF EXISTS "Admins can view pixel events" ON meta_pixel_events;
 CREATE POLICY "Admins can view pixel events" ON meta_pixel_events
   FOR SELECT USING (
     EXISTS (
@@ -337,10 +351,12 @@ CREATE POLICY "Admins can view pixel events" ON meta_pixel_events
     )
   );
 
-CREATE POLICY "System can insert pixel events" ON meta_pixel_events
+DROP POLICY IF EXISTS "Public can record pixel events" ON meta_pixel_events;
+CREATE POLICY "Public can record pixel events" ON meta_pixel_events
   FOR INSERT WITH CHECK (true);
 
 -- Meta Conversions RLS
+DROP POLICY IF EXISTS "Admins can view conversions" ON meta_conversions;
 CREATE POLICY "Admins can view conversions" ON meta_conversions
   FOR SELECT USING (
     EXISTS (
@@ -350,14 +366,15 @@ CREATE POLICY "Admins can view conversions" ON meta_conversions
     )
   );
 
-CREATE POLICY "System can insert conversions" ON meta_conversions
+DROP POLICY IF EXISTS "Public can record conversions" ON meta_conversions;
+CREATE POLICY "Public can record conversions" ON meta_conversions
   FOR INSERT WITH CHECK (true);
 
 -- Meta Custom Audiences RLS
-CREATE POLICY "Users can view own audiences" ON meta_custom_audiences
+DROP POLICY IF EXISTS  ON ; CREATE POLICY  ON meta_custom_audiences
   FOR SELECT USING (auth.uid() = created_by);
 
-CREATE POLICY "Admins can view all audiences" ON meta_custom_audiences
+DROP POLICY IF EXISTS  ON ; CREATE POLICY  ON meta_custom_audiences
   FOR SELECT USING (
     EXISTS (
       SELECT 1 FROM user_roles ur
@@ -366,10 +383,10 @@ CREATE POLICY "Admins can view all audiences" ON meta_custom_audiences
     )
   );
 
-CREATE POLICY "Users can manage own audiences" ON meta_custom_audiences
+DROP POLICY IF EXISTS  ON ; CREATE POLICY  ON meta_custom_audiences
   FOR ALL USING (auth.uid() = created_by);
 
-CREATE POLICY "Admins can manage all audiences" ON meta_custom_audiences
+DROP POLICY IF EXISTS  ON ; CREATE POLICY  ON meta_custom_audiences
   FOR ALL USING (
     EXISTS (
       SELECT 1 FROM user_roles ur
@@ -379,10 +396,10 @@ CREATE POLICY "Admins can manage all audiences" ON meta_custom_audiences
   );
 
 -- Meta Ad Campaigns RLS
-CREATE POLICY "Users can view own campaigns" ON meta_ad_campaigns
+DROP POLICY IF EXISTS  ON ; CREATE POLICY  ON meta_ad_campaigns
   FOR SELECT USING (auth.uid() = created_by);
 
-CREATE POLICY "Admins can view all campaigns" ON meta_ad_campaigns
+DROP POLICY IF EXISTS  ON ; CREATE POLICY  ON meta_ad_campaigns
   FOR SELECT USING (
     EXISTS (
       SELECT 1 FROM user_roles ur
@@ -391,10 +408,10 @@ CREATE POLICY "Admins can view all campaigns" ON meta_ad_campaigns
     )
   );
 
-CREATE POLICY "Users can manage own campaigns" ON meta_ad_campaigns
+DROP POLICY IF EXISTS  ON ; CREATE POLICY  ON meta_ad_campaigns
   FOR ALL USING (auth.uid() = created_by);
 
-CREATE POLICY "Admins can manage all campaigns" ON meta_ad_campaigns
+DROP POLICY IF EXISTS  ON ; CREATE POLICY  ON meta_ad_campaigns
   FOR ALL USING (
     EXISTS (
       SELECT 1 FROM user_roles ur
@@ -404,6 +421,7 @@ CREATE POLICY "Admins can manage all campaigns" ON meta_ad_campaigns
   );
 
 -- Email Logs RLS
+DROP POLICY IF EXISTS "Admins can view email logs" ON email_logs;
 CREATE POLICY "Admins can view email logs" ON email_logs
   FOR SELECT USING (
     EXISTS (
@@ -413,30 +431,38 @@ CREATE POLICY "Admins can view email logs" ON email_logs
     )
   );
 
-CREATE POLICY "System can insert email logs" ON email_logs
+DROP POLICY IF EXISTS "Public can insert email logs" ON email_logs;
+CREATE POLICY "Public can insert email logs" ON email_logs
   FOR INSERT WITH CHECK (true);
 
 -- Password Reset Tokens RLS
+DROP POLICY IF EXISTS "Users can view own reset tokens" ON password_reset_tokens;
 CREATE POLICY "Users can view own reset tokens" ON password_reset_tokens
   FOR SELECT USING (auth.uid() = user_id);
 
-CREATE POLICY "System can insert reset tokens" ON password_reset_tokens
+DROP POLICY IF EXISTS "Public can create reset tokens" ON password_reset_tokens;
+CREATE POLICY "Public can create reset tokens" ON password_reset_tokens
   FOR INSERT WITH CHECK (true);
 
+DROP POLICY IF EXISTS "Users can delete own reset tokens" ON password_reset_tokens;
 CREATE POLICY "Users can delete own reset tokens" ON password_reset_tokens
   FOR DELETE USING (auth.uid() = user_id);
 
 -- Price History RLS
-CREATE POLICY "Public can view price history" ON price_history
+DROP POLICY IF EXISTS "Price history is public" ON price_history;
+CREATE POLICY "Price history is public" ON price_history
   FOR SELECT USING (true);
 
-CREATE POLICY "System can insert price history" ON price_history
+DROP POLICY IF EXISTS "Public can record price point" ON price_history;
+CREATE POLICY "Public can record price point" ON price_history
   FOR INSERT WITH CHECK (true);
 
 -- AI Chat History RLS
+DROP POLICY IF EXISTS "Users can view own chat history" ON ai_chat_history;
 CREATE POLICY "Users can view own chat history" ON ai_chat_history
   FOR SELECT USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can manage own chat history" ON ai_chat_history;
 CREATE POLICY "Users can manage own chat history" ON ai_chat_history
   FOR ALL USING (auth.uid() = user_id);
 
@@ -445,8 +471,13 @@ CREATE POLICY "Users can manage own chat history" ON ai_chat_history
 -- ============================================================================
 
 -- Create triggers for updated_at
+DROP TRIGGER IF EXISTS user_settings_updated_at ON user_settings;
 CREATE TRIGGER user_settings_updated_at BEFORE UPDATE ON user_settings FOR EACH ROW EXECUTE FUNCTION trigger_update_timestamp();
+
+DROP TRIGGER IF EXISTS posts_updated_at ON posts;
 CREATE TRIGGER posts_updated_at BEFORE UPDATE ON posts FOR EACH ROW EXECUTE FUNCTION trigger_update_timestamp();
+
+DROP TRIGGER IF EXISTS meta_ad_campaigns_updated_at ON meta_ad_campaigns;
 CREATE TRIGGER meta_ad_campaigns_updated_at BEFORE UPDATE ON meta_ad_campaigns FOR EACH ROW EXECUTE FUNCTION trigger_update_timestamp();
 
 -- Social Feed Functions

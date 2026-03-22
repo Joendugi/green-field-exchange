@@ -299,22 +299,28 @@ ALTER TABLE login_attempts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE rate_limit_tracking ENABLE ROW LEVEL SECURITY;
 
 -- Profiles RLS
+DROP POLICY IF EXISTS "Users can view own profile" ON profiles;
 CREATE POLICY "Users can view own profile" ON profiles
   FOR SELECT USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can update own profile" ON profiles;
 CREATE POLICY "Users can update own profile" ON profiles
   FOR UPDATE USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can insert own profile" ON profiles;
 CREATE POLICY "Users can insert own profile" ON profiles
   FOR INSERT WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Public profiles are viewable by everyone" ON profiles;
 CREATE POLICY "Public profiles are viewable by everyone" ON profiles
   FOR SELECT USING (true);
 
 -- User Roles RLS
+DROP POLICY IF EXISTS "Users can view own roles" ON user_roles;
 CREATE POLICY "Users can view own roles" ON user_roles
   FOR SELECT USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Admins can view all roles" ON user_roles;
 CREATE POLICY "Admins can view all roles" ON user_roles
   FOR SELECT USING (
     EXISTS (
@@ -324,6 +330,7 @@ CREATE POLICY "Admins can view all roles" ON user_roles
     )
   );
 
+DROP POLICY IF EXISTS "Admins can manage roles" ON user_roles;
 CREATE POLICY "Admins can manage roles" ON user_roles
   FOR ALL USING (
     EXISTS (
@@ -334,53 +341,68 @@ CREATE POLICY "Admins can manage roles" ON user_roles
   );
 
 -- Products RLS
+DROP POLICY IF EXISTS "Users can view all products" ON products;
 CREATE POLICY "Users can view all products" ON products
   FOR SELECT USING (is_available = true OR auth.uid() = farmer_id);
 
+DROP POLICY IF EXISTS "Farmers can manage own products" ON products;
 CREATE POLICY "Farmers can manage own products" ON products
   FOR ALL USING (auth.uid() = farmer_id);
 
 -- Orders RLS
+DROP POLICY IF EXISTS "Users can view own orders" ON orders;
 CREATE POLICY "Users can view own orders" ON orders
   FOR SELECT USING (auth.uid() = buyer_id OR auth.uid() = farmer_id);
 
+DROP POLICY IF EXISTS "Farmers can update order status" ON orders;
 CREATE POLICY "Farmers can update order status" ON orders
   FOR UPDATE USING (auth.uid() = farmer_id AND status IN ('pending', 'accepted'));
 
+DROP POLICY IF EXISTS "Buyers can cancel pending orders" ON orders;
 CREATE POLICY "Buyers can cancel pending orders" ON orders
   FOR UPDATE USING (auth.uid() = buyer_id AND status = 'pending');
 
+DROP POLICY IF EXISTS "Users can create orders" ON orders;
 CREATE POLICY "Users can create orders" ON orders
   FOR INSERT WITH CHECK (auth.uid() = buyer_id);
 
 -- Offers RLS
+DROP POLICY IF EXISTS "Users can view own offers" ON offers;
 CREATE POLICY "Users can view own offers" ON offers
   FOR SELECT USING (auth.uid() = buyer_id OR auth.uid() = farmer_id);
 
+DROP POLICY IF EXISTS "Buyers can create offers" ON offers;
 CREATE POLICY "Buyers can create offers" ON offers
   FOR INSERT WITH CHECK (auth.uid() = buyer_id);
 
+DROP POLICY IF EXISTS "Farmers can update offers" ON offers;
 CREATE POLICY "Farmers can update offers" ON offers
   FOR UPDATE USING (auth.uid() = farmer_id);
 
+DROP POLICY IF EXISTS "Users can update own offers" ON offers;
 CREATE POLICY "Users can update own offers" ON offers
   FOR UPDATE USING (auth.uid() = last_offered_by);
 
 -- Loyalty Discounts RLS
+DROP POLICY IF EXISTS "Farmers can manage loyalty discounts" ON loyalty_discounts;
 CREATE POLICY "Farmers can manage loyalty discounts" ON loyalty_discounts
   FOR ALL USING (auth.uid() = farmer_id);
 
+DROP POLICY IF EXISTS "Buyers can view own loyalty discounts" ON loyalty_discounts;
 CREATE POLICY "Buyers can view own loyalty discounts" ON loyalty_discounts
   FOR SELECT USING (auth.uid() = buyer_id);
 
 -- Conversations RLS
+DROP POLICY IF EXISTS "Users can view own conversations" ON conversations;
 CREATE POLICY "Users can view own conversations" ON conversations
   FOR SELECT USING (auth.uid() = participant1_id OR auth.uid() = participant2_id);
 
+DROP POLICY IF EXISTS "Users can create conversations" ON conversations;
 CREATE POLICY "Users can create conversations" ON conversations
   FOR INSERT WITH CHECK (auth.uid() = participant1_id OR auth.uid() = participant2_id);
 
 -- Messages RLS
+DROP POLICY IF EXISTS "Users can view messages in own conversations" ON messages;
 CREATE POLICY "Users can view messages in own conversations" ON messages
   FOR SELECT USING (
     EXISTS (
@@ -390,6 +412,7 @@ CREATE POLICY "Users can view messages in own conversations" ON messages
     )
   );
 
+DROP POLICY IF EXISTS "Users can insert messages in own conversations" ON messages;
 CREATE POLICY "Users can insert messages in own conversations" ON messages
   FOR INSERT WITH CHECK (
     EXISTS (
@@ -400,6 +423,7 @@ CREATE POLICY "Users can insert messages in own conversations" ON messages
     AND sender_id = auth.uid()
   );
 
+DROP POLICY IF EXISTS "Users can update read status of messages sent to them" ON messages;
 CREATE POLICY "Users can update read status of messages sent to them" ON messages
   FOR UPDATE USING (
     sender_id != auth.uid() AND
@@ -411,35 +435,44 @@ CREATE POLICY "Users can update read status of messages sent to them" ON message
   );
 
 -- Notifications RLS
+DROP POLICY IF EXISTS "Users can view own notifications" ON notifications;
 CREATE POLICY "Users can view own notifications" ON notifications
   FOR SELECT USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can update own notifications" ON notifications;
 CREATE POLICY "Users can update own notifications" ON notifications
   FOR UPDATE USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "System can insert notifications" ON notifications;
 CREATE POLICY "System can insert notifications" ON notifications
   FOR INSERT WITH CHECK (true);
 
 -- Reviews RLS
+DROP POLICY IF EXISTS "Users can view all reviews" ON reviews;
 CREATE POLICY "Users can view all reviews" ON reviews
   FOR SELECT USING (true);
 
+DROP POLICY IF EXISTS "Users can create reviews" ON reviews;
 CREATE POLICY "Users can create reviews" ON reviews
   FOR INSERT WITH CHECK (
     reviewer_id = auth.uid() AND
     reviewer_id != reviewee_id
   );
 
+DROP POLICY IF EXISTS "Users can update own reviews" ON reviews;
 CREATE POLICY "Users can update own reviews" ON reviews
   FOR UPDATE USING (reviewer_id = auth.uid());
 
+DROP POLICY IF EXISTS "Users can delete own reviews" ON reviews;
 CREATE POLICY "Users can delete own reviews" ON reviews
   FOR DELETE USING (reviewer_id = auth.uid());
 
 -- Verification Requests RLS
+DROP POLICY IF EXISTS "Users can view own verification requests" ON verification_requests;
 CREATE POLICY "Users can view own verification requests" ON verification_requests
   FOR SELECT USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Admins can view all verification requests" ON verification_requests;
 CREATE POLICY "Admins can view all verification requests" ON verification_requests
   FOR SELECT USING (
     EXISTS (
@@ -449,9 +482,11 @@ CREATE POLICY "Admins can view all verification requests" ON verification_reques
     )
   );
 
+DROP POLICY IF EXISTS "Users can create verification requests" ON verification_requests;
 CREATE POLICY "Users can create verification requests" ON verification_requests
   FOR INSERT WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Admins can update verification requests" ON verification_requests;
 CREATE POLICY "Admins can update verification requests" ON verification_requests
   FOR UPDATE USING (
     EXISTS (
@@ -462,6 +497,7 @@ CREATE POLICY "Admins can update verification requests" ON verification_requests
   );
 
 -- Admin Audit Logs RLS
+DROP POLICY IF EXISTS "Admins can view audit logs" ON admin_audit_logs;
 CREATE POLICY "Admins can view audit logs" ON admin_audit_logs
   FOR SELECT USING (
     EXISTS (
@@ -471,6 +507,7 @@ CREATE POLICY "Admins can view audit logs" ON admin_audit_logs
     )
   );
 
+DROP POLICY IF EXISTS "Admins can create audit logs" ON admin_audit_logs;
 CREATE POLICY "Admins can create audit logs" ON admin_audit_logs
   FOR INSERT WITH CHECK (
     EXISTS (
@@ -481,6 +518,7 @@ CREATE POLICY "Admins can create audit logs" ON admin_audit_logs
   );
 
 -- Admin Settings RLS
+DROP POLICY IF EXISTS "Admins can manage settings" ON admin_settings;
 CREATE POLICY "Admins can manage settings" ON admin_settings
   FOR ALL USING (
     EXISTS (
@@ -491,6 +529,7 @@ CREATE POLICY "Admins can manage settings" ON admin_settings
   );
 
 -- Login Attempts RLS
+DROP POLICY IF EXISTS "Admins can view login attempts" ON login_attempts;
 CREATE POLICY "Admins can view login attempts" ON login_attempts
   FOR SELECT USING (
     EXISTS (
@@ -501,6 +540,7 @@ CREATE POLICY "Admins can view login attempts" ON login_attempts
   );
 
 -- Rate Limit Tracking RLS
+DROP POLICY IF EXISTS "Service role full access to rate limits" ON rate_limit_tracking;
 CREATE POLICY "Service role full access to rate limits" ON rate_limit_tracking
   FOR ALL USING (true);
 
@@ -518,12 +558,25 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Create triggers for updated_at
+DROP TRIGGER IF EXISTS profiles_updated_at ON profiles;
 CREATE TRIGGER profiles_updated_at BEFORE UPDATE ON profiles FOR EACH ROW EXECUTE FUNCTION trigger_update_timestamp();
+
+DROP TRIGGER IF EXISTS products_updated_at ON products;
 CREATE TRIGGER products_updated_at BEFORE UPDATE ON products FOR EACH ROW EXECUTE FUNCTION trigger_update_timestamp();
+
+DROP TRIGGER IF EXISTS orders_updated_at ON orders;
 CREATE TRIGGER orders_updated_at BEFORE UPDATE ON orders FOR EACH ROW EXECUTE FUNCTION trigger_update_timestamp();
+
+DROP TRIGGER IF EXISTS offers_updated_at ON offers;
 CREATE TRIGGER offers_updated_at BEFORE UPDATE ON offers FOR EACH ROW EXECUTE FUNCTION trigger_update_timestamp();
+
+DROP TRIGGER IF EXISTS conversations_updated_at ON conversations;
 CREATE TRIGGER conversations_updated_at BEFORE UPDATE ON conversations FOR EACH ROW EXECUTE FUNCTION trigger_update_timestamp();
+
+DROP TRIGGER IF EXISTS verification_requests_updated_at ON verification_requests;
 CREATE TRIGGER verification_requests_updated_at BEFORE UPDATE ON verification_requests FOR EACH ROW EXECUTE FUNCTION trigger_update_timestamp();
+
+DROP TRIGGER IF EXISTS admin_settings_updated_at ON admin_settings;
 CREATE TRIGGER admin_settings_updated_at BEFORE UPDATE ON admin_settings FOR EACH ROW EXECUTE FUNCTION trigger_update_timestamp();
 
 -- Product functions

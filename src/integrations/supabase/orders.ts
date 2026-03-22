@@ -30,7 +30,7 @@ export async function createOrder(input: OrderInput) {
             product_id: input.product_id,
             quantity: input.quantity,
             total_price: totalPrice,
-            currency: product.currency || "$",
+            currency: product.currency === "USD" ? "USD" : (product.currency || "USD"),
             status: "pending",
             delivery_address: input.delivery_address,
             payment_type: input.payment_type || "cash_on_delivery",

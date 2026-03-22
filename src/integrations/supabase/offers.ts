@@ -107,7 +107,7 @@ export async function finalizeCheckout(input: { offerId: string; delivery_addres
             product_id: offer.product_id,
             quantity: offer.quantity,
             total_price: totalPrice,
-            currency: (offer.products as any)?.currency || "$",
+            currency: (offer.products as any)?.currency === "USD" ? "USD" : ((offer.products as any)?.currency || "USD"),
             status: "pending",
             delivery_address: input.delivery_address,
             payment_type: "cash_on_delivery",

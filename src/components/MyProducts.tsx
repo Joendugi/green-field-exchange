@@ -83,7 +83,7 @@ const MyProducts = () => {
     image_url: "",
     image_storage_id: "",
     expiry_date: "",
-    currency: "$",
+    currency: "USD",
   });
 
   const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
@@ -197,7 +197,7 @@ const MyProducts = () => {
         image_url: "",
         image_storage_id: "",
         expiry_date: "",
-        currency: "$",
+        currency: "USD",
       });
       setFormErrors({});
       setCurrentStep(0);
@@ -452,11 +452,11 @@ const MyProducts = () => {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="$">$ (USD)</SelectItem>
+                    <SelectItem value="USD">USD ($)</SelectItem>
                     <SelectItem value="UGX">UGX</SelectItem>
                     <SelectItem value="KES">KES</SelectItem>
-                    <SelectItem value="€">€ (EUR)</SelectItem>
-                    <SelectItem value="£">£ (GBP)</SelectItem>
+                    <SelectItem value="EUR">EUR (€)</SelectItem>
+                    <SelectItem value="GBP">GBP (£)</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -700,7 +700,7 @@ const MyProducts = () => {
                     image_url: "",
                     image_storage_id: "",
                     expiry_date: "",
-                    currency: "$",
+                    currency: "USD",
                   });
                   setCurrentStep(0);
                   setMediaFile(null);
@@ -885,7 +885,7 @@ const MyProducts = () => {
                     image_url: product.image_url || "",
                     image_storage_id: product.image_storage_id || "",
                     expiry_date: product.expiry_date ? new Date(product.expiry_date).toISOString().split('T')[0] : "",
-                    currency: product.currency || "$",
+                    currency: product.currency === "USD" ? "USD" : (product.currency || "USD"),
                   });
                   setCurrentStep(0);
                   setMediaFile(null);

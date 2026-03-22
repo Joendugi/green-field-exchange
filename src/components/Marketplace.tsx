@@ -373,15 +373,15 @@ const Marketplace = () => {
                         {product.hasLoyaltyDiscount ? (
                           <>
                             <span className="text-2xl font-bold text-primary">
-                              {product.currency || "$"}{product.discountedPrice.toFixed(2)}/{product.unit}
+                              {product.currency === "USD" ? "$" : (product.currency || "$")}{product.discountedPrice.toFixed(2)}/{product.unit}
                             </span>
                             <span className="text-xs text-muted-foreground line-through decoration-rose-400">
-                              Was {product.currency || "$"}{product.price}
+                              Was {product.currency === "USD" ? "$" : (product.currency || "$")}{product.price}
                             </span>
                           </>
                         ) : (
                           <span className="text-2xl font-bold text-primary">
-                            {product.currency || "$"}{product.price}/{product.unit}
+                            {product.currency === "USD" ? "$" : (product.currency || "$")}{product.price}/{product.unit}
                           </span>
                         )}
                       </div>
@@ -516,7 +516,7 @@ const Marketplace = () => {
                               <div className="space-y-2">
                                 <Label>Your Price (per {product.unit})</Label>
                                 <div className="relative">
-                                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">{product.currency || "$"}</span>
+                                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">{product.currency === "USD" ? "$" : (product.currency || "$")}</span>
                                   <Input
                                     type="number"
                                     className="pl-7"

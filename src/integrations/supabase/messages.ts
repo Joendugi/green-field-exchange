@@ -81,20 +81,25 @@ export async function startConversation(otherUserId: string) {
     const { data: userData } = await supabase.auth.getUser();
     if (!userData.user) throw new Error("Not authenticated");
 
+    const userId = userData.user.id;
+    // Enforce participant1_id < participant2_id for the unique constraint
+    const [p1, p2] = userId < otherUserId ? [userId, otherUserId] : [otherUserId, userId];
+
     // Check if exists
-    const { data: existing } = await supabase
+    const { data: existing, error: fetchError } = await supabase
         .from("conversations")
         .select("id")
-        .or(`and(participant1_id.eq.${userData.user.id},participant2_id.eq.${otherUserId}),and(participant1_id.eq.${otherUserId},participant2_id.eq.${userData.user.id})`)
-        .single();
+        .eq("participant1_id", p1)
+        .eq("participant2_id", p2)
+        .maybeSingle();
 
     if (existing) return existing.id;
 
     const { data, error } = await supabase
         .from("conversations")
         .insert({
-            participant1_id: userData.user.id,
-            participant2_id: otherUserId
+            participant1_id: p1,
+            participant2_id: p2
         })
         .select()
         .single();

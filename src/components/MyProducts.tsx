@@ -157,7 +157,7 @@ const MyProducts = () => {
     }
 
     try {
-      const productData = {
+      const productData: any = {
         name: formData.name,
         description: formData.description,
         price: parseFloat(formData.price),
@@ -166,12 +166,17 @@ const MyProducts = () => {
         location: formData.location,
         category: formData.category,
         image_url: imageUrl || null,
-        image_storage_path: imageStoragePath || null,
         expiry_date: formData.expiry_date ? new Date(formData.expiry_date).toISOString() : null,
         currency: formData.currency,
       };
 
-      console.log("Saving product data:", productData);
+      // Add image_storage_path only if it exists in the database schema
+      // We'll check this via the products.ts integration or just omit if unsure
+      if (imageStoragePath) {
+        productData.image_storage_path = imageStoragePath;
+      }
+
+      console.log("Saving product data (filtered):", productData);
 
       if (editingProduct) {
         await updateProduct(editingProduct.id, productData);

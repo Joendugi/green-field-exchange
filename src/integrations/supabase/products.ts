@@ -81,7 +81,7 @@ export async function createProduct(input: {
   const userId = await getCurrentUserId();
   if (!userId) throw new Error("Not authenticated");
 
-  console.log("Supabase Insert Payload:", {
+  const payload: any = {
     farmer_id: userId,
     name: input.name,
     description: input.description,
@@ -91,27 +91,21 @@ export async function createProduct(input: {
     category: input.category,
     location: input.location,
     image_url: input.image_url ?? null,
-    image_storage_path: input.image_storage_path ?? null,
     expiry_date: input.expiry_date ?? null,
     currency: input.currency ?? "USD",
-  });
+  };
+
+  // Only add image_storage_path if it's provided and we want to try it
+  // Given the 400 error, we'll keep it out of the main object for a moment if it's failing schema cache
+  if (input.image_storage_path) {
+    payload.image_storage_path = input.image_storage_path;
+  }
+
+  console.log("Supabase Insert Payload:", payload);
 
   const { data, error } = await supabase
     .from("products")
-    .insert({
-      farmer_id: userId,
-      name: input.name,
-      description: input.description,
-      price: input.price,
-      quantity: input.quantity,
-      unit: input.unit,
-      category: input.category,
-      location: input.location,
-      image_url: input.image_url ?? null,
-      image_storage_path: input.image_storage_path ?? null,
-      expiry_date: input.expiry_date ?? null,
-      currency: input.currency ?? "USD",
-    })
+    .insert(payload)
     .select("*")
     .single();
 

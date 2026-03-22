@@ -10,7 +10,7 @@
 -- ============================================================================
 CREATE TABLE IF NOT EXISTS user_settings (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES profiles(user_id) ON DELETE CASCADE,
   notifications_enabled BOOLEAN NOT NULL DEFAULT true,
   notifications_orders BOOLEAN NOT NULL DEFAULT true,
   notifications_social BOOLEAN NOT NULL DEFAULT true,
@@ -18,7 +18,8 @@ CREATE TABLE IF NOT EXISTS user_settings (
   ai_assistant_enabled BOOLEAN NOT NULL DEFAULT true,
   dark_mode BOOLEAN NOT NULL DEFAULT false,
   created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW()
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  CONSTRAINT unique_user_settings UNIQUE (user_id)
 );
 
 CREATE INDEX IF NOT EXISTS idx_user_settings_user_id ON user_settings(user_id);
@@ -26,13 +27,16 @@ CREATE INDEX IF NOT EXISTS idx_user_settings_user_id ON user_settings(user_id);
 -- User Settings RLS
 ALTER TABLE user_settings ENABLE ROW LEVEL SECURITY;
 
-DROP POLICY IF EXISTS  ON ; CREATE POLICY  ON user_settings
+DROP POLICY IF EXISTS "Users can view own settings" ON user_settings;
+CREATE POLICY "Users can view own settings" ON user_settings
   FOR SELECT USING (auth.uid() = user_id);
 
-DROP POLICY IF EXISTS  ON ; CREATE POLICY  ON user_settings
+DROP POLICY IF EXISTS "Users can update own settings" ON user_settings;
+CREATE POLICY "Users can update own settings" ON user_settings
   FOR UPDATE USING (auth.uid() = user_id);
 
-DROP POLICY IF EXISTS  ON ; CREATE POLICY  ON user_settings
+DROP POLICY IF EXISTS "Users can insert own settings" ON user_settings;
+CREATE POLICY "Users can insert own settings" ON user_settings
   FOR INSERT WITH CHECK (auth.uid() = user_id);
 
 -- ============================================================================
@@ -40,7 +44,7 @@ DROP POLICY IF EXISTS  ON ; CREATE POLICY  ON user_settings
 -- ============================================================================
 CREATE TABLE IF NOT EXISTS posts (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES profiles(user_id) ON DELETE CASCADE,
   content TEXT NOT NULL,
   image_url TEXT,
   video_url TEXT,
@@ -63,7 +67,7 @@ CREATE INDEX IF NOT EXISTS idx_posts_is_hidden ON posts(is_hidden);
 
 CREATE TABLE IF NOT EXISTS post_likes (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES profiles(user_id) ON DELETE CASCADE,
   post_id UUID NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   CONSTRAINT unique_post_like UNIQUE (user_id, post_id)
@@ -74,7 +78,7 @@ CREATE INDEX IF NOT EXISTS idx_post_likes_post_id ON post_likes(post_id);
 
 CREATE TABLE IF NOT EXISTS post_comments (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES profiles(user_id) ON DELETE CASCADE,
   post_id UUID NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
   content TEXT NOT NULL,
   is_solution BOOLEAN DEFAULT false,
@@ -86,7 +90,7 @@ CREATE INDEX IF NOT EXISTS idx_post_comments_created_at ON post_comments(created
 
 CREATE TABLE IF NOT EXISTS post_reposts (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES profiles(user_id) ON DELETE CASCADE,
   post_id UUID NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   CONSTRAINT unique_post_repost UNIQUE (user_id, post_id)
@@ -98,18 +102,18 @@ CREATE INDEX IF NOT EXISTS idx_post_reposts_post_id ON post_reposts(post_id);
 -- ============================================================================
 -- FOLLOWS SYSTEM
 -- ============================================================================
-CREATE TABLE IF NOT EXISTS follows (
+CREATE TABLE IF NOT EXISTS user_follows (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  follower_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  following_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  follower_id UUID NOT NULL REFERENCES profiles(user_id) ON DELETE CASCADE,
+  following_id UUID NOT NULL REFERENCES profiles(user_id) ON DELETE CASCADE,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   CONSTRAINT no_self_follow CHECK (follower_id != following_id),
   CONSTRAINT unique_follow UNIQUE (follower_id, following_id)
 );
 
-CREATE INDEX IF NOT EXISTS idx_follows_follower_id ON follows(follower_id);
-CREATE INDEX IF NOT EXISTS idx_follows_following_id ON follows(following_id);
-CREATE UNIQUE INDEX IF NOT EXISTS idx_follows_unique ON follows(follower_id, following_id);
+CREATE INDEX IF NOT EXISTS idx_user_follows_follower_id ON user_follows(follower_id);
+CREATE INDEX IF NOT EXISTS idx_user_follows_following_id ON user_follows(following_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_user_follows_unique ON user_follows(follower_id, following_id);
 
 -- ============================================================================
 -- META ADS AND ANALYTICS
@@ -118,7 +122,7 @@ CREATE TABLE IF NOT EXISTS meta_pixel_events (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   event_name TEXT NOT NULL,
   event_data JSONB DEFAULT NULL,
-  user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+  user_id UUID REFERENCES profiles(user_id) ON DELETE SET NULL,
   session_id TEXT DEFAULT NULL,
   value NUMERIC DEFAULT NULL,
   currency TEXT DEFAULT NULL,
@@ -135,7 +139,7 @@ CREATE TABLE IF NOT EXISTS meta_conversions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   conversion_type TEXT NOT NULL,
   conversion_data JSONB DEFAULT NULL,
-  user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+  user_id UUID REFERENCES profiles(user_id) ON DELETE SET NULL,
   order_id UUID REFERENCES orders(id) ON DELETE SET NULL,
   product_id UUID REFERENCES products(id) ON DELETE SET NULL,
   value NUMERIC DEFAULT NULL,
@@ -155,7 +159,7 @@ CREATE TABLE IF NOT EXISTS meta_custom_audiences (
   audience_description TEXT NOT NULL,
   audience_type TEXT NOT NULL,
   criteria JSONB NOT NULL,
-  created_by UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  created_by UUID NOT NULL REFERENCES profiles(user_id) ON DELETE CASCADE,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   is_active BOOLEAN NOT NULL DEFAULT true
 );
@@ -174,7 +178,7 @@ CREATE TABLE IF NOT EXISTS meta_ad_campaigns (
   end_date TIMESTAMPTZ DEFAULT NULL,
   target_audience UUID REFERENCES meta_custom_audiences(id) ON DELETE SET NULL,
   creative_assets JSONB NOT NULL DEFAULT '[]',
-  created_by UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  created_by UUID NOT NULL REFERENCES profiles(user_id) ON DELETE CASCADE,
   status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'active', 'paused', 'completed')),
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW(),
@@ -216,7 +220,7 @@ CREATE INDEX IF NOT EXISTS idx_email_logs_timestamp ON email_logs(timestamp DESC
 -- ============================================================================
 CREATE TABLE IF NOT EXISTS password_reset_tokens (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES profiles(user_id) ON DELETE CASCADE,
   token TEXT NOT NULL UNIQUE,
   expires_at TIMESTAMPTZ NOT NULL,
   created_at TIMESTAMPTZ DEFAULT NOW()
@@ -245,7 +249,7 @@ CREATE INDEX IF NOT EXISTS idx_price_history_recorded_at ON price_history(record
 -- ============================================================================
 CREATE TABLE IF NOT EXISTS ai_chat_history (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES profiles(user_id) ON DELETE CASCADE,
   role TEXT NOT NULL CHECK (role IN ('user', 'assistant')),
   content TEXT NOT NULL,
   created_at TIMESTAMPTZ DEFAULT NOW()
@@ -261,7 +265,7 @@ ALTER TABLE posts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE post_likes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE post_comments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE post_reposts ENABLE ROW LEVEL SECURITY;
-ALTER TABLE follows ENABLE ROW LEVEL SECURITY;
+ALTER TABLE user_follows ENABLE ROW LEVEL SECURITY;
 ALTER TABLE meta_pixel_events ENABLE ROW LEVEL SECURITY;
 ALTER TABLE meta_conversions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE meta_custom_audiences ENABLE ROW LEVEL SECURITY;
@@ -282,13 +286,7 @@ CREATE POLICY "Users can manage own posts" ON posts
 
 DROP POLICY IF EXISTS "Admins can view all posts" ON posts;
 CREATE POLICY "Admins can view all posts" ON posts
-  FOR SELECT USING (
-    EXISTS (
-      SELECT 1 FROM user_roles ur
-      WHERE ur.user_id = auth.uid()
-        AND ur.role = 'admin'
-    )
-  );
+  FOR SELECT USING (public.has_role(auth.uid(), 'admin'));
 
 -- Post Likes RLS
 DROP POLICY IF EXISTS "Post likes are public" ON post_likes;
@@ -310,13 +308,7 @@ CREATE POLICY "Users can manage own comments" ON post_comments
 
 DROP POLICY IF EXISTS "Admins can update comments" ON post_comments;
 CREATE POLICY "Admins can update comments" ON post_comments
-  FOR UPDATE USING (
-    EXISTS (
-      SELECT 1 FROM user_roles ur
-      WHERE ur.user_id = auth.uid()
-        AND ur.role = 'admin'
-    )
-  );
+  FOR UPDATE USING (public.has_role(auth.uid(), 'admin'));
 
 -- Post Reposts RLS
 DROP POLICY IF EXISTS "Reposts are public" ON post_reposts;
@@ -327,29 +319,23 @@ DROP POLICY IF EXISTS "Users can manage own reposts" ON post_reposts;
 CREATE POLICY "Users can manage own reposts" ON post_reposts
   FOR ALL USING (auth.uid() = user_id);
 
--- Follows RLS
-DROP POLICY IF EXISTS "Users can view own follows" ON follows;
-CREATE POLICY "Users can view own follows" ON follows
+-- User Follows RLS
+DROP POLICY IF EXISTS "Users can view own follows" ON user_follows;
+CREATE POLICY "Users can view own follows" ON user_follows
   FOR SELECT USING (auth.uid() = follower_id OR auth.uid() = following_id);
 
-DROP POLICY IF EXISTS "Users can follow/unfollow" ON follows;
-CREATE POLICY "Users can follow/unfollow" ON follows
+DROP POLICY IF EXISTS "Users can follow/unfollow" ON user_follows;
+CREATE POLICY "Users can follow/unfollow" ON user_follows
   FOR ALL USING (auth.uid() = follower_id);
 
-DROP POLICY IF EXISTS "Follows are public" ON follows;
-CREATE POLICY "Follows are public" ON follows
+DROP POLICY IF EXISTS "Follows are public" ON user_follows;
+CREATE POLICY "Follows are public" ON user_follows
   FOR SELECT USING (true);
 
 -- Meta Pixel Events RLS
 DROP POLICY IF EXISTS "Admins can view pixel events" ON meta_pixel_events;
 CREATE POLICY "Admins can view pixel events" ON meta_pixel_events
-  FOR SELECT USING (
-    EXISTS (
-      SELECT 1 FROM user_roles ur
-      WHERE ur.user_id = auth.uid()
-        AND ur.role = 'admin'
-    )
-  );
+  FOR SELECT USING (public.has_role(auth.uid(), 'admin'));
 
 DROP POLICY IF EXISTS "Public can record pixel events" ON meta_pixel_events;
 CREATE POLICY "Public can record pixel events" ON meta_pixel_events
@@ -358,78 +344,50 @@ CREATE POLICY "Public can record pixel events" ON meta_pixel_events
 -- Meta Conversions RLS
 DROP POLICY IF EXISTS "Admins can view conversions" ON meta_conversions;
 CREATE POLICY "Admins can view conversions" ON meta_conversions
-  FOR SELECT USING (
-    EXISTS (
-      SELECT 1 FROM user_roles ur
-      WHERE ur.user_id = auth.uid()
-        AND ur.role = 'admin'
-    )
-  );
+  FOR SELECT USING (public.has_role(auth.uid(), 'admin'));
 
 DROP POLICY IF EXISTS "Public can record conversions" ON meta_conversions;
 CREATE POLICY "Public can record conversions" ON meta_conversions
   FOR INSERT WITH CHECK (true);
 
 -- Meta Custom Audiences RLS
-DROP POLICY IF EXISTS  ON ; CREATE POLICY  ON meta_custom_audiences
+DROP POLICY IF EXISTS "Users can view own custom audiences" ON meta_custom_audiences;
+CREATE POLICY "Users can view own custom audiences" ON meta_custom_audiences
   FOR SELECT USING (auth.uid() = created_by);
 
-DROP POLICY IF EXISTS  ON ; CREATE POLICY  ON meta_custom_audiences
-  FOR SELECT USING (
-    EXISTS (
-      SELECT 1 FROM user_roles ur
-      WHERE ur.user_id = auth.uid()
-        AND ur.role = 'admin'
-    )
-  );
+DROP POLICY IF EXISTS "Admins can view all custom audiences" ON meta_custom_audiences;
+CREATE POLICY "Admins can view all custom audiences" ON meta_custom_audiences
+  FOR SELECT USING (public.has_role(auth.uid(), 'admin'));
 
-DROP POLICY IF EXISTS  ON ; CREATE POLICY  ON meta_custom_audiences
+DROP POLICY IF EXISTS "Users can manage own custom audiences" ON meta_custom_audiences;
+CREATE POLICY "Users can manage own custom audiences" ON meta_custom_audiences
   FOR ALL USING (auth.uid() = created_by);
 
-DROP POLICY IF EXISTS  ON ; CREATE POLICY  ON meta_custom_audiences
-  FOR ALL USING (
-    EXISTS (
-      SELECT 1 FROM user_roles ur
-      WHERE ur.user_id = auth.uid()
-        AND ur.role = 'admin'
-    )
-  );
+DROP POLICY IF EXISTS "Admins can manage all custom audiences" ON meta_custom_audiences;
+CREATE POLICY "Admins can manage all custom audiences" ON meta_custom_audiences
+  FOR ALL USING (public.has_role(auth.uid(), 'admin'));
 
 -- Meta Ad Campaigns RLS
-DROP POLICY IF EXISTS  ON ; CREATE POLICY  ON meta_ad_campaigns
+DROP POLICY IF EXISTS "Users can view own ad campaigns" ON meta_ad_campaigns;
+CREATE POLICY "Users can view own ad campaigns" ON meta_ad_campaigns
   FOR SELECT USING (auth.uid() = created_by);
 
-DROP POLICY IF EXISTS  ON ; CREATE POLICY  ON meta_ad_campaigns
-  FOR SELECT USING (
-    EXISTS (
-      SELECT 1 FROM user_roles ur
-      WHERE ur.user_id = auth.uid()
-        AND ur.role = 'admin'
-    )
-  );
+DROP POLICY IF EXISTS "Admins can view all ad campaigns" ON meta_ad_campaigns;
+CREATE POLICY "Admins can view all ad campaigns" ON meta_ad_campaigns
+  FOR SELECT USING (public.has_role(auth.uid(), 'admin'));
 
-DROP POLICY IF EXISTS  ON ; CREATE POLICY  ON meta_ad_campaigns
+DROP POLICY IF EXISTS "Users can manage own ad campaigns" ON meta_ad_campaigns;
+CREATE POLICY "Users can manage own ad campaigns" ON meta_ad_campaigns
   FOR ALL USING (auth.uid() = created_by);
 
-DROP POLICY IF EXISTS  ON ; CREATE POLICY  ON meta_ad_campaigns
-  FOR ALL USING (
-    EXISTS (
-      SELECT 1 FROM user_roles ur
-      WHERE ur.user_id = auth.uid()
-        AND ur.role = 'admin'
-    )
-  );
+DROP POLICY IF EXISTS "Admins can manage all ad campaigns" ON meta_ad_campaigns;
+CREATE POLICY "Admins can manage all ad campaigns" ON meta_ad_campaigns
+  FOR ALL USING (public.has_role(auth.uid(), 'admin'));
 
 -- Email Logs RLS
 DROP POLICY IF EXISTS "Admins can view email logs" ON email_logs;
 CREATE POLICY "Admins can view email logs" ON email_logs
-  FOR SELECT USING (
-    EXISTS (
-      SELECT 1 FROM user_roles ur
-      WHERE ur.user_id = auth.uid()
-        AND ur.role = 'admin'
-    )
-  );
+  FOR SELECT USING (public.has_role(auth.uid(), 'admin'));
 
 DROP POLICY IF EXISTS "Public can insert email logs" ON email_logs;
 CREATE POLICY "Public can insert email logs" ON email_logs
@@ -639,15 +597,15 @@ DECLARE
   v_is_following BOOLEAN;
 BEGIN
   -- Check if already following
-  SELECT EXISTS(SELECT 1 FROM follows WHERE follower_id = auth.uid() AND following_id = p_user_id) INTO v_is_following;
+  SELECT EXISTS(SELECT 1 FROM user_follows WHERE follower_id = auth.uid() AND following_id = p_user_id) INTO v_is_following;
   
   IF v_is_following THEN
     -- Unfollow
-    DELETE FROM follows WHERE follower_id = auth.uid() AND following_id = p_user_id;
+    DELETE FROM user_follows WHERE follower_id = auth.uid() AND following_id = p_user_id;
     RETURN false;
   ELSE
     -- Follow
-    INSERT INTO follows (follower_id, following_id) VALUES (auth.uid(), p_user_id);
+    INSERT INTO user_follows (follower_id, following_id) VALUES (auth.uid(), p_user_id);
     RETURN true;
   END IF;
 END;
@@ -658,7 +616,7 @@ RETURNS INTEGER AS $$
 DECLARE
   v_count INTEGER;
 BEGIN
-  SELECT COUNT(*) INTO v_count FROM follows WHERE following_id = p_user_id;
+  SELECT COUNT(*) INTO v_count FROM user_follows WHERE following_id = p_user_id;
   RETURN v_count;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
@@ -668,7 +626,7 @@ RETURNS INTEGER AS $$
 DECLARE
   v_count INTEGER;
 BEGIN
-  SELECT COUNT(*) INTO v_count FROM follows WHERE follower_id = p_user_id;
+  SELECT COUNT(*) INTO v_count FROM user_follows WHERE follower_id = p_user_id;
   RETURN v_count;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
@@ -796,19 +754,3 @@ BEGIN
   VALUES (p_category, p_location, p_price);
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
-
--- ============================================================================
--- COMPLETION MESSAGE
--- ============================================================================
--- Remaining features migration completed!
--- Your database now includes:
--- - User settings with RLS
--- - Complete social content system (posts, likes, comments, reposts)
--- - Follows system
--- - Meta ads and analytics platform
--- - Email logging system
--- - Password reset functionality
--- - Price history analytics
--- - AI chat history
--- - Complete RLS policies for all new features
--- - Useful functions for frontend integration

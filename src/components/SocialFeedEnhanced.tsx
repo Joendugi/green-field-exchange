@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Heart, MessageCircle, Repeat2, UserPlus, UserMinus, Image as ImageIcon, Video, HelpCircle, BookOpen, Lightbulb, CheckCircle2, Tags, Star } from "lucide-react";
+import { Heart, MessageCircle, Repeat2, UserPlus, UserMinus, Image as ImageIcon, Video, HelpCircle, BookOpen, Lightbulb, CheckCircle2, Tags, Star, Search, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -211,7 +211,7 @@ const SocialFeedEnhanced = () => {
               onChange={(e) => setSearchQuery(e.target.value)}
               className="bg-card/50 backdrop-blur-sm border-primary/20 rounded-xl pl-9 group-hover:border-primary/40 transition-all h-11"
             />
-            <Loader2 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-primary/40 group-hover:text-primary transition-colors" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-primary/40 group-hover:text-primary transition-colors" />
           </div>
         </div>
 

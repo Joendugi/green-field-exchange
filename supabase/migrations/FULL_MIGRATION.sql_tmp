@@ -21,7 +21,7 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 -- ============================================================================
 CREATE TABLE IF NOT EXISTS profiles (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  user_id UUID UNIQUE REFERENCES profiles(user_id) ON DELETE CASCADE,
   username TEXT UNIQUE NOT NULL,
   email TEXT UNIQUE NOT NULL,
   full_name TEXT,
@@ -39,23 +39,13 @@ CREATE TABLE IF NOT EXISTS profiles (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Ensure user_id is unique even if profiles already exists (needed for foreign keys)
-DO $$
-BEGIN
-    IF NOT EXISTS (
-        SELECT 1 FROM pg_constraint WHERE conname = 'profiles_user_id_key'
-    ) THEN
-        ALTER TABLE profiles ADD CONSTRAINT profiles_user_id_key UNIQUE (user_id);
-    END IF;
-END $$;
-
 CREATE INDEX IF NOT EXISTS idx_profiles_user_id ON profiles(user_id);
 CREATE INDEX IF NOT EXISTS idx_profiles_username ON profiles(username);
 CREATE INDEX IF NOT EXISTS idx_profiles_email ON profiles(email);
 
 CREATE TABLE IF NOT EXISTS user_roles (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID UNIQUE REFERENCES auth.users(id) ON DELETE CASCADE,
+  user_id UUID UNIQUE REFERENCES profiles(user_id) ON DELETE CASCADE,
   role TEXT NOT NULL CHECK (role IN ('admin', 'moderator', 'farmer', 'buyer')),
   granted_by UUID REFERENCES profiles(user_id) ON DELETE SET NULL,
   last_admin_auth TIMESTAMPTZ,

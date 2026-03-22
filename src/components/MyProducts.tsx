@@ -126,7 +126,7 @@ const MyProducts = () => {
         .from("product_images")
         .getPublicUrl(filePath);
 
-    return publicUrl;
+    return { publicUrl, filePath };
   };
 
   const handleSubmit = async (e?: FormEvent) => {
@@ -142,12 +142,15 @@ const MyProducts = () => {
 
     setIsUploading(true);
     let imageUrl = formData.image_url;
+    let imageStoragePath = formData.image_storage_id;
     
     if (mediaFile) {
         try {
-            imageUrl = await handleUploadMedia(mediaFile);
+            const { publicUrl, filePath } = await handleUploadMedia(mediaFile);
+            imageUrl = publicUrl;
+            imageStoragePath = filePath;
         } catch (error: any) {
-            toast.error("Failed to upload image.");
+            toast.error("Failed to upload image. Please ensure 'product_images' bucket exists.");
             setIsUploading(false);
             return;
         }
@@ -163,6 +166,7 @@ const MyProducts = () => {
         location: formData.location,
         category: formData.category,
         image_url: imageUrl || null,
+        image_storage_path: imageStoragePath || null,
         expiry_date: formData.expiry_date || null,
         currency: formData.currency,
       };

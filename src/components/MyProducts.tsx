@@ -29,7 +29,7 @@ type PricePrediction = {
 
 const MyProducts = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, isAuthenticated } = useAuth();
 
   // Supabase products
   const [products, setProducts] = useState<any[]>([]);

@@ -167,9 +167,11 @@ const MyProducts = () => {
         category: formData.category,
         image_url: imageUrl || null,
         image_storage_path: imageStoragePath || null,
-        expiry_date: formData.expiry_date || null,
+        expiry_date: formData.expiry_date ? new Date(formData.expiry_date).toISOString() : null,
         currency: formData.currency,
       };
+
+      console.log("Saving product data:", productData);
 
       if (editingProduct) {
         await updateProduct(editingProduct.id, productData);
@@ -205,8 +207,17 @@ const MyProducts = () => {
       });
       setFormErrors({});
       setCurrentStep(0);
-    } catch (error: unknown) {
-      toast.error(`Error saving product: ${error instanceof Error ? error.message : String(error)}`);
+    } catch (error: any) {
+      console.error("Detailed Error saving product:", error);
+      
+      let errorMessage = "An unknown error occurred";
+      if (error && typeof error === 'object') {
+        errorMessage = error.message || error.details || JSON.stringify(error);
+      } else if (typeof error === 'string') {
+        errorMessage = error;
+      }
+      
+      toast.error(`Error saving product: ${errorMessage}`);
     } finally {
       setIsUploading(false);
     }

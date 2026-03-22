@@ -81,6 +81,21 @@ export async function createProduct(input: {
   const userId = await getCurrentUserId();
   if (!userId) throw new Error("Not authenticated");
 
+  console.log("Supabase Insert Payload:", {
+    farmer_id: userId,
+    name: input.name,
+    description: input.description,
+    price: input.price,
+    quantity: input.quantity,
+    unit: input.unit,
+    category: input.category,
+    location: input.location,
+    image_url: input.image_url ?? null,
+    image_storage_path: input.image_storage_path ?? null,
+    expiry_date: input.expiry_date ?? null,
+    currency: input.currency ?? "USD",
+  });
+
   const { data, error } = await supabase
     .from("products")
     .insert({
@@ -100,7 +115,10 @@ export async function createProduct(input: {
     .select("*")
     .single();
 
-  if (error) throw error;
+  if (error) {
+    console.error("Supabase createProduct Error:", error);
+    throw error;
+  }
   return data as ProductRow;
 }
 

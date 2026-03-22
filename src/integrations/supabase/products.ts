@@ -34,22 +34,16 @@ export async function listProducts(params: {
   limit?: number;
   cursor?: string;
 } = {}): Promise<ProductRow[]> {
-  const { data, error } = await supabase.rpc("list_products", {
-    p_category: params.category || null,
-    p_search: params.search || null,
-    p_limit: params.limit || 40,
-    p_cursor: params.cursor || null
-  });
+  const { data, error } = await supabase
+    .from("products")
+    .select("*")
+    .order("created_at", { ascending: false })
+    .limit(params.limit || 40);
 
   if (error) {
-    console.error("Supabase error in listProducts (RPC):", error);
+    console.error("Supabase error in listProducts:", error);
     throw error;
   }
-  
-  // Since we need profiles, we still might need a follow-up or a better RPC.
-  // For now, let's keep the join behavior by enriching the result manually if needed,
-  // or updating the RPC to return profile data.
-  // The current RPC doesn't return profiles, so we'll fetch them for the returned products.
   
   const products = (data as any[]) ?? [];
   if (products.length === 0) return [];

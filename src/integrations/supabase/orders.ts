@@ -48,7 +48,7 @@ export async function getMyOrders() {
 
     const { data, error } = await supabase
         .from("orders")
-        .select("*, products(*)")
+        .select("*, products:product_id(*)")
         .or(`buyer_id.eq.${userData.user.id},farmer_id.eq.${userData.user.id}`)
         .order("created_at", { ascending: false });
 
@@ -113,7 +113,7 @@ export async function getBuyerOrders() {
 
     const { data, error } = await supabase
         .from("orders")
-        .select("*, products(*), profiles:farmer_id(full_name, avatar_url)")
+        .select("*, products:product_id(*), profiles:farmer_id(full_name, avatar_url)")
         .eq("buyer_id", userData.user.id)
         .order("created_at", { ascending: false });
 
@@ -127,7 +127,7 @@ export async function getFarmerOrders() {
 
     const { data, error } = await supabase
         .from("orders")
-        .select("*, products(*), profiles:buyer_id(full_name, avatar_url)")
+        .select("*, products:product_id(*), profiles:buyer_id(full_name, avatar_url)")
         .eq("farmer_id", userData.user.id)
         .order("created_at", { ascending: false });
 

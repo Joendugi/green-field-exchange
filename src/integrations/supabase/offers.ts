@@ -45,7 +45,7 @@ export async function getMyOffers() {
 
     const { data, error } = await supabase
         .from("offers")
-        .select("*, products(*)")
+        .select("*, products:product_id(*)")
         .or(`buyer_id.eq.${userData.user.id},farmer_id.eq.${userData.user.id}`)
         .order("created_at", { ascending: false });
 
@@ -87,7 +87,7 @@ export async function finalizeCheckout(input: { offerId: string; delivery_addres
 
     const { data: offer, error: offerError } = await supabase
         .from("offers")
-        .select("*, products(price, currency)")
+        .select("*, products:product_id(price, currency)")
         .eq("id", input.offerId)
         .single();
 

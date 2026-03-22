@@ -266,7 +266,7 @@ export async function listPosts() {
     if (!isUserAdmin) throw new Error("Unauthorized");
     const { data, error } = await supabase
         .from("posts")
-        .select("*, profiles(*)")
+        .select("*, profiles:user_id!inner(*)")
         .order("created_at", { ascending: false });
     if (error) throw error;
     return data || [];
@@ -277,7 +277,7 @@ export async function listProducts() {
     if (!isUserAdmin) throw new Error("Unauthorized");
     const { data, error } = await supabase
         .from("products")
-        .select("*, profiles(*)")
+        .select("*, profiles:farmer_id!inner(*)")
         .order("created_at", { ascending: false });
     if (error) throw error;
     return data || [];
@@ -498,10 +498,8 @@ export async function getGlobalHeatmap() {
     if (!isUserAdmin) throw new Error("Unauthorized");
     
     // Aggregate by profiles.location
-    const [{ data: products }, { data: orders }] = await Promise.all([
-        supabase.from("products").select("location, price"),
-        supabase.from("orders").select("total_price, products!inner(location)").eq("status", "completed")
-    ]);
+    const { data: products } = await supabase.from("products").select("location, price");
+    const { data: orders } = await supabase.from("orders").select("total_price, products!inner(location)").eq("status", "completed");
     
     const heatmap: Record<string, { location: string, products: number, orders: number, revenue: number }> = {};
     

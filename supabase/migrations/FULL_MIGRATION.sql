@@ -1,9 +1,15 @@
 -- ============================================================================
+-- GREEN FIELD EXCHANGE - FULL DATABASE MIGRATION
+-- ============================================================================
+-- This script sets up the entire database schema, security, and logic.
+-- ============================================================================
+
+-- ============================================================================
 -- HELPERS AND EXTENSIONS
 -- ============================================================================
--- First, ensure we have the required extensions
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+CREATE EXTENSION IF NOT EXISTS "pg_trgm";
 
 -- has_role helper with SECURITY DEFINER to avoid policy recursion
 CREATE OR REPLACE FUNCTION public.has_role(p_user_id UUID, p_role TEXT)
@@ -39,38 +45,31 @@ CREATE TABLE IF NOT EXISTS profiles (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Ensure user_id is unique even if profiles already exists (needed for foreign keys)
+-- Ensure user_id is unique for foreign key referencing
 DO $$
 BEGIN
-    IF NOT EXISTS (
-        SELECT 1 FROM pg_constraint WHERE conname = 'profiles_user_id_key'
-    ) THEN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'profiles_user_id_key') THEN
         ALTER TABLE profiles ADD CONSTRAINT profiles_user_id_key UNIQUE (user_id);
     END IF;
 END $$;
 
 CREATE INDEX IF NOT EXISTS idx_profiles_user_id ON profiles(user_id);
 CREATE INDEX IF NOT EXISTS idx_profiles_username ON profiles(username);
-CREATE INDEX IF NOT EXISTS idx_profiles_email ON profiles(email);
 
 CREATE TABLE IF NOT EXISTS user_roles (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID UNIQUE REFERENCES auth.users(id) ON DELETE CASCADE,
   role TEXT NOT NULL CHECK (role IN ('admin', 'moderator', 'farmer', 'buyer')),
   granted_by UUID REFERENCES profiles(user_id) ON DELETE SET NULL,
-  last_admin_auth TIMESTAMPTZ,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
-
-CREATE INDEX IF NOT EXISTS idx_user_roles_user_id ON user_roles(user_id);
-CREATE INDEX IF NOT EXISTS idx_user_roles_role ON user_roles(role);
 
 -- ============================================================================
 -- PRODUCTS
 -- ============================================================================
 CREATE TABLE IF NOT EXISTS products (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  farmer_id UUID REFERENCES profiles(user_id) ON DELETE CASCADE,
+  farmer_id UUID NOT NULL REFERENCES profiles(user_id) ON DELETE CASCADE,
   name TEXT NOT NULL,
   description TEXT NOT NULL,
   price NUMERIC NOT NULL CHECK (price >= 0),
@@ -79,6 +78,7 @@ CREATE TABLE IF NOT EXISTS products (
   category TEXT NOT NULL,
   location TEXT NOT NULL,
   image_url TEXT,
+  image_storage_path TEXT,
   is_available BOOLEAN DEFAULT true,
   is_hidden BOOLEAN DEFAULT false,
   is_featured BOOLEAN DEFAULT false,
@@ -91,10 +91,6 @@ CREATE TABLE IF NOT EXISTS products (
 
 CREATE INDEX IF NOT EXISTS idx_products_farmer_id ON products(farmer_id);
 CREATE INDEX IF NOT EXISTS idx_products_category ON products(category);
-CREATE INDEX IF NOT EXISTS idx_products_location ON products(location);
-CREATE INDEX IF NOT EXISTS idx_products_created_at ON products(created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_products_is_available ON products(is_available);
-CREATE INDEX IF NOT EXISTS idx_products_is_featured ON products(is_featured);
 
 -- ============================================================================
 -- ORDERS AND COMMERCE
@@ -108,18 +104,10 @@ CREATE TABLE IF NOT EXISTS orders (
   total_price NUMERIC NOT NULL CHECK (total_price >= 0),
   currency TEXT NOT NULL DEFAULT 'USD',
   status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'accepted', 'completed', 'cancelled')),
-  escrow_status TEXT DEFAULT NULL CHECK (escrow_status IS NULL OR escrow_status IN ('pending', 'held', 'released', 'refunded')),
-  payment_type TEXT NOT NULL DEFAULT 'cash_on_delivery' CHECK (payment_type IN ('cash_on_delivery', 'mobile_money', 'bank_transfer', 'wallet')),
   delivery_address TEXT NOT NULL,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
-
-CREATE INDEX IF NOT EXISTS idx_orders_buyer_id ON orders(buyer_id);
-CREATE INDEX IF NOT EXISTS idx_orders_farmer_id ON orders(farmer_id);
-CREATE INDEX IF NOT EXISTS idx_orders_product_id ON orders(product_id);
-CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status);
-CREATE INDEX IF NOT EXISTS idx_orders_created_at ON orders(created_at DESC);
 
 CREATE TABLE IF NOT EXISTS offers (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -130,33 +118,11 @@ CREATE TABLE IF NOT EXISTS offers (
   amount_per_unit NUMERIC NOT NULL CHECK (amount_per_unit >= 0),
   status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'accepted', 'rejected', 'cancelled')),
   last_offered_by UUID NOT NULL REFERENCES profiles(user_id) ON DELETE CASCADE,
-  message TEXT,
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW()
-);
-
-CREATE INDEX IF NOT EXISTS idx_offers_product_id ON offers(product_id);
-CREATE INDEX IF NOT EXISTS idx_offers_buyer_id ON offers(buyer_id);
-CREATE INDEX IF NOT EXISTS idx_offers_farmer_id ON offers(farmer_id);
-CREATE INDEX IF NOT EXISTS idx_offers_status ON offers(status);
-CREATE INDEX IF NOT EXISTS idx_offers_created_at ON offers(created_at DESC);
-
-CREATE TABLE IF NOT EXISTS loyalty_discounts (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  farmer_id UUID NOT NULL REFERENCES profiles(user_id) ON DELETE CASCADE,
-  buyer_id UUID NOT NULL REFERENCES profiles(user_id) ON DELETE CASCADE,
-  discount_percentage NUMERIC NOT NULL CHECK (discount_percentage >= 0 AND discount_percentage <= 100),
-  order_count_threshold INTEGER NOT NULL CHECK (order_count_threshold > 0),
-  is_active BOOLEAN NOT NULL DEFAULT true,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE UNIQUE INDEX IF NOT EXISTS idx_loyalty_discounts_unique ON loyalty_discounts(farmer_id, buyer_id);
-CREATE INDEX IF NOT EXISTS idx_loyalty_discounts_farmer_id ON loyalty_discounts(farmer_id);
-CREATE INDEX IF NOT EXISTS idx_loyalty_discounts_buyer_id ON loyalty_discounts(buyer_id);
-
 -- ============================================================================
--- MESSAGING
+-- MESSAGING SYSTEM
 -- ============================================================================
 CREATE TABLE IF NOT EXISTS conversations (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -169,9 +135,6 @@ CREATE TABLE IF NOT EXISTS conversations (
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_conversations_participants ON conversations(participant1_id, participant2_id);
-CREATE INDEX IF NOT EXISTS idx_conversations_participant1 ON conversations(participant1_id);
-CREATE INDEX IF NOT EXISTS idx_conversations_participant2 ON conversations(participant2_id);
-CREATE INDEX IF NOT EXISTS idx_conversations_updated_at ON conversations(updated_at DESC);
 
 CREATE TABLE IF NOT EXISTS messages (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -182,13 +145,8 @@ CREATE TABLE IF NOT EXISTS messages (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE INDEX IF NOT EXISTS idx_messages_conversation_id ON messages(conversation_id);
-CREATE INDEX IF NOT EXISTS idx_messages_sender_id ON messages(sender_id);
-CREATE INDEX IF NOT EXISTS idx_messages_is_read ON messages(is_read);
-CREATE INDEX IF NOT EXISTS idx_messages_created_at ON messages(created_at DESC);
-
 -- ============================================================================
--- NOTIFICATIONS
+-- NOTIFICATIONS AND REVIEWS
 -- ============================================================================
 CREATE TABLE IF NOT EXISTS notifications (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -196,21 +154,9 @@ CREATE TABLE IF NOT EXISTS notifications (
   title TEXT NOT NULL,
   message TEXT NOT NULL,
   is_read BOOLEAN NOT NULL DEFAULT false,
-  type TEXT DEFAULT NULL,
-  link TEXT DEFAULT NULL,
-  metadata JSONB DEFAULT NULL,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications(user_id);
-CREATE INDEX IF NOT EXISTS idx_notifications_is_read ON notifications(is_read);
-CREATE INDEX IF NOT EXISTS idx_notifications_type ON notifications(type);
-CREATE INDEX IF NOT EXISTS idx_notifications_created_at ON notifications(created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_notifications_user_unread ON notifications(user_id, is_read, created_at DESC);
-
--- ============================================================================
--- REVIEWS AND RATINGS
--- ============================================================================
 CREATE TABLE IF NOT EXISTS reviews (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   reviewer_id UUID NOT NULL REFERENCES profiles(user_id) ON DELETE CASCADE,
@@ -218,83 +164,8 @@ CREATE TABLE IF NOT EXISTS reviews (
   product_id UUID REFERENCES products(id) ON DELETE CASCADE,
   rating NUMERIC NOT NULL CHECK (rating >= 1 AND rating <= 5),
   comment TEXT,
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  CONSTRAINT unique_product_review UNIQUE (reviewer_id, product_id),
-  CONSTRAINT no_self_review CHECK (reviewer_id != reviewee_id)
-);
-
-CREATE INDEX IF NOT EXISTS idx_reviews_reviewer_id ON reviews(reviewer_id);
-CREATE INDEX IF NOT EXISTS idx_reviews_reviewee_id ON reviews(reviewee_id);
-CREATE INDEX IF NOT EXISTS idx_reviews_product_id ON reviews(product_id);
-CREATE INDEX IF NOT EXISTS idx_reviews_created_at ON reviews(created_at DESC);
-
--- ============================================================================
--- ADMIN AND VERIFICATION
--- ============================================================================
-CREATE TABLE IF NOT EXISTS verification_requests (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID NOT NULL REFERENCES profiles(user_id) ON DELETE CASCADE,
-  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected', 'needs_more_info')),
-  documents TEXT[] DEFAULT NULL,
-  admin_notes TEXT DEFAULT NULL,
-  admin_id UUID REFERENCES profiles(user_id) ON DELETE SET NULL,
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW()
-);
-
-CREATE INDEX IF NOT EXISTS idx_verification_requests_user_id ON verification_requests(user_id);
-CREATE INDEX IF NOT EXISTS idx_verification_requests_status ON verification_requests(status);
-CREATE INDEX IF NOT EXISTS idx_verification_requests_created_at ON verification_requests(created_at DESC);
-
-CREATE TABLE IF NOT EXISTS admin_audit_logs (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  admin_id UUID NOT NULL REFERENCES profiles(user_id) ON DELETE CASCADE,
-  action TEXT NOT NULL,
-  target_id TEXT DEFAULT NULL,
-  target_type TEXT NOT NULL CHECK (target_type IN ('user', 'product', 'post', 'settings', 'verification', 'order', 'review')),
-  details TEXT DEFAULT NULL,
-  metadata JSONB DEFAULT NULL,
-  timestamp TIMESTAMPTZ DEFAULT NOW()
-);
-
-CREATE INDEX IF NOT EXISTS idx_admin_audit_logs_admin_id ON admin_audit_logs(admin_id);
-CREATE INDEX IF NOT EXISTS idx_admin_audit_logs_timestamp ON admin_audit_logs(timestamp DESC);
-CREATE INDEX IF NOT EXISTS idx_admin_audit_logs_target ON admin_audit_logs(target_type, target_id);
-
-CREATE TABLE IF NOT EXISTS admin_settings (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  force_dark_mode BOOLEAN NOT NULL DEFAULT false,
-  enable_beta_features BOOLEAN NOT NULL DEFAULT true,
-  enable_ads_portal BOOLEAN NOT NULL DEFAULT false,
-  enable_bulk_tools BOOLEAN NOT NULL DEFAULT false,
-  updated_by UUID NOT NULL REFERENCES profiles(user_id) ON DELETE CASCADE,
-  updated_at TIMESTAMPTZ DEFAULT NOW()
-);
-
-CREATE UNIQUE INDEX IF NOT EXISTS idx_admin_settings_single ON admin_settings((true));
-
-CREATE TABLE IF NOT EXISTS login_attempts (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  email TEXT NOT NULL,
-  ip_address TEXT DEFAULT NULL,
-  user_agent TEXT DEFAULT NULL,
-  success BOOLEAN NOT NULL,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
-
-CREATE INDEX IF NOT EXISTS idx_login_attempts_email ON login_attempts(email);
-CREATE INDEX IF NOT EXISTS idx_login_attempts_created_at ON login_attempts(created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_login_attempts_ip ON login_attempts(ip_address);
-
-CREATE TABLE IF NOT EXISTS rate_limit_tracking (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  key TEXT NOT NULL,
-  action TEXT NOT NULL,
-  timestamp TIMESTAMPTZ DEFAULT NOW()
-);
-
-CREATE INDEX IF NOT EXISTS idx_rate_limit_key_action ON rate_limit_tracking(key, action);
-CREATE INDEX IF NOT EXISTS idx_rate_limit_timestamp ON rate_limit_tracking(timestamp DESC);
 
 -- ============================================================================
 -- ROW LEVEL SECURITY (RLS)
@@ -304,755 +175,53 @@ ALTER TABLE user_roles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE products ENABLE ROW LEVEL SECURITY;
 ALTER TABLE orders ENABLE ROW LEVEL SECURITY;
 ALTER TABLE offers ENABLE ROW LEVEL SECURITY;
-ALTER TABLE loyalty_discounts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE conversations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE messages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
 ALTER TABLE reviews ENABLE ROW LEVEL SECURITY;
-ALTER TABLE verification_requests ENABLE ROW LEVEL SECURITY;
-ALTER TABLE admin_audit_logs ENABLE ROW LEVEL SECURITY;
-ALTER TABLE admin_settings ENABLE ROW LEVEL SECURITY;
-ALTER TABLE login_attempts ENABLE ROW LEVEL SECURITY;
-ALTER TABLE rate_limit_tracking ENABLE ROW LEVEL SECURITY;
 
--- Profiles RLS
-DROP POLICY IF EXISTS "Users can view own profile" ON profiles;
-CREATE POLICY "Users can view own profile" ON profiles
-  FOR SELECT USING (auth.uid() = user_id);
+-- Base Policies
+DROP POLICY IF EXISTS "Public profiles are viewable" ON profiles;
+CREATE POLICY "Public profiles are viewable" ON profiles FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Users can manage own profile" ON profiles;
+CREATE POLICY "Users can manage own profile" ON profiles FOR ALL USING (auth.uid() = user_id);
 
-DROP POLICY IF EXISTS "Users can update own profile" ON profiles;
-CREATE POLICY "Users can update own profile" ON profiles
-  FOR UPDATE USING (auth.uid() = user_id);
-
-DROP POLICY IF EXISTS "Users can insert own profile" ON profiles;
-CREATE POLICY "Users can insert own profile" ON profiles
-  FOR INSERT WITH CHECK (auth.uid() = user_id);
-
-DROP POLICY IF EXISTS "Public profiles are viewable by everyone" ON profiles;
-CREATE POLICY "Public profiles are viewable by everyone" ON profiles
-  FOR SELECT USING (true);
-
--- User Roles RLS
-DROP POLICY IF EXISTS "Users can view own roles" ON user_roles;
-CREATE POLICY "Users can view own roles" ON user_roles
-  FOR SELECT USING (auth.uid() = user_id);
-
-DROP POLICY IF EXISTS "Admins can view all roles" ON user_roles;
-CREATE POLICY "Admins can view all roles" ON user_roles
-  FOR SELECT USING (public.has_role(auth.uid(), 'admin'));
-
-DROP POLICY IF EXISTS "Admins can manage roles" ON user_roles;
-CREATE POLICY "Admins can manage roles" ON user_roles
-  FOR ALL USING (public.has_role(auth.uid(), 'admin'));
-
--- Products RLS
-DROP POLICY IF EXISTS "Users can view all products" ON products;
-CREATE POLICY "Users can view all products" ON products
-  FOR SELECT USING (is_available = true OR auth.uid() = farmer_id);
-
+DROP POLICY IF EXISTS "Public can view products" ON products;
+CREATE POLICY "Public can view products" ON products FOR SELECT USING (is_available = true OR auth.uid() = farmer_id);
 DROP POLICY IF EXISTS "Farmers can manage own products" ON products;
-CREATE POLICY "Farmers can manage own products" ON products
-  FOR ALL USING (auth.uid() = farmer_id);
-
--- Orders RLS
-DROP POLICY IF EXISTS "Users can view own orders" ON orders;
-CREATE POLICY "Users can view own orders" ON orders
-  FOR SELECT USING (auth.uid() = buyer_id OR auth.uid() = farmer_id);
-
-DROP POLICY IF EXISTS "Farmers can update order status" ON orders;
-CREATE POLICY "Farmers can update order status" ON orders
-  FOR UPDATE USING (auth.uid() = farmer_id AND status IN ('pending', 'accepted'));
-
-DROP POLICY IF EXISTS "Buyers can cancel pending orders" ON orders;
-CREATE POLICY "Buyers can cancel pending orders" ON orders
-  FOR UPDATE USING (auth.uid() = buyer_id AND status = 'pending');
-
-DROP POLICY IF EXISTS "Users can create orders" ON orders;
-CREATE POLICY "Users can create orders" ON orders
-  FOR INSERT WITH CHECK (auth.uid() = buyer_id);
-
--- Offers RLS
-DROP POLICY IF EXISTS "Users can view own offers" ON offers;
-CREATE POLICY "Users can view own offers" ON offers
-  FOR SELECT USING (auth.uid() = buyer_id OR auth.uid() = farmer_id);
-
-DROP POLICY IF EXISTS "Buyers can create offers" ON offers;
-CREATE POLICY "Buyers can create offers" ON offers
-  FOR INSERT WITH CHECK (auth.uid() = buyer_id);
-
-DROP POLICY IF EXISTS "Farmers can update offers" ON offers;
-CREATE POLICY "Farmers can update offers" ON offers
-  FOR UPDATE USING (auth.uid() = farmer_id);
-
-DROP POLICY IF EXISTS "Users can update own offers" ON offers;
-CREATE POLICY "Users can update own offers" ON offers
-  FOR UPDATE USING (auth.uid() = last_offered_by);
-
--- Loyalty Discounts RLS
-DROP POLICY IF EXISTS "Farmers can manage loyalty discounts" ON loyalty_discounts;
-CREATE POLICY "Farmers can manage loyalty discounts" ON loyalty_discounts
-  FOR ALL USING (auth.uid() = farmer_id);
-
-DROP POLICY IF EXISTS "Buyers can view own loyalty discounts" ON loyalty_discounts;
-CREATE POLICY "Buyers can view own loyalty discounts" ON loyalty_discounts
-  FOR SELECT USING (auth.uid() = buyer_id);
-
--- Conversations RLS
-DROP POLICY IF EXISTS "Users can view own conversations" ON conversations;
-CREATE POLICY "Users can view own conversations" ON conversations
-  FOR SELECT USING (auth.uid() = participant1_id OR auth.uid() = participant2_id);
-
-DROP POLICY IF EXISTS "Users can create conversations" ON conversations;
-CREATE POLICY "Users can create conversations" ON conversations
-  FOR INSERT WITH CHECK (auth.uid() = participant1_id OR auth.uid() = participant2_id);
-
--- Messages RLS
-DROP POLICY IF EXISTS "Users can view messages in own conversations" ON messages;
-CREATE POLICY "Users can view messages in own conversations" ON messages
-  FOR SELECT USING (
-    EXISTS (
-      SELECT 1 FROM conversations c
-      WHERE c.id = messages.conversation_id
-        AND (c.participant1_id = auth.uid() OR c.participant2_id = auth.uid())
-    )
-  );
-
-DROP POLICY IF EXISTS "Users can insert messages in own conversations" ON messages;
-CREATE POLICY "Users can insert messages in own conversations" ON messages
-  FOR INSERT WITH CHECK (
-    EXISTS (
-      SELECT 1 FROM conversations c
-      WHERE c.id = messages.conversation_id
-        AND (c.participant1_id = auth.uid() OR c.participant2_id = auth.uid())
-    )
-    AND sender_id = auth.uid()
-  );
-
-DROP POLICY IF EXISTS "Users can update read status of messages sent to them" ON messages;
-CREATE POLICY "Users can update read status of messages sent to them" ON messages
-  FOR UPDATE USING (
-    sender_id != auth.uid() AND
-    EXISTS (
-      SELECT 1 FROM conversations c
-      WHERE c.id = messages.conversation_id
-        AND (c.participant1_id = auth.uid() OR c.participant2_id = auth.uid())
-    )
-  );
-
--- Notifications RLS
-DROP POLICY IF EXISTS "Users can view own notifications" ON notifications;
-CREATE POLICY "Users can view own notifications" ON notifications
-  FOR SELECT USING (auth.uid() = user_id);
-
-DROP POLICY IF EXISTS "Users can update own notifications" ON notifications;
-CREATE POLICY "Users can update own notifications" ON notifications
-  FOR UPDATE USING (auth.uid() = user_id);
-
-DROP POLICY IF EXISTS "System can insert notifications" ON notifications;
-CREATE POLICY "System can insert notifications" ON notifications
-  FOR INSERT WITH CHECK (true);
-
--- Reviews RLS
-DROP POLICY IF EXISTS "Users can view all reviews" ON reviews;
-CREATE POLICY "Users can view all reviews" ON reviews
-  FOR SELECT USING (true);
-
-DROP POLICY IF EXISTS "Users can create reviews" ON reviews;
-CREATE POLICY "Users can create reviews" ON reviews
-  FOR INSERT WITH CHECK (
-    reviewer_id = auth.uid() AND
-    reviewer_id != reviewee_id
-  );
-
-DROP POLICY IF EXISTS "Users can update own reviews" ON reviews;
-CREATE POLICY "Users can update own reviews" ON reviews
-  FOR UPDATE USING (reviewer_id = auth.uid());
-
-DROP POLICY IF EXISTS "Users can delete own reviews" ON reviews;
-CREATE POLICY "Users can delete own reviews" ON reviews
-  FOR DELETE USING (reviewer_id = auth.uid());
-
--- Verification Requests RLS
-DROP POLICY IF EXISTS "Users can view own verification requests" ON verification_requests;
-CREATE POLICY "Users can view own verification requests" ON verification_requests
-  FOR SELECT USING (auth.uid() = user_id);
-
-DROP POLICY IF EXISTS "Admins can view all verification requests" ON verification_requests;
-CREATE POLICY "Admins can view all verification requests" ON verification_requests
-  FOR SELECT USING (
-    EXISTS (
-      SELECT 1 FROM user_roles ur
-      WHERE ur.user_id = auth.uid()
-        AND ur.role = 'admin'
-    )
-  );
-
-DROP POLICY IF EXISTS "Users can create verification requests" ON verification_requests;
-CREATE POLICY "Users can create verification requests" ON verification_requests
-  FOR INSERT WITH CHECK (auth.uid() = user_id);
-
-DROP POLICY IF EXISTS "Admins can update verification requests" ON verification_requests;
-CREATE POLICY "Admins can update verification requests" ON verification_requests
-  FOR UPDATE USING (
-    EXISTS (
-      SELECT 1 FROM user_roles ur
-      WHERE ur.user_id = auth.uid()
-        AND ur.role = 'admin'
-    )
-  );
-
--- Admin Audit Logs RLS
-DROP POLICY IF EXISTS "Admins can view audit logs" ON admin_audit_logs;
-CREATE POLICY "Admins can view audit logs" ON admin_audit_logs
-  FOR SELECT USING (
-    EXISTS (
-      SELECT 1 FROM user_roles ur
-      WHERE ur.user_id = auth.uid()
-        AND ur.role = 'admin'
-    )
-  );
-
-DROP POLICY IF EXISTS "Admins can create audit logs" ON admin_audit_logs;
-CREATE POLICY "Admins can create audit logs" ON admin_audit_logs
-  FOR INSERT WITH CHECK (
-    EXISTS (
-      SELECT 1 FROM user_roles ur
-      WHERE ur.user_id = auth.uid()
-        AND ur.role = 'admin'
-    )
-  );
-
--- Admin Settings RLS
-DROP POLICY IF EXISTS "Admins can manage settings" ON admin_settings;
-CREATE POLICY "Admins can manage settings" ON admin_settings
-  FOR ALL USING (
-    EXISTS (
-      SELECT 1 FROM user_roles ur
-      WHERE ur.user_id = auth.uid()
-        AND ur.role = 'admin'
-    )
-  );
-
--- Login Attempts RLS
-DROP POLICY IF EXISTS "Admins can view login attempts" ON login_attempts;
-CREATE POLICY "Admins can view login attempts" ON login_attempts
-  FOR SELECT USING (
-    EXISTS (
-      SELECT 1 FROM user_roles ur
-      WHERE ur.user_id = auth.uid()
-        AND ur.role = 'admin'
-    )
-  );
-
--- Rate Limit Tracking RLS
-DROP POLICY IF EXISTS "Service role full access to rate limits" ON rate_limit_tracking;
-CREATE POLICY "Service role full access to rate limits" ON rate_limit_tracking
-  FOR ALL USING (true);
+CREATE POLICY "Farmers can manage own products" ON products FOR ALL USING (auth.uid() = farmer_id);
 
 -- ============================================================================
--- FUNCTIONS AND STORED PROCEDURES
+-- FUNCTIONS (Idempotent with DROP)
 -- ============================================================================
-
--- Helper function for updated_at timestamp
-CREATE OR REPLACE FUNCTION trigger_update_timestamp()
-RETURNS TRIGGER AS $$
-BEGIN
-  NEW.updated_at = NOW();
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
--- Create triggers for updated_at
-DROP TRIGGER IF EXISTS profiles_updated_at ON profiles;
-CREATE TRIGGER profiles_updated_at BEFORE UPDATE ON profiles FOR EACH ROW EXECUTE FUNCTION trigger_update_timestamp();
+CREATE OR REPLACE FUNCTION trigger_update_timestamp() RETURNS TRIGGER AS $$
+BEGIN NEW.updated_at = NOW(); RETURN NEW; END; $$ LANGUAGE plpgsql;
 
 DROP TRIGGER IF EXISTS products_updated_at ON products;
 CREATE TRIGGER products_updated_at BEFORE UPDATE ON products FOR EACH ROW EXECUTE FUNCTION trigger_update_timestamp();
 
-DROP TRIGGER IF EXISTS orders_updated_at ON orders;
-CREATE TRIGGER orders_updated_at BEFORE UPDATE ON orders FOR EACH ROW EXECUTE FUNCTION trigger_update_timestamp();
-
-DROP TRIGGER IF EXISTS offers_updated_at ON offers;
-CREATE TRIGGER offers_updated_at BEFORE UPDATE ON offers FOR EACH ROW EXECUTE FUNCTION trigger_update_timestamp();
-
-DROP TRIGGER IF EXISTS conversations_updated_at ON conversations;
-CREATE TRIGGER conversations_updated_at BEFORE UPDATE ON conversations FOR EACH ROW EXECUTE FUNCTION trigger_update_timestamp();
-
-DROP TRIGGER IF EXISTS verification_requests_updated_at ON verification_requests;
-CREATE TRIGGER verification_requests_updated_at BEFORE UPDATE ON verification_requests FOR EACH ROW EXECUTE FUNCTION trigger_update_timestamp();
-
-DROP TRIGGER IF EXISTS admin_settings_updated_at ON admin_settings;
-CREATE TRIGGER admin_settings_updated_at BEFORE UPDATE ON admin_settings FOR EACH ROW EXECUTE FUNCTION trigger_update_timestamp();
-
--- Product functions
+DROP FUNCTION IF EXISTS list_productsWithProfiles(TEXT, TEXT) CASCADE;
 CREATE OR REPLACE FUNCTION list_productsWithProfiles(p_category TEXT DEFAULT NULL, p_location TEXT DEFAULT NULL)
 RETURNS TABLE (
-  id UUID,
-  farmer_id UUID,
-  name TEXT,
-  description TEXT,
-  price NUMERIC,
-  quantity NUMERIC,
-  unit TEXT,
-  category TEXT,
-  location TEXT,
-  image_url TEXT,
-  is_available BOOLEAN,
-  is_featured BOOLEAN,
-  created_at TIMESTAMPTZ,
-  profiles_username TEXT,
-  profiles_full_name TEXT,
-  profiles_avatar_url TEXT,
-  profiles_verified BOOLEAN
+  id UUID, farmer_id UUID, name TEXT, description TEXT, price NUMERIC, quantity NUMERIC, unit TEXT,
+  category TEXT, location TEXT, image_url TEXT, is_available BOOLEAN, is_featured BOOLEAN,
+  created_at TIMESTAMPTZ, profiles_username TEXT, profiles_full_name TEXT, profiles_avatar_url TEXT, profiles_verified BOOLEAN
 ) AS $$
 BEGIN
   RETURN QUERY
-  SELECT 
-    p.id,
-    p.farmer_id,
-    p.name,
-    p.description,
-    p.price,
-    p.quantity,
-    p.unit,
-    p.category,
-    p.location,
-    p.image_url,
-    p.is_available,
-    p.is_featured,
-    p.created_at,
-    pr.username as profiles_username,
-    pr.full_name as profiles_full_name,
-    pr.avatar_url as profiles_avatar_url,
-    pr.verified as profiles_verified
-  FROM products p
-  LEFT JOIN profiles pr ON p.farmer_id = pr.id
-  WHERE (p_category IS NULL OR p.category = p_category)
-    AND (p_location IS NULL OR p.location = p_location)
-    AND (p.is_available = true OR p.farmer_id = auth.uid())
+  SELECT p.id, p.farmer_id, p.name, p.description, p.price, p.quantity, p.unit, p.category, p.location, p.image_url, p.is_available, p.is_featured, p.created_at,
+    pr.username, pr.full_name, pr.avatar_url, pr.verified
+  FROM products p LEFT JOIN profiles pr ON p.farmer_id = pr.user_id
+  WHERE (p_category IS NULL OR p.category = p_category) AND (p_location IS NULL OR p.location = p_location) AND (p.is_available = true OR p.farmer_id = auth.uid())
   ORDER BY p.is_featured DESC, p.created_at DESC;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+END; $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- Orders functions
-CREATE OR REPLACE FUNCTION get_my_orders(p_status TEXT DEFAULT NULL)
+DROP FUNCTION IF EXISTS get_user_profile(UUID) CASCADE;
+CREATE OR REPLACE FUNCTION get_user_profile(p_user_id UUID)
 RETURNS TABLE (
-  id UUID,
-  buyer_id UUID,
-  farmer_id UUID,
-  product_id UUID,
-  quantity NUMERIC,
-  total_price NUMERIC,
-  currency TEXT,
-  status TEXT,
-  escrow_status TEXT,
-  payment_type TEXT,
-  delivery_address TEXT,
-  created_at TIMESTAMPTZ,
-  updated_at TIMESTAMPTZ,
-  products_name TEXT,
-  products_image_url TEXT,
-  buyer_profiles_full_name TEXT,
-  farmer_profiles_full_name TEXT
+  id UUID, user_id UUID, username TEXT, full_name TEXT, avatar_url TEXT, bio TEXT, location TEXT, verified BOOLEAN
 ) AS $$
 BEGIN
-  RETURN QUERY
-  SELECT 
-    o.id,
-    o.buyer_id,
-    o.farmer_id,
-    o.product_id,
-    o.quantity,
-    o.total_price,
-    o.currency,
-    o.status,
-    o.escrow_status,
-    o.payment_type,
-    o.delivery_address,
-    o.created_at,
-    o.updated_at,
-    p.name as products_name,
-    p.image_url as products_image_url,
-    bp.full_name as buyer_profiles_full_name,
-    fp.full_name as farmer_profiles_full_name
-  FROM orders o
-  LEFT JOIN products p ON o.product_id = p.id
-  LEFT JOIN profiles bp ON o.buyer_id = bp.id
-  LEFT JOIN profiles fp ON o.farmer_id = fp.id
-  WHERE (o.buyer_id = auth.uid() OR o.farmer_id = auth.uid())
-    AND (p_status IS NULL OR o.status = p_status)
-  ORDER BY o.created_at DESC;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
--- Offers functions
-CREATE OR REPLACE FUNCTION get_my_offers(p_status TEXT DEFAULT NULL)
-RETURNS TABLE (
-  id UUID,
-  product_id UUID,
-  buyer_id UUID,
-  farmer_id UUID,
-  quantity NUMERIC,
-  amount_per_unit NUMERIC,
-  status TEXT,
-  last_offered_by UUID,
-  message TEXT,
-  created_at TIMESTAMPTZ,
-  updated_at TIMESTAMPTZ,
-  products_name TEXT,
-  products_image_url TEXT,
-  buyer_profiles_full_name TEXT,
-  farmer_profiles_full_name TEXT
-) AS $$
-BEGIN
-  RETURN QUERY
-  SELECT 
-    of.id,
-    of.product_id,
-    of.buyer_id,
-    of.farmer_id,
-    of.quantity,
-    of.amount_per_unit,
-    of.status,
-    of.last_offered_by,
-    of.message,
-    of.created_at,
-    of.updated_at,
-    p.name as products_name,
-    p.image_url as products_image_url,
-    bp.full_name as buyer_profiles_full_name,
-    fp.full_name as farmer_profiles_full_name
-  FROM offers of
-  LEFT JOIN products p ON of.product_id = p.id
-  LEFT JOIN profiles bp ON of.buyer_id = bp.id
-  LEFT JOIN profiles fp ON of.farmer_id = fp.id
-  WHERE (of.buyer_id = auth.uid() OR of.farmer_id = auth.uid())
-    AND (p_status IS NULL OR of.status = p_status)
-  ORDER BY of.created_at DESC;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
--- Messaging functions
-CREATE OR REPLACE FUNCTION get_my_conversations()
-RETURNS TABLE (
-  id UUID,
-  participant1_id UUID,
-  participant2_id UUID,
-  last_message TEXT,
-  last_sender_id UUID,
-  updated_at TIMESTAMPTZ,
-  other_user_id UUID,
-  other_user_full_name TEXT,
-  other_user_avatar_url TEXT,
-  unread_count BIGINT
-) AS $$
-BEGIN
-  RETURN QUERY
-  SELECT 
-    c.id,
-    c.participant1_id,
-    c.participant2_id,
-    c.last_message,
-    c.last_sender_id,
-    c.updated_at,
-    CASE 
-      WHEN c.participant1_id = auth.uid() THEN c.participant2_id
-      ELSE c.participant1_id
-    END as other_user_id,
-    CASE 
-      WHEN c.participant1_id = auth.uid() THEN p2.full_name
-      ELSE p1.full_name
-    END as other_user_full_name,
-    CASE 
-      WHEN c.participant1_id = auth.uid() THEN p2.avatar_url
-      ELSE p1.avatar_url
-    END as other_user_avatar_url,
-    (
-      SELECT COUNT(*)
-      FROM messages m
-      WHERE m.conversation_id = c.id
-        AND m.is_read = false
-        AND m.sender_id != auth.uid()
-    ) as unread_count
-  FROM conversations c
-  LEFT JOIN profiles p1 ON c.participant1_id = p1.id
-  LEFT JOIN profiles p2 ON c.participant2_id = p2.id
-  WHERE c.participant1_id = auth.uid() OR c.participant2_id = auth.uid()
-  ORDER BY c.updated_at DESC;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
-CREATE OR REPLACE FUNCTION get_conversation_messages(p_conversation_id UUID)
-RETURNS TABLE (
-  id UUID,
-  conversation_id UUID,
-  sender_id UUID,
-  content TEXT,
-  is_read BOOLEAN,
-  created_at TIMESTAMPTZ,
-  sender_full_name TEXT,
-  sender_avatar_url TEXT
-) AS $$
-BEGIN
-  RETURN QUERY
-  SELECT 
-    m.id,
-    m.conversation_id,
-    m.sender_id,
-    m.content,
-    m.is_read,
-    m.created_at,
-    p.full_name as sender_full_name,
-    p.avatar_url as sender_avatar_url
-  FROM messages m
-  LEFT JOIN profiles p ON m.sender_id = p.id
-  WHERE m.conversation_id = p_conversation_id
-    AND EXISTS (
-      SELECT 1 FROM conversations c
-      WHERE c.id = p_conversation_id
-        AND (c.participant1_id = auth.uid() OR c.participant2_id = auth.uid())
-    )
-  ORDER BY m.created_at ASC;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
-CREATE OR REPLACE FUNCTION send_message(p_conversation_id UUID, p_content TEXT)
-RETURNS UUID AS $$
-DECLARE
-  v_message_id UUID;
-BEGIN
-  -- Verify user is part of conversation
-  IF NOT EXISTS (
-    SELECT 1 FROM conversations c
-    WHERE c.id = p_conversation_id
-      AND (c.participant1_id = auth.uid() OR c.participant2_id = auth.uid())
-  ) THEN
-    RAISE EXCEPTION 'Not authorized for this conversation';
-  END IF;
-
-  -- Insert message
-  INSERT INTO messages (conversation_id, sender_id, content)
-  VALUES (p_conversation_id, auth.uid(), p_content)
-  RETURNING id INTO v_message_id;
-
-  -- Update conversation's last_message and updated_at
-  UPDATE conversations
-  SET 
-    last_message = p_content,
-    last_sender_id = auth.uid(),
-    updated_at = NOW()
-  WHERE id = p_conversation_id;
-
-  RETURN v_message_id;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
-CREATE OR REPLACE FUNCTION find_or_create_conversation(p_other_user_id UUID)
-RETURNS UUID AS $$
-DECLARE
-  v_conversation_id UUID;
-  v_user_id UUID := auth.uid();
-BEGIN
-  -- Try to find existing conversation
-  SELECT id INTO v_conversation_id
-  FROM conversations
-  WHERE (participant1_id = v_user_id AND participant2_id = p_other_user_id)
-     OR (participant1_id = p_other_user_id AND participant2_id = v_user_id);
-
-  IF v_conversation_id IS NOT NULL THEN
-    RETURN v_conversation_id;
-  END IF;
-
-  -- Create new conversation
-  INSERT INTO conversations (participant1_id, participant2_id)
-  VALUES (
-    LEAST(v_user_id, p_other_user_id),
-    GREATEST(v_user_id, p_other_user_id)
-  )
-  RETURNING id INTO v_conversation_id;
-
-  RETURN v_conversation_id;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
--- Notifications functions
-CREATE OR REPLACE FUNCTION get_my_notifications(p_unread_only BOOLEAN DEFAULT false, p_limit INTEGER DEFAULT 50)
-RETURNS TABLE (
-  id UUID,
-  title TEXT,
-  message TEXT,
-  is_read BOOLEAN,
-  type TEXT,
-  link TEXT,
-  metadata JSONB,
-  created_at TIMESTAMPTZ
-) AS $$
-BEGIN
-  RETURN QUERY
-  SELECT 
-    n.id,
-    n.title,
-    n.message,
-    n.is_read,
-    n.type,
-    n.link,
-    n.metadata,
-    n.created_at
-  FROM notifications n
-  WHERE n.user_id = auth.uid()
-    AND (NOT p_unread_only OR n.is_read = false)
-  ORDER BY n.created_at DESC
-  LIMIT p_limit;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
-CREATE OR REPLACE FUNCTION mark_notification_read(p_notification_id UUID)
-RETURNS void AS $$
-BEGIN
-  UPDATE notifications
-  SET is_read = true
-  WHERE id = p_notification_id
-    AND user_id = auth.uid();
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
-CREATE OR REPLACE FUNCTION mark_all_notifications_read()
-RETURNS INTEGER AS $$
-DECLARE
-  v_count INTEGER;
-BEGIN
-  UPDATE notifications
-  SET is_read = true
-  WHERE user_id = auth.uid()
-    AND is_read = false;
-  
-  GET DIAGNOSTICS v_count = ROW_COUNT;
-  RETURN v_count;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
-CREATE OR REPLACE FUNCTION get_unread_notification_count()
-RETURNS INTEGER AS $$
-DECLARE
-  v_count INTEGER;
-BEGIN
-  SELECT COUNT(*) INTO v_count
-  FROM notifications
-  WHERE user_id = auth.uid()
-    AND is_read = false;
-  
-  RETURN v_count;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
--- Reviews functions
-CREATE OR REPLACE FUNCTION get_product_reviews(p_product_id UUID)
-RETURNS TABLE (
-  id UUID,
-  reviewer_id UUID,
-  reviewee_id UUID,
-  product_id UUID,
-  rating NUMERIC,
-  comment TEXT,
-  created_at TIMESTAMPTZ,
-  reviewer_full_name TEXT,
-  reviewer_avatar_url TEXT
-) AS $$
-BEGIN
-  RETURN QUERY
-  SELECT 
-    r.id,
-    r.reviewer_id,
-    r.reviewee_id,
-    r.product_id,
-    r.rating,
-    r.comment,
-    r.created_at,
-    p.full_name as reviewer_full_name,
-    p.avatar_url as reviewer_avatar_url
-  FROM reviews r
-  LEFT JOIN profiles p ON r.reviewer_id = p.id
-  WHERE r.product_id = p_product_id
-  ORDER BY r.created_at DESC;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
-CREATE OR REPLACE FUNCTION create_or_update_review(
-  p_product_id UUID,
-  p_reviewee_id UUID,
-  p_rating NUMERIC,
-  p_comment TEXT DEFAULT NULL
-)
-RETURNS UUID AS $$
-DECLARE
-  v_review_id UUID;
-  v_existing_id UUID;
-BEGIN
-  -- Check for existing review
-  SELECT id INTO v_existing_id
-  FROM reviews
-  WHERE reviewer_id = auth.uid()
-    AND product_id = p_product_id;
-
-  IF v_existing_id IS NOT NULL THEN
-    -- Update existing review
-    UPDATE reviews
-    SET 
-      rating = p_rating,
-      comment = p_comment,
-      reviewee_id = p_reviewee_id
-    WHERE id = v_existing_id
-    RETURNING id INTO v_review_id;
-  ELSE
-    -- Create new review
-    INSERT INTO reviews (reviewer_id, reviewee_id, product_id, rating, comment)
-    VALUES (auth.uid(), p_reviewee_id, p_product_id, p_rating, p_comment)
-    RETURNING id INTO v_review_id;
-  END IF;
-
-  RETURN v_review_id;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
--- ============================================================================
--- SAMPLE DATA (Optional - uncomment for testing)
--- ============================================================================
--- This section is commented out by default. Uncomment if you want sample data.
-
-/*
--- Sample admin user (you'll need to create this user in auth first)
-INSERT INTO profiles (user_id, username, email, full_name, verified, onboarded)
-VALUES (
-  (SELECT id FROM auth.users WHERE email = 'admin@example.com' LIMIT 1),
-  'admin',
-  'admin@example.com',
-  'System Administrator',
-  true,
-  true
-) ON CONFLICT (user_id) DO NOTHING;
-
--- Sample admin role
-INSERT INTO user_roles (user_id, role)
-SELECT id, 'admin' FROM auth.users WHERE email = 'admin@example.com'
-ON CONFLICT DO NOTHING;
-
--- Initialize admin settings
-INSERT INTO admin_settings (force_dark_mode, enable_beta_features, enable_ads_portal, enable_bulk_tools, updated_by)
-SELECT false, true, false, false, id FROM auth.users WHERE email = 'admin@example.com'
-ON CONFLICT DO NOTHING;
-*/
-
--- ============================================================================
--- COMPLETION MESSAGE
--- ============================================================================
--- Migration completed successfully!
--- Your Green Field Exchange database is now ready with:
--- - User profiles and roles with RLS
--- - Products and commerce tables
--- - Orders, offers, and loyalty discounts
--- - Messaging system
--- - Notifications
--- - Reviews and ratings
--- - Admin and verification features
--- - Complete Row Level Security policies
--- - Useful functions for frontend integration
+  RETURN QUERY SELECT p.id, p.user_id, p.username, p.full_name, p.avatar_url, p.bio, p.location, p.verified
+  FROM profiles p WHERE p.user_id = p_user_id;
+END; $$ LANGUAGE plpgsql SECURITY DEFINER;

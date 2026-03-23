@@ -22,7 +22,7 @@ export async function createPost(input: PostInput) {
             type: input.type || 'social',
             tags: input.tags || [],
         })
-        .select("*, user_id(*)")
+        .select("*, profiles!posts_user_id_fkey(*)")
         .single();
 
     if (error) {
@@ -35,7 +35,7 @@ export async function createPost(input: PostInput) {
 export async function getPosts() {
     const { data, error } = await supabase
         .from("posts")
-        .select("*, user_id(*), post_likes(*), post_comments(*)")
+        .select("*, profiles!posts_user_id_fkey(*), post_likes(*), post_comments(*)")
         .order("created_at", { ascending: false });
 
     if (error) {
@@ -85,7 +85,7 @@ export async function addComment(postId: string, content: string) {
             user_id: userData.user.id,
             content,
         })
-        .select("*, user_id(*)")
+        .select("*, profiles!post_comments_user_id_fkey(*)")
         .single();
 
     if (error) {
@@ -100,7 +100,7 @@ export async function getUserPosts(userId: string) {
     
     const { data, error } = await supabase
         .from("posts")
-        .select("*, user_id(*), post_likes(*), post_comments(*)")
+        .select("*, profiles!posts_user_id_fkey(*), post_likes(*), post_comments(*)")
         .eq("user_id", userId)
         .order("created_at", { ascending: false });
 
@@ -114,7 +114,7 @@ export async function getUserPosts(userId: string) {
 export async function getFeaturedStories() {
     const { data, error } = await supabase
         .from("posts")
-        .select("*, user_id(*)")
+        .select("*, profiles!posts_user_id_fkey(*)")
         .eq("is_featured", true)
         .order("created_at", { ascending: false });
 

@@ -8,8 +8,8 @@ export async function getConversations() {
         .from("conversations")
         .select(`
             *,
-            p1:participant1_id(id, full_name, avatar_url, username),
-            p2:participant2_id(id, full_name, avatar_url, username)
+            p1:participant1_id!inner(id, full_name, avatar_url, username),
+            p2:participant2_id!inner(id, full_name, avatar_url, username)
         `)
         .or(`participant1_id.eq.${userData.user.id},participant2_id.eq.${userData.user.id}`)
         .order("updated_at", { ascending: false });

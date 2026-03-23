@@ -72,7 +72,7 @@ const AIFloatingBubble = () => {
   if (!isAuthenticated) return null;
 
   return (
-    <div className="fixed bottom-6 right-6 z-[100] flex flex-col items-end">
+    <div className="fixed bottom-6 left-6 z-[100] flex flex-col items-start">
       {isOpen && !isMinimized && (
         <Card className="w-[350px] sm:w-[400px] h-[500px] mb-4 shadow-2xl border-primary/20 flex flex-col animate-in slide-in-from-bottom-4 duration-300">
           <CardHeader className="bg-primary text-primary-foreground py-3 px-4 flex flex-row items-center justify-between rounded-t-lg">

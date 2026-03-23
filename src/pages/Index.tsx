@@ -238,7 +238,7 @@ const Index = () => {
     return (
       <div className="min-h-screen bg-background text-foreground animate-fade-in">
         <Navbar />
-        <div className="fixed bottom-4 right-4 z-50"><ThemeToggle /></div>
+        <div className="fixed bottom-4 left-4 z-50"><ThemeToggle /></div>
         <div className="container mx-auto px-4 py-6"><Marketplace /></div>
         <Footer />
       </div>
@@ -249,7 +249,7 @@ const Index = () => {
     <div className="min-h-screen bg-background overflow-hidden selection:bg-primary/30 selection:text-foreground">
       {/* Landing Navbar */}
       <LandingNav onBrowse={handleBrowse} onLogin={handleLogin} />
-      <div className="fixed bottom-4 right-4 z-[60]"><ThemeToggle /></div>
+      <div className="fixed bottom-4 left-4 z-[60]"><ThemeToggle /></div>
 
       {/* ======================================= */}
       {/* HERO                                     */}

@@ -339,12 +339,12 @@ const SocialFeedEnhanced = () => {
                     <div className="flex gap-4">
                       <Avatar className="h-14 w-14 ring-2 ring-primary/5 group-hover:ring-primary/40 transition-all ring-offset-4 ring-offset-background shadow-md">
                         <AvatarImage src={post.user_id?.avatar_url} />
-                        <AvatarFallback>{post.user_id?.username?.[0] || "?"}</AvatarFallback>
+                        <AvatarFallback>{post.user_id?.username?.[0] || post.user_id?.full_name?.[0] || "?"}</AvatarFallback>
                       </Avatar>
                       <div>
                         <div className="flex items-center gap-3">
                           <CardTitle className="text-lg font-bold hover:text-primary transition-colors cursor-pointer decoration-2 decoration-primary/30">
-                            {post.user_id?.full_name || post.user_id?.username}
+                            {post.user_id?.full_name || post.user_id?.username || `User ${post.user_id}`}
                           </CardTitle>
                           {post.user_id?.verified && (
                             <Badge className="bg-blue-500/10 text-blue-600 hover:bg-blue-600/20 px-2 py-0.5 h-5 text-[10px] border-blue-200">Verified</Badge>

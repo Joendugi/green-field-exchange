@@ -1,5 +1,35 @@
 import { supabase } from "./client";
 
+// Helper function to fetch user profiles for posts
+async function fetchUserProfiles(posts: any[]) {
+    const userIds = [...new Set(posts.map(post => post.user_id).filter(Boolean))];
+    
+    if (userIds.length === 0) return posts;
+    
+    const { data: profiles, error } = await supabase
+        .from("profiles")
+        .select("*")
+        .in("id", userIds);
+    
+    if (error) {
+        console.error("Error fetching profiles:", error);
+        return posts;
+    }
+    
+    const profileMap = (profiles || []).reduce((acc, profile) => {
+        acc[profile.id] = profile;
+        return acc;
+    }, {});
+    
+    return posts.map(post => ({
+        ...post,
+        user_id: {
+            ...post.user_id,
+            ...profileMap[post.user_id]
+        }
+    }));
+}
+
 export type PostInput = {
     content: string;
     image_url?: string;
@@ -22,7 +52,7 @@ export async function createPost(input: PostInput) {
             type: input.type || 'social',
             tags: input.tags || [],
         })
-        .select("*, profiles!posts_user_id_fkey(*)")
+        .select("*")
         .single();
 
     if (error) {
@@ -35,14 +65,16 @@ export async function createPost(input: PostInput) {
 export async function getPosts() {
     const { data, error } = await supabase
         .from("posts")
-        .select("*, profiles!posts_user_id_fkey(*), post_likes(*), post_comments(*)")
+        .select("*")
         .order("created_at", { ascending: false });
 
     if (error) {
         console.error("Error in getPosts:", error);
         throw error;
     }
-    return data;
+    
+    // Fetch user profiles separately
+    return await fetchUserProfiles(data || []);
 }
 
 export async function toggleLike(postId: string) {
@@ -85,7 +117,7 @@ export async function addComment(postId: string, content: string) {
             user_id: userData.user.id,
             content,
         })
-        .select("*, profiles!post_comments_user_id_fkey(*)")
+        .select("*")
         .single();
 
     if (error) {
@@ -100,7 +132,7 @@ export async function getUserPosts(userId: string) {
     
     const { data, error } = await supabase
         .from("posts")
-        .select("*, profiles!posts_user_id_fkey(*), post_likes(*), post_comments(*)")
+        .select("*")
         .eq("user_id", userId)
         .order("created_at", { ascending: false });
 
@@ -108,13 +140,15 @@ export async function getUserPosts(userId: string) {
         console.error("Error in getUserPosts:", error);
         throw error;
     }
-    return data;
+    
+    // Fetch user profiles separately
+    return await fetchUserProfiles(data || []);
 }
 // Stories
 export async function getFeaturedStories() {
     const { data, error } = await supabase
         .from("posts")
-        .select("*, profiles!posts_user_id_fkey(*)")
+        .select("*")
         .eq("is_featured", true)
         .order("created_at", { ascending: false });
 
@@ -122,7 +156,9 @@ export async function getFeaturedStories() {
         console.error("Error in getFeaturedStories:", error);
         throw error;
     }
-    return data || [];
+    
+    // Fetch user profiles separately
+    return await fetchUserProfiles(data || []);
 }
 
 // Admin actions

@@ -122,7 +122,7 @@ const MyOrders = ({ userRole: propRole }: MyOrdersProps) => {
     return ordersArray.filter((order: any) => {
       const matchesStatus = statusFilter === "all" || order.status === statusFilter;
       const matchesSearch = searchTerm
-        ? [order.products?.name, order.buyer?.full_name, order.farmer?.full_name]
+        ? [order.products?.name, order.buyer_id?.full_name, order.farmer_id?.full_name]
           .filter(Boolean)
           .some((value) => value.toLowerCase().includes(searchTerm.toLowerCase()))
         : true;
@@ -186,7 +186,7 @@ const MyOrders = ({ userRole: propRole }: MyOrdersProps) => {
 
   const handleMessage = (order: any) => {
     const isSeller = user?.id === order.farmer_id;
-    const recipient = isSeller ? order.buyer?.full_name : order.farmer?.full_name;
+    const recipient = isSeller ? order.buyer_id?.full_name : order.farmer_id?.full_name;
     navigate("/social", {
       state: {
         prefill: {
@@ -313,7 +313,7 @@ const MyOrders = ({ userRole: propRole }: MyOrdersProps) => {
                   </div>
                 </div>
                 <CardDescription>
-                  {isSeller ? `Buyer: ${order.buyer?.full_name}` : `Seller: ${order.farmer?.full_name}`}
+                  {isSeller ? `Buyer: ${order.buyer_id?.full_name}` : `Seller: ${order.farmer_id?.full_name}`}
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">

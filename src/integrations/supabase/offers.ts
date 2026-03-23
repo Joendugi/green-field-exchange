@@ -91,7 +91,10 @@ export async function finalizeCheckout(input: { offerId: string; delivery_addres
         .eq("id", input.offerId)
         .single();
 
-    if (offerError || !offer) throw new Error("Offer not found");
+    if (offerError) {
+        console.error("Error in finalizeCheckout (offers):", offerError);
+        throw offerError;
+    }
 
     if (offer.status !== "accepted") {
         throw new Error("Offer must be accepted before checkout");

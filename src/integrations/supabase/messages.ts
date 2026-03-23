@@ -8,16 +8,21 @@ export async function getConversations() {
         .from("conversations")
         .select(`
             *,
-            p1:participant1_id!inner(id, full_name, avatar_url, username),
-            p2:participant2_id!inner(id, full_name, avatar_url, username)
+            participant1_id(id, full_name, avatar_url, username),
+            participant2_id(id, full_name, avatar_url, username)
         `)
         .or(`participant1_id.eq.${userData.user.id},participant2_id.eq.${userData.user.id}`)
         .order("updated_at", { ascending: false });
 
-    if (error) throw error;
+    if (error) {
+        console.error("Error fetching conversations:", error);
+        throw error;
+    }
     
     return (data || []).map(convo => {
-        const otherUser = convo.participant1_id === userData.user?.id ? convo.p2 : convo.p1;
+        const p1 = convo.participant1_id;
+        const p2 = convo.participant2_id;
+        const otherUser = p1?.id === userData.user?.id ? p2 : p1;
         return {
             ...convo,
             otherUser
@@ -130,7 +135,10 @@ export async function getUnreadMessagesCount() {
         .select("id")
         .or(`participant1_id.eq.${userData.user.id},participant2_id.eq.${userData.user.id}`);
 
-    if (convoError || !convos || convos.length === 0) return 0;
+    if (convoError) {
+        console.error("Error in getUnreadMessagesCount:", convoError);
+        return 0;
+    }
 
     const convoIds = convos.map(c => c.id);
 

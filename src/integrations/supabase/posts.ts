@@ -22,20 +22,26 @@ export async function createPost(input: PostInput) {
             type: input.type || 'social',
             tags: input.tags || [],
         })
-        .select("*, profiles:user_id!inner(*)")
+        .select("*, user_id(*)")
         .single();
 
-    if (error) throw error;
+    if (error) {
+        console.error("Error in createPost:", error);
+        throw error;
+    }
     return data;
 }
 
 export async function getPosts() {
     const { data, error } = await supabase
         .from("posts")
-        .select("*, profiles:user_id!inner(*), post_likes(*), post_comments(*)")
+        .select("*, user_id(*), post_likes(*), post_comments(*)")
         .order("created_at", { ascending: false });
 
-    if (error) throw error;
+    if (error) {
+        console.error("Error in getPosts:", error);
+        throw error;
+    }
     return data;
 }
 
@@ -79,10 +85,13 @@ export async function addComment(postId: string, content: string) {
             user_id: userData.user.id,
             content,
         })
-        .select("*, profiles:user_id!inner(*)")
+        .select("*, user_id(*)")
         .single();
 
-    if (error) throw error;
+    if (error) {
+        console.error("Error in addComment:", error);
+        throw error;
+    }
     return data;
 }
 
@@ -91,22 +100,28 @@ export async function getUserPosts(userId: string) {
     
     const { data, error } = await supabase
         .from("posts")
-        .select("*, profiles:user_id!inner(*), post_likes(*), post_comments(*)")
+        .select("*, user_id(*), post_likes(*), post_comments(*)")
         .eq("user_id", userId)
         .order("created_at", { ascending: false });
 
-    if (error) throw error;
+    if (error) {
+        console.error("Error in getUserPosts:", error);
+        throw error;
+    }
     return data;
 }
 // Stories
 export async function getFeaturedStories() {
     const { data, error } = await supabase
         .from("posts")
-        .select("*, profiles:user_id!inner(*)")
+        .select("*, user_id(*)")
         .eq("is_featured", true)
         .order("created_at", { ascending: false });
 
-    if (error) throw error;
+    if (error) {
+        console.error("Error in getFeaturedStories:", error);
+        throw error;
+    }
     return data || [];
 }
 

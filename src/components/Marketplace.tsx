@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { ShoppingCart, MapPin, Search, Sparkles, Loader2, Handshake, Gavel, TrendingUp, Package, Gift } from "lucide-react";
+import { ShoppingCart, MapPin, Search, Sparkles, Loader2, Gavel, TrendingUp, Package, Gift } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -406,8 +406,8 @@ const Marketplace = () => {
                   </div>
                   <div className="text-sm flex items-center gap-1.5 flex-wrap">
                     <span className="font-semibold">Farmer:</span> 
-                    {product.profiles?.full_name || "Unknown"}
-                    {product.profiles?.verified && (
+                    {product.farmer_id?.full_name || "Unknown"}
+                    {product.farmer_id?.verified && (
                       <Badge variant="secondary" className="bg-blue-500/10 text-blue-600 border-blue-200 text-[10px] h-4 px-1.5 flex items-center gap-0.5">
                         <ShieldCheck className="h-2.5 w-2.5" /> Verified
                       </Badge>
@@ -444,7 +444,7 @@ const Marketplace = () => {
                           <DialogHeader>
                             <DialogTitle>Place Order</DialogTitle>
                             <DialogDescription>
-                              Order {product.name} from {product.profiles?.full_name || "Unknown"}
+                              Order {product.name} from {product.farmer_id?.full_name || "Unknown"}
                             </DialogDescription>
                           </DialogHeader>
                           <div className="space-y-4">
@@ -492,7 +492,7 @@ const Marketplace = () => {
                       <Dialog>
                         <DialogTrigger asChild>
                           <Button variant="outline" className="flex-1 bg-primary/5 hover:bg-primary/10 border-primary/20 text-primary">
-                            <Handshake className="mr-2 h-4 w-4" /> Bargain
+                            <Gavel className="mr-2 h-4 w-4" /> Bargain
                           </Button>
                         </DialogTrigger>
                         <DialogContent>

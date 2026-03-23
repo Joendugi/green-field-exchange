@@ -266,9 +266,12 @@ export async function listPosts() {
     if (!isUserAdmin) throw new Error("Unauthorized");
     const { data, error } = await supabase
         .from("posts")
-        .select("*, profiles:user_id!inner(*)")
+        .select("*, user_id(*)")
         .order("created_at", { ascending: false });
-    if (error) throw error;
+    if (error) {
+        console.error("Error in admin listPosts:", error);
+        throw error;
+    }
     return data || [];
 }
 
@@ -277,9 +280,12 @@ export async function listProducts() {
     if (!isUserAdmin) throw new Error("Unauthorized");
     const { data, error } = await supabase
         .from("products")
-        .select("*, profiles:farmer_id!inner(*)")
+        .select("*, farmer_id(*)")
         .order("created_at", { ascending: false });
-    if (error) throw error;
+    if (error) {
+        console.error("Error in admin listProducts:", error);
+        throw error;
+    }
     return data || [];
 }
 

@@ -54,8 +54,8 @@ const SocialFeedEnhanced = () => {
       const query = searchQuery.toLowerCase();
       return (
         post.content?.toLowerCase().includes(query) ||
-        post.profiles?.full_name?.toLowerCase().includes(query) ||
-        post.profiles?.username?.toLowerCase().includes(query)
+        post.user_id?.full_name?.toLowerCase().includes(query) ||
+        post.user_id?.username?.toLowerCase().includes(query)
       );
     });
   }, [posts, searchQuery, activeTab]);
@@ -338,15 +338,15 @@ const SocialFeedEnhanced = () => {
                   <div className="flex justify-between items-start">
                     <div className="flex gap-4">
                       <Avatar className="h-14 w-14 ring-2 ring-primary/5 group-hover:ring-primary/40 transition-all ring-offset-4 ring-offset-background shadow-md">
-                        <AvatarImage src={post.profiles?.avatar_url} />
-                        <AvatarFallback>{post.profiles?.username?.[0] || "?"}</AvatarFallback>
+                        <AvatarImage src={post.user_id?.avatar_url} />
+                        <AvatarFallback>{post.user_id?.username?.[0] || "?"}</AvatarFallback>
                       </Avatar>
                       <div>
                         <div className="flex items-center gap-3">
                           <CardTitle className="text-lg font-bold hover:text-primary transition-colors cursor-pointer decoration-2 decoration-primary/30">
-                            {post.profiles?.full_name || post.profiles?.username}
+                            {post.user_id?.full_name || post.user_id?.username}
                           </CardTitle>
-                          {post.profiles?.verified && (
+                          {post.user_id?.verified && (
                             <Badge className="bg-blue-500/10 text-blue-600 hover:bg-blue-600/20 px-2 py-0.5 h-5 text-[10px] border-blue-200">Verified</Badge>
                           )}
                           
@@ -366,7 +366,7 @@ const SocialFeedEnhanced = () => {
                           )}
                         </div>
                         <CardDescription className="text-sm flex items-center gap-2 mt-1 font-medium italic opacity-70">
-                          @{post.profiles?.username} • {new Date(post.created_at).toLocaleDateString()}
+                          @{post.user_id?.username} • {new Date(post.created_at).toLocaleDateString()}
                         </CardDescription>
                       </div>
                     </div>
@@ -471,14 +471,14 @@ const SocialFeedEnhanced = () => {
                             ${comment.is_solution ? "bg-emerald-50/60 border-emerald-200 shadow-md shadow-emerald-100" : "bg-muted/30 border-transparent hover:border-primary/5"}
                           `}>
                             <Avatar className="h-10 w-10 ring-2 ring-background shadow-sm">
-                              <AvatarImage src={comment.profiles?.avatar_url} />
-                              <AvatarFallback>{comment.profiles?.username?.[0]}</AvatarFallback>
+                              <AvatarImage src={comment.user_id?.avatar_url} />
+                              <AvatarFallback>{comment.user_id?.username?.[0]}</AvatarFallback>
                             </Avatar>
                             <div className="flex-1">
                               <div className="flex items-center justify-between mb-2">
                                 <div className="flex items-center gap-2">
                                   <span className="text-sm font-black text-primary/80">
-                                    {comment.profiles?.full_name || comment.profiles?.username}
+                                    {comment.user_id?.full_name || comment.user_id?.username}
                                   </span>
                                   {comment.is_solution && (
                                     <Badge className="bg-emerald-600 text-white hover:bg-emerald-700 px-3 py-0.5 h-6 text-[10px] rounded-full shadow-lg shadow-emerald-200">

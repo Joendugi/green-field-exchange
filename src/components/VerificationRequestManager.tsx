@@ -93,43 +93,33 @@ const VerificationRequestManager = () => {
               <div key={request.id} className="border rounded-lg p-4 bg-yellow-50 border-yellow-200">
                 <div className="flex justify-between items-start mb-3">
                   <div>
-                    <h3 className="font-semibold text-lg">{request.profiles?.full_name || "Unknown User"}</h3>
-                    <p className="text-sm text-muted-foreground">@{request.profiles?.username || "no-username"}</p>
+                    <h3 className="font-semibold text-lg">{request.user_id?.full_name || "Unknown User"}</h3>
+                    <p className="text-sm text-muted-foreground">@{request.user_id?.username || "no-username"}</p>
                   </div>
                   <div className="flex items-center gap-2">
                     {getStatusBadge(request.status)}
-                    <span className="text-xs text-muted-foreground">
-                      {new Date(request.created_at).toLocaleDateString()}
-                    </span>
                   </div>
                 </div>
 
-                <div className="grid md:grid-cols-2 gap-4 mb-4">
-                  <div className="space-y-2">
+                <div className="space-y-2 mb-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2">
                     <div className="flex items-center gap-2 text-sm">
                       <User className="h-4 w-4 text-muted-foreground" />
                       <span className="font-medium">User ID:</span>
-                      <code className="bg-muted px-2 py-1 rounded text-xs">{request.user_id}</code>
+                      <code className="bg-muted px-2 py-1 rounded text-xs">{request.user_id?.id || request.user_id}</code>
                     </div>
-                    {request.profiles?.location && (
+                    {request.user_id?.location && (
                       <div className="flex items-center gap-2 text-sm">
                         <MapPin className="h-4 w-4 text-muted-foreground" />
                         <span className="font-medium">Location:</span>
-                        <span>{request.profiles.location}</span>
+                        <span>{request.user_id.location}</span>
                       </div>
                     )}
                   </div>
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2 text-sm">
-                      <Calendar className="h-4 w-4 text-muted-foreground" />
-                      <span className="font-medium">Requested:</span>
-                      <span>{new Date(request.created_at).toLocaleString()}</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-sm">
-                      <Shield className="h-4 w-4 text-muted-foreground" />
-                      <span className="font-medium">Current Status:</span>
-                      <span>{request.profiles?.verified ? "Verified" : "Not Verified"}</span>
-                    </div>
+                  <div className="flex items-center gap-2 text-sm">
+                    <Shield className="h-4 w-4 text-muted-foreground" />
+                    <span className="font-medium">Current Status:</span>
+                    <span>{request.user_id?.verified ? "Verified" : "Not Verified"}</span>
                   </div>
                 </div>
 
@@ -195,7 +185,7 @@ const VerificationRequestManager = () => {
                       <DialogHeader>
                         <DialogTitle>Approve Verification Request</DialogTitle>
                         <DialogDescription>
-                          Approve verification for {request.profiles?.full_name}
+                          Approve verification for {request.user_id?.full_name}
                         </DialogDescription>
                       </DialogHeader>
                       <div className="py-4">
@@ -249,7 +239,7 @@ const VerificationRequestManager = () => {
                       <DialogHeader>
                         <DialogTitle>Reject Verification Request</DialogTitle>
                         <DialogDescription>
-                          Reject verification for {request.profiles?.full_name}
+                          Reject verification for {request.user_id?.full_name}
                         </DialogDescription>
                       </DialogHeader>
                       <div className="py-4">
@@ -315,8 +305,8 @@ const VerificationRequestManager = () => {
               <div key={request.id} className="border rounded-lg p-4">
                 <div className="flex justify-between items-start mb-2">
                   <div>
-                    <h3 className="font-semibold">{request.profiles?.full_name || "Unknown User"}</h3>
-                    <p className="text-sm text-muted-foreground">@{request.profiles?.username || "no-username"}</p>
+                    <h3 className="font-semibold">{request.user_id?.full_name || "Unknown User"}</h3>
+                    <p className="text-sm text-muted-foreground">@{request.user_id?.username || "no-username"}</p>
                   </div>
                   <div className="flex items-center gap-2">
                     {getStatusBadge(request.status)}

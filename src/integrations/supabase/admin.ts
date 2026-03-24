@@ -50,16 +50,31 @@ export async function getMyVerificationRequest(): Promise<VerificationRequestRow
 }
 
 export async function getAllVerificationRequests(status?: string): Promise<VerificationRequestRow[]> {
-  let query = supabase
+  // Manual join to avoid FK ambiguity: verification_requests.user_id -> profiles.user_id
+  let baseQuery = supabase
     .from("verification_requests")
-    .select("*, profiles!user_id(full_name, username, avatar_url, location, verified)")
+    .select("*")
     .order("created_at", { ascending: false });
-    
-  if (status) query = query.eq("status", status);
 
-  const { data, error } = await query;
+  if (status) baseQuery = baseQuery.eq("status", status);
+
+  const { data: requests, error } = await baseQuery;
   if (error) throw error;
-  return (data as any[]) ?? [];
+  if (!requests || requests.length === 0) return [];
+
+  // Enrich with profile data
+  const userIds = [...new Set(requests.map((r: any) => r.user_id))];
+  const { data: profiles } = await supabase
+    .from("profiles")
+    .select("user_id, full_name, username, avatar_url, location, verified")
+    .in("user_id", userIds);
+
+  const profileMap = (profiles || []).reduce((acc: Record<string, any>, p: any) => {
+    acc[p.user_id] = p;
+    return acc;
+  }, {});
+
+  return requests.map((r: any) => ({ ...r, profiles: profileMap[r.user_id] ?? null }));
 }
 
 export async function createVerificationRequest(documents?: string[]): Promise<string> {
@@ -83,7 +98,7 @@ export async function updateVerificationRequest(
   adminNotes?: string
 ): Promise<void> {
   const adminId = await getCurrentUserId();
-  
+
   const { error } = await supabase.from("verification_requests").update({
     status,
     admin_notes: adminNotes ?? null,
@@ -92,12 +107,12 @@ export async function updateVerificationRequest(
   }).eq("id", requestId);
 
   if (error) throw error;
-  
-  // also update user profile verficiation status if approved
+
+  // Update profile using user_id (not id)
   if (status === "approved") {
-      await supabase.from("profiles").update({ verified: true, verification_requested: false }).eq("id", userId);
+    await supabase.from("profiles").update({ verified: true, verification_requested: false }).eq("user_id", userId);
   } else if (status === "rejected") {
-      await supabase.from("profiles").update({ verification_requested: false }).eq("id", userId);
+    await supabase.from("profiles").update({ verification_requested: false }).eq("user_id", userId);
   }
 }
 
@@ -138,12 +153,13 @@ export async function getAdminAuditLogs(limit = 100): Promise<AdminAuditLogRow[]
 
 // Admin Settings
 export async function getAdminSettings(): Promise<AdminSettingsRow | null> {
+  // Use maybeSingle() — .single() throws 406 if 0 rows, maybeSingle() returns null
   const { data, error } = await supabase
     .from("admin_settings")
     .select("*")
-    .single();
+    .maybeSingle();
 
-  if (error && error.code !== 'PGRST116') throw error; // PGRST116 is "not found"
+  if (error) throw error;
   return (data as AdminSettingsRow) ?? null;
 }
 
@@ -498,19 +514,37 @@ export async function listDisputedOrders() {
     const isUserAdmin = await isAdmin();
     if (!isUserAdmin) throw new Error("Unauthorized");
 
-    const { data, error } = await supabase
+    // Manual join to avoid FK hint failures (buyer_id/farmer_id -> profiles.user_id)
+    const { data: orders, error } = await supabase
         .from("orders")
-        .select(`
-            *,
-            product:products(*),
-            buyer:profiles!buyer_id(id, full_name, avatar_url),
-            farmer:profiles!farmer_id(id, full_name, avatar_url)
-        `)
+        .select("*, products(*)")
         .eq("status", "disputed")
         .order("created_at", { ascending: false });
 
     if (error) throw error;
-    return data || [];
+    if (!orders || orders.length === 0) return [];
+
+    // Get all relevant profile IDs
+    const userIds = [...new Set([
+        ...orders.map((o: any) => o.buyer_id),
+        ...orders.map((o: any) => o.farmer_id)
+    ].filter(Boolean))];
+
+    const { data: profiles } = await supabase
+        .from("profiles")
+        .select("user_id, full_name, avatar_url")
+        .in("user_id", userIds);
+
+    const profileMap = (profiles || []).reduce((acc: Record<string, any>, p: any) => {
+        acc[p.user_id] = p;
+        return acc;
+    }, {});
+
+    return orders.map((o: any) => ({
+        ...o,
+        buyer: profileMap[o.buyer_id] ?? null,
+        farmer: profileMap[o.farmer_id] ?? null,
+    }));
 }
 
 export async function resolveDispute(args: { orderId: string, resolution: "refund" | "release" }) {

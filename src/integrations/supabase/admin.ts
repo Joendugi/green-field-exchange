@@ -207,13 +207,23 @@ export async function listUsers(): Promise<any[]> {
     const isUserAdmin = await isAdmin();
     if (!isUserAdmin) throw new Error("Unauthorized");
 
-    const { data, error } = await supabase
+    // Fetch profiles and user_roles separately to avoid FK join ambiguity
+    const { data: profiles, error: profError } = await supabase
         .from("profiles")
-        .select("*, user_roles(role)")
+        .select("*")
         .order("created_at", { ascending: false });
+    if (profError) throw profError;
 
-    if (error) throw error;
-    return data ?? [];
+    const { data: roles } = await supabase
+        .from("user_roles")
+        .select("user_id, role");
+
+    const roleMap = (roles || []).reduce((acc: Record<string, string>, r: any) => {
+        acc[r.user_id] = r.role;
+        return acc;
+    }, {});
+
+    return (profiles || []).map((p: any) => ({ ...p, user_roles: [{ role: roleMap[p.user_id] ?? null }] }));
 }
 
 export async function updateRole(userId: string, role: string): Promise<void> {
@@ -264,40 +274,78 @@ export async function getStats() {
 export async function listPosts() {
     const isUserAdmin = await isAdmin();
     if (!isUserAdmin) throw new Error("Unauthorized");
-    const { data, error } = await supabase
+    // Use separate fetch to avoid PostgREST join ambiguity on user_id column
+    const { data: posts, error } = await supabase
         .from("posts")
-        .select("*, user_id(*)")
+        .select("*")
         .order("created_at", { ascending: false });
     if (error) {
         console.error("Error in admin listPosts:", error);
         throw error;
     }
-    return data || [];
+    if (!posts || posts.length === 0) return [];
+
+    // Enrich with profile data
+    const userIds = [...new Set(posts.map((p: any) => p.user_id))];
+    const { data: profiles } = await supabase
+        .from("profiles")
+        .select("user_id, full_name, avatar_url, username")
+        .in("user_id", userIds);
+    const profileMap = (profiles || []).reduce((acc: Record<string, any>, p: any) => {
+        acc[p.user_id] = p;
+        return acc;
+    }, {});
+    return posts.map((p: any) => ({ ...p, profiles: profileMap[p.user_id] ?? null }));
 }
 
 export async function listProducts() {
     const isUserAdmin = await isAdmin();
     if (!isUserAdmin) throw new Error("Unauthorized");
-    const { data, error } = await supabase
+    // Fetch products and join profiles separately to avoid FK join ambiguity
+    const { data: products, error } = await supabase
         .from("products")
-        .select("*, farmer_id(*)")
+        .select("*")
         .order("created_at", { ascending: false });
     if (error) {
         console.error("Error in admin listProducts:", error);
         throw error;
     }
-    return data || [];
+    if (!products || products.length === 0) return [];
+
+    const farmerIds = [...new Set(products.map((p: any) => p.farmer_id))];
+    const { data: profiles } = await supabase
+        .from("profiles")
+        .select("user_id, full_name, avatar_url, username")
+        .in("user_id", farmerIds);
+    const profileMap = (profiles || []).reduce((acc: Record<string, any>, p: any) => {
+        acc[p.user_id] = p;
+        return acc;
+    }, {});
+    return products.map((p: any) => ({ ...p, profiles: profileMap[p.farmer_id] ?? null }));
 }
 
 export async function listEmailLogs() {
     const isUserAdmin = await isAdmin();
     if (!isUserAdmin) throw new Error("Unauthorized");
-    // Assuming email_logs table exists or mock it
+    // email_logs uses 'timestamp' not 'created_at' as its sort column
     const { data, error } = await supabase
         .from("email_logs")
         .select("*")
+        .order("timestamp", { ascending: false });
+    if (error && (error.code === '42P01' || error.code === 'PGRST116')) return []; // table doesn't exist
+    if (error) throw error;
+    return data || [];
+}
+
+export async function listAdvertisements() {
+    const isUserAdmin = await isAdmin();
+    if (!isUserAdmin) throw new Error("Unauthorized");
+    // advertisements table is optional — return empty if not found
+    const { data, error } = await supabase
+        .from("advertisements")
+        .select("*")
         .order("created_at", { ascending: false });
-    if (error && error.code === '42P01') return []; // IF table doesn't exist
+    if (error && (error.code === '42P01' || error.code === '42501' || error.message?.includes('404'))) return [];
     if (error) throw error;
     return data || [];
 }

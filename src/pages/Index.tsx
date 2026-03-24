@@ -410,7 +410,7 @@ const Index = () => {
               <div className="h-36 overflow-hidden relative">
                 <img src={item.img} alt={item.alt} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
                 <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-300" />
-                <span className="absolute top-2 right-2 bg-white/90 text-[9px] font-bold uppercase tracking-widest text-primary px-2 py-0.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300 shadow">
+                <span className="absolute top-2 right-2 bg-white/90 text-[9px] font-bold uppercase tracking-widest text-primary px-2 py-0.5 rounded-full opacity-80 group-hover:opacity-100 group-hover:scale-105 transition-all duration-200 shadow">
                   View
                 </span>
               </div>

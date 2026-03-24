@@ -14,6 +14,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { useSupabaseQuery } from "@/hooks/useSupabaseQuery";
 import { getMyOrders, updateOrderStatus, payOrder, releasePayment, disputeOrder } from "@/integrations/supabase/orders";
 import { submitReview } from "@/integrations/supabase/reviews";
+import { startConversation } from "@/integrations/supabase/messages";
 import { useQueryClient } from "@tanstack/react-query";
 
 interface MyOrdersProps {
@@ -48,6 +49,32 @@ const MyOrders = ({ userRole: propRole }: MyOrdersProps) => {
   const [disputeOrder, setDisputeOrder] = useState<any>(null);
   const [isDisputeModalOpen, setIsDisputeModalOpen] = useState(false);
   const [disputeReason, setDisputeReason] = useState("");
+
+  const handleMessage = async (order: any) => {
+    // Determine the other party's user_id
+    const myId = user?.id;
+    // farmer_id and buyer_id on an order are the raw UUIDs
+    const isSeller = order.farmer_id === myId || order.farmer_id?.user_id === myId;
+    const otherUserId = isSeller
+      ? (typeof order.buyer_id === "string" ? order.buyer_id : order.buyer_id?.user_id)
+      : (typeof order.farmer_id === "string" ? order.farmer_id : order.farmer_id?.user_id);
+
+    if (!otherUserId) {
+      toast.error("Could not identify the other party for this order.");
+      return;
+    }
+
+    const loadingToast = toast.loading("Opening conversation...");
+    try {
+      await startConversation(otherUserId);
+      toast.dismiss(loadingToast);
+      // Navigate to messages page with ?with= so Messages component auto-opens the thread
+      navigate(`/messages?with=${otherUserId}`);
+    } catch (err: any) {
+      toast.dismiss(loadingToast);
+      toast.error("Failed to open conversation: " + err.message);
+    }
+  };
 
   const handleReleasePayment = async (orderId: string) => {
     try {

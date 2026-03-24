@@ -7,6 +7,7 @@ import Navbar from "@/components/Navbar";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import AdminRoute from "@/components/AdminRoute";
+import GlobalNotifications from "@/components/GlobalNotifications";
 
 // Lazy load pages for code splitting
 const Index = lazy(() => import("@/pages/Index"));
@@ -36,6 +37,7 @@ function AppContent() {
 
   return (
     <div className="min-h-screen bg-background">
+      <GlobalNotifications />
       <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-background"><LoadingSpinner size="lg" /></div>}>
         <Routes>
           {/* Public Routes */}

@@ -1,19 +1,201 @@
 <!doctype html>
-<html lang="en">
+<html lang="en-KE" prefix="og: https://ogp.me/ns#">
 
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Wakulima | Direct Farm to Table Marketplace</title>
-  <link rel="icon" type="image/png" href="/favicon.png" />
-  <meta name="description" content="Connect directly with local farmers. Buy fresh organic produce at fair prices without middlemen. Join the sustainable agricultural revolution on Wakulima." />
-  <meta name="keywords" content="farmer marketplace, direct farm to table, organic produce, buy local vegetables, sustainable agriculture, farm trade" />
-  <meta name="author" content="Wakulima" />
 
-  <!-- Preconnect to external domains for faster loading -->
-  <link rel="preconnect" href="https://api.convex.cloud" crossorigin />
-  <link rel="dns-prefetch" href="https://api.convex.cloud" />
+  <!-- PRIMARY SEO: Title & Description (Kenya farming keywords) -->
+  <title>Wakulima Kenya | Soko la Wakulima - Buy Fresh Farm Produce Direct from Kenyan Farmers</title>
+  <meta name="description" content="Wakulima is Kenya's #1 farmer marketplace. Buy fresh vegetables, fruits, grains and livestock directly from local Kenyan farmers (mkulima). Fair prices, no middlemen. Nunua mazao ya shamba moja kwa moja." />
+
+  <!-- Primary keywords: Swahili + English blend targeting East African searches -->
+  <meta name="keywords" content="wakulima, mkulima, wakulima kenya, farmers kenya, soko la wakulima, kilimo kenya, mazao kenya, farm produce kenya, buy vegetables kenya, organic kenya, farmer marketplace kenya, direct from farm kenya, kenya agriculture, shamba kenya, ukulima kenya, kilimo biashara, agribusiness kenya, farm to table kenya, fresh produce nairobi, buy food online kenya" />
+
+  <meta name="author" content="Wakulima Kenya" />
+  <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1" />
+  <meta name="language" content="English, Swahili" />
+
+  <!-- Geo targeting for Kenya -->
+  <meta name="geo.region" content="KE" />
+  <meta name="geo.country" content="Kenya" />
+  <meta name="geo.placename" content="Kenya" />
+  <meta name="ICBM" content="-1.286389, 36.817223" />
+
+  <!-- Canonical URL -->
+  <link rel="canonical" href="https://wakulima.online/" />
+
+  <!-- Hreflang for English/Swahili -->
+  <link rel="alternate" hreflang="en-ke" href="https://wakulima.online/" />
+  <link rel="alternate" hreflang="sw" href="https://wakulima.online/?lang=sw" />
+  <link rel="alternate" hreflang="x-default" href="https://wakulima.online/" />
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="/favicon.png" />
+  <link rel="apple-touch-icon" href="/favicon.png" />
+
+  <!-- OPEN GRAPH (Facebook, WhatsApp sharing) -->
+  <meta property="og:title" content="Wakulima Kenya – Direct Farm to Table Marketplace for Kenyan Farmers" />
+  <meta property="og:description" content="Buy fresh produce directly from Kenyan farmers. Vegetables, fruits, grains, dairy at fair prices. Supporting mkulima across Kenya." />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://wakulima.online" />
+  <meta property="og:image" content="https://wakulima.online/og-image.jpg" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="Wakulima Kenya - Fresh produce from Kenyan farmers" />
+  <meta property="og:site_name" content="Wakulima Kenya" />
+  <meta property="og:locale" content="en_KE" />
+
+  <!-- TWITTER CARD -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:site" content="@wakulimafarm" />
+  <meta name="twitter:title" content="Wakulima Kenya | Soko la Wakulima - Fresh Farm Produce" />
+  <meta name="twitter:description" content="Kenya's leading farmer marketplace. Buy directly from mkulima across Kenya. Fair prices, fresh harvest, no middlemen." />
+  <meta name="twitter:image" content="https://wakulima.online/og-image.jpg" />
+
+  <!-- STRUCTURED DATA: WebSite (enables Google Sitelinks Search Box) -->
+  <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      "name": "Wakulima Kenya",
+      "alternateName": ["Wakulima", "Soko la Wakulima", "Mkulima Marketplace"],
+      "url": "https://wakulima.online",
+      "description": "Kenya's leading direct farm-to-table marketplace connecting wakulima (farmers) with buyers across Kenya for fresh agricultural produce.",
+      "inLanguage": ["en-KE", "sw"],
+      "potentialAction": {
+        "@type": "SearchAction",
+        "target": {
+          "@type": "EntryPoint",
+          "urlTemplate": "https://wakulima.online/marketplace?q={search_term_string}"
+        },
+        "query-input": "required name=search_term_string"
+      }
+    }
+  </script>
+
+  <!-- STRUCTURED DATA: Organization -->
+  <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Organization",
+      "name": "Wakulima Kenya",
+      "alternateName": "Soko la Wakulima",
+      "url": "https://wakulima.online",
+      "logo": {
+        "@type": "ImageObject",
+        "url": "https://wakulima.online/logo.png",
+        "width": 200,
+        "height": 80
+      },
+      "description": "Kenyan agricultural marketplace connecting farmers (wakulima) directly with consumers for fresh farm produce.",
+      "foundingLocation": { "@type": "Place", "name": "Nairobi, Kenya" },
+      "areaServed": { "@type": "Country", "name": "Kenya" },
+      "keywords": "wakulima, mkulima, farmers kenya, kilimo, mazao, farm marketplace kenya",
+      "sameAs": [
+        "https://twitter.com/wakulimafarm",
+        "https://facebook.com/wakulima"
+      ],
+      "contactPoint": {
+        "@type": "ContactPoint",
+        "contactType": "customer support",
+        "availableLanguage": ["English", "Swahili"]
+      }
+    }
+  </script>
+
+  <!-- STRUCTURED DATA: LocalBusiness + Marketplace -->
+  <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "LocalBusiness",
+      "additionalType": "https://schema.org/Store",
+      "name": "Wakulima Kenya – Farm Marketplace",
+      "description": "Buy fresh vegetables, fruits, grains, dairy and livestock from certified Kenyan farmers. Wakulima connects mkulima directly to buyers for fair prices.",
+      "url": "https://wakulima.online",
+      "image": "https://wakulima.online/og-image.jpg",
+      "priceRange": "KSh",
+      "currenciesAccepted": "KES, USD",
+      "paymentAccepted": "M-Pesa, Credit Card, Bank Transfer",
+      "address": {
+        "@type": "PostalAddress",
+        "addressCountry": "KE",
+        "addressRegion": "Nairobi County",
+        "addressLocality": "Nairobi"
+      },
+      "geo": {
+        "@type": "GeoCoordinates",
+        "latitude": -1.286389,
+        "longitude": 36.817223
+      },
+      "openingHoursSpecification": {
+        "@type": "OpeningHoursSpecification",
+        "dayOfWeek": ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"],
+        "opens": "00:00",
+        "closes": "23:59"
+      },
+      "makesOffer": [
+        {
+          "@type": "Offer",
+          "itemOffered": { "@type": "Product", "name": "Fresh Vegetables from Kenyan Farmers", "description": "Organic and conventional vegetables sourced directly from wakulima across Kenya" }
+        },
+        {
+          "@type": "Offer",
+          "itemOffered": { "@type": "Product", "name": "Fresh Fruits - Kenya Farm Produce", "description": "Tropical fruits from Kenyan farms delivered directly to your door" }
+        },
+        {
+          "@type": "Offer",
+          "itemOffered": { "@type": "Product", "name": "Grains and Cereals - Kenya", "description": "Maize, wheat, sorghum and other grains from certified Kenyan farmers" }
+        }
+      ]
+    }
+  </script>
+
+  <!-- STRUCTURED DATA: FAQPage (boosts featured snippets for wakulima searches) -->
+  <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "What is Wakulima Kenya?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Wakulima Kenya is an online marketplace (soko) that connects Kenyan farmers (wakulima/mkulima) directly with buyers. We eliminate middlemen so farmers earn more and buyers pay fair prices for fresh produce."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "How can a mkulima sell on Wakulima?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Any Kenyan farmer (mkulima) can sign up for free on wakulima.online, create a profile, list their products with photos and prices, and start receiving orders from buyers across Kenya."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Where can I buy fresh vegetables from farmers in Kenya?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "You can buy fresh vegetables, fruits, grains and other farm produce directly from wakulima (Kenyan farmers) on wakulima.online. Products are listed by farmers from Nairobi, Central Kenya, Rift Valley, Western Kenya and more."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Je, ninaweza kununua mazao ya wakulima wa Kenya mtandaoni?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Ndiyo! Wakulima.online ni soko la mtandaoni ambapo unaweza kununua mazao ya wakulima wa Kenya moja kwa moja. Hakuna waamuzi. Bei za haki kwa mkulima na mnunuzi."
+          }
+        }
+      ]
+    }
+  </script>
+
+  <!-- Preconnect to external domains -->
   <link rel="preconnect" href="https://ktrisnezcdsedqrsiujr.supabase.co" crossorigin />
+  <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin />
 
   <!-- Preload critical fonts -->
   <link rel="preload" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" as="style"
@@ -22,56 +204,10 @@
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" />
   </noscript>
 
-  <meta property="og:title" content="Wakulima | The Direct Farmer-to-Buyer Ecosystem" />
-  <meta property="og:description" content="Connecting farmers directly with buyers for fresh agricultural products. Fair trade, transparent prices, fresh harvest." />
-  <meta property="og:type" content="website" />
-  <meta property="og:url" content="https://wakulima.online" />
-  <meta property="og:image" content="https://wakulima.online/og-image.jpg" />
-
-  <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="Wakulima | Direct Farm Marketplace" />
-  <meta name="twitter:description" content="Sustainable farming trade platform connecting local producers with consumers." />
-  <meta name="twitter:image" content="https://wakulima.online/twitter-image.jpg" />
-
-  <!-- Structured Data (Schema.org) -->
-  <script type="application/ld+json">
-    {
-      "@context": "https://schema.org",
-      "@type": "WebSite",
-      "name": "Wakulima",
-      "url": "https://wakulima.online",
-      "description": "Connecting local farmers directly with consumers through a transparent agricultural marketplace.",
-      "potentialAction": {
-        "@type": "SearchAction",
-        "target": "https://wakulima.online/marketplace?q={search_term_string}",
-        "query-input": "required name=search_term_string"
-      }
-    }
-  </script>
-  <script type="application/ld+json">
-    {
-      "@context": "https://schema.org",
-      "@type": "Organization",
-      "name": "Wakulima",
-      "url": "https://wakulima.online",
-      "logo": "https://wakulima.online/logo.png",
-      "sameAs": [
-        "https://twitter.com/wakulimafarm",
-        "https://facebook.com/wakulima"
-      ]
-    }
-  </script>
-
-  <!-- Critical CSS for initial render (prevents layout shift) -->
+  <!-- Critical CSS for initial render -->
   <style>
-    html {
-      font-family: Inter, system-ui, sans-serif;
-    }
-
-    #root {
-      min-height: 100vh;
-    }
-
+    html { font-family: Inter, system-ui, sans-serif; }
+    #root { min-height: 100vh; }
     .initial-loader {
       display: flex;
       align-items: center;
@@ -79,7 +215,6 @@
       height: 100vh;
       background: #fafafa;
     }
-
     .initial-loader .spinner {
       width: 40px;
       height: 40px;
@@ -88,25 +223,16 @@
       border-radius: 50%;
       animation: spin 0.8s linear infinite;
     }
-
-    @keyframes spin {
-      to {
-        transform: rotate(360deg);
-      }
-    }
-
+    @keyframes spin { to { transform: rotate(360deg); } }
     @media (prefers-color-scheme: dark) {
-      .initial-loader {
-        background: #1a1a1a;
-      }
+      .initial-loader { background: #1a1a1a; }
     }
   </style>
 </head>
 
 <body>
   <div id="root">
-    <!-- Initial loader shown until React hydrates -->
-    <div class="initial-loader">
+    <div class="initial-loader" aria-label="Loading Wakulima Kenya marketplace...">
       <div class="spinner"></div>
     </div>
   </div>

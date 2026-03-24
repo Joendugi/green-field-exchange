@@ -12,6 +12,7 @@ import { useSupabaseQuery } from "@/hooks/useSupabaseQuery";
 import { getConversations, getMessages, sendMessage, markAsRead, startConversation, searchUsers } from "@/integrations/supabase/messages";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useSearchParams } from "react-router-dom";
 
 const Messages = () => {
   const { user: currentUser, isAuthenticated } = useAuth();
@@ -23,6 +24,31 @@ const Messages = () => {
   const [isSending, setIsSending] = useState(false);
   const [isNewConvoOpen, setIsNewConvoOpen] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const handleStartChat = async (otherUserId: string) => {
+    try {
+      const convoId = await startConversation(otherUserId);
+      setSelectedConversationId(convoId);
+      setUserSearchTerm("");
+      setIsNewConvoOpen(false);
+      queryClient.invalidateQueries({ queryKey: ["conversations"] });
+    } catch (error: any) {
+      toast.error(error.message);
+    }
+  };
+
+  const withUserId = searchParams.get("with");
+
+  useEffect(() => {
+    if (withUserId && isAuthenticated) {
+      handleStartChat(withUserId);
+      // Clean up URL so it doesn't re-trigger on refresh
+      const newParams = new URLSearchParams(searchParams);
+      newParams.delete("with");
+      setSearchParams(newParams, { replace: true });
+    }
+  }, [withUserId, isAuthenticated, searchParams, setSearchParams]);
 
   // Supabase Queries
   const { data: conversations = [], isLoading: isLoadingConvos } = useSupabaseQuery<any[]>(
@@ -102,17 +128,7 @@ const Messages = () => {
     }
   };
 
-  const handleStartChat = async (otherUserId: string) => {
-    try {
-      const convoId = await startConversation(otherUserId);
-      setSelectedConversationId(convoId);
-      setUserSearchTerm("");
-      setIsNewConvoOpen(false);
-      queryClient.invalidateQueries({ queryKey: ["conversations"] });
-    } catch (error: any) {
-      toast.error(error.message);
-    }
-  };
+
 
   if (conversations === undefined) {
     return (

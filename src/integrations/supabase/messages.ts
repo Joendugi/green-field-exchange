@@ -6,11 +6,7 @@ export async function getConversations() {
 
     const { data, error } = await supabase
         .from("conversations")
-        .select(`
-            *,
-            participant1_id(id, full_name, avatar_url, username),
-            participant2_id(id, full_name, avatar_url, username)
-        `)
+        .select("*")
         .or(`participant1_id.eq.${userData.user.id},participant2_id.eq.${userData.user.id}`)
         .order("updated_at", { ascending: false });
 
@@ -19,12 +15,34 @@ export async function getConversations() {
         throw error;
     }
     
+    // Fetch user profiles separately
+    const userIds = [...new Set((data || []).flatMap(convo => [convo.participant1_id, convo.participant2_id]))];
+    
+    if (userIds.length === 0) return [];
+    
+    const { data: profiles, error: profileError } = await supabase
+        .from("profiles")
+        .select("*")
+        .in("id", userIds);
+    
+    if (profileError) {
+        console.error("Error fetching profiles:", profileError);
+        return [];
+    }
+    
+    const profileMap = (profiles || []).reduce((acc, profile) => {
+        acc[profile.id] = profile;
+        return acc;
+    }, {});
+    
     return (data || []).map(convo => {
-        const p1 = convo.participant1_id;
-        const p2 = convo.participant2_id;
-        const otherUser = p1?.id === userData.user?.id ? p2 : p1;
+        const p1 = profileMap[convo.participant1_id];
+        const p2 = profileMap[convo.participant2_id];
+        const otherUser = convo.participant1_id === userData.user?.id ? p2 : p1;
         return {
             ...convo,
+            participant1_id: p1,
+            participant2_id: p2,
             otherUser
         };
     });

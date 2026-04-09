@@ -7,8 +7,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Mail, Phone, MapPin, Send, CircleHelp, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { createTicket } from "@/integrations/supabase/tickets";
+import { useState } from "react";
+import { checkRateLimit } from "@/integrations/supabase/admin";
 
 const Contact = () => {
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
     useEffect(() => {
         const observer = new IntersectionObserver(
             (entries) => {
@@ -29,10 +34,33 @@ const Contact = () => {
         };
     }, []);
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        toast.success("Message received! Our team will get back to you within 24 hours.");
-        (e.target as HTMLFormElement).reset();
+        const formData = new FormData(e.target as HTMLFormElement);
+        
+        setIsSubmitting(true);
+        try {
+            // Apply rate limiting: 3 attempts per 10 minutes per IP/User
+            const canProceed = await checkRateLimit(formData.get("email") as string, "contact_submission", 600, 3);
+            if (!canProceed) {
+                toast.error("Too many attempts. Please try again in 10 minutes.");
+                setIsSubmitting(false);
+                return;
+            }
+
+            await createTicket({
+                full_name: formData.get("full_name") as string,
+                email: formData.get("email") as string,
+                subject: formData.get("subject") as string,
+                message: formData.get("message") as string,
+            });
+            toast.success("Message received! Our team will get back to you within 24 hours.");
+            (e.target as HTMLFormElement).reset();
+        } catch (error: any) {
+            toast.error("Failed to send message: " + error.message);
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     return (
@@ -112,23 +140,23 @@ const Contact = () => {
                                 <div className="grid md:grid-cols-2 gap-6">
                                     <div className="space-y-2">
                                         <label className="text-sm font-medium">Full Name</label>
-                                        <Input placeholder="John Doe" className="bg-background/50 border-border/50" required />
+                                        <Input name="full_name" placeholder="John Doe" className="bg-background/50 border-border/50" required />
                                     </div>
                                     <div className="space-y-2">
                                         <label className="text-sm font-medium">Email Address</label>
-                                        <Input type="email" placeholder="john@example.com" className="bg-background/50 border-border/50" required />
+                                        <Input name="email" type="email" placeholder="john@example.com" className="bg-background/50 border-border/50" required />
                                     </div>
                                 </div>
                                 <div className="space-y-2">
                                     <label className="text-sm font-medium">Subject</label>
-                                    <Input placeholder="How can we help?" className="bg-background/50 border-border/50" />
+                                    <Input name="subject" placeholder="How can we help?" className="bg-background/50 border-border/50" />
                                 </div>
                                 <div className="space-y-2">
                                     <label className="text-sm font-medium">Message</label>
-                                    <Textarea placeholder="Tell us more about your inquiry..." className="bg-background/50 border-border/50 min-h-[150px]" required />
+                                    <Textarea name="message" placeholder="Tell us more about your inquiry..." className="bg-background/50 border-border/50 min-h-[150px]" required />
                                 </div>
-                                <Button type="submit" size="lg" className="w-full h-14 rounded-full text-lg shadow-lg shadow-primary/20 group">
-                                    Send Message <Send className="ml-2 h-5 w-5 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
+                                <Button type="submit" size="lg" className="w-full h-14 rounded-full text-lg shadow-lg shadow-primary/20 group" disabled={isSubmitting}>
+                                    {isSubmitting ? "Sending..." : "Send Message"} <Send className="ml-2 h-5 w-5 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
                                 </Button>
                             </form>
                         </div>

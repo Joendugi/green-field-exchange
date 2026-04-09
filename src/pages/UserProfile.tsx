@@ -202,7 +202,7 @@ const UserProfile = () => {
                       key={f.follower_id}
                       variant="secondary"
                       className="cursor-pointer hover:bg-secondary/80 py-1.5 px-3"
-                      onClick={() => navigate(`/profile/${f.follower_id}`)}
+                      onClick={() => navigate(`/users/${f.follower_id}`)}
                     >
                       {f.profiles?.username ? `@${f.profiles.username}` : f.profiles?.full_name || "Unknown"}
                     </Badge>

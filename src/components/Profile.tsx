@@ -26,9 +26,9 @@ import {
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { Id } from "../../convex/_generated/dataModel";
 import { useAuth } from "@/contexts/AuthContext";
 import { requestMyVerification, updateMyProfile } from "@/integrations/supabase/profiles";
+import { uploadFile } from "@/integrations/supabase/storage";
 
 const Profile = () => {
   const { user: profile, role } = useAuth();
@@ -80,14 +80,30 @@ const Profile = () => {
     try {
       setIsSubmitting(true);
 
+      let avatarUrl = profile.avatar_url;
+
+      if (avatarFile) {
+        try {
+          const { publicUrl } = await uploadFile("avatars", avatarFile);
+          avatarUrl = publicUrl;
+        } catch (error: any) {
+          toast.error("Failed to upload avatar. Please ensure 'avatars' bucket exists.");
+          setIsSubmitting(false);
+          return;
+        }
+      }
+
       await updateMyProfile({
         ...formData,
+        avatar_url: avatarUrl,
       });
 
       toast.success("Profile updated!");
       setIsEditing(false);
       setAvatarFile(null);
       setAvatarPreview("");
+      // Refresh profile in context if needed, but the query should handle it
+      queryClient.invalidateQueries({ queryKey: ["profile"] });
     } catch (error: any) {
       toast.error(error.message);
     } finally {

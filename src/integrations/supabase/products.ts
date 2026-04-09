@@ -95,8 +95,6 @@ export async function createProduct(input: {
     currency: input.currency ?? "USD",
   };
 
-  // Only add image_storage_path if it's provided and we want to try it
-  // Given the 400 error, we'll keep it out of the main object for a moment if it's failing schema cache
   if (input.image_storage_path) {
     payload.image_storage_path = input.image_storage_path;
   }

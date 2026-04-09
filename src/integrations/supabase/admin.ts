@@ -606,3 +606,16 @@ export async function getGlobalHeatmap() {
     
     return Object.values(heatmap).sort((a,b) => b.revenue - a.revenue);
 }
+
+export async function listTickets() {
+    const isUserAdmin = await isAdmin();
+    if (!isUserAdmin) throw new Error("Unauthorized");
+    
+    const { data, error } = await supabase
+        .from("support_tickets")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+    if (error) throw error;
+    return data || [];
+}

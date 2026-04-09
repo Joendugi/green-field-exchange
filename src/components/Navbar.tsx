@@ -14,6 +14,7 @@ import {
   Shield,
   BarChart3,
   Plus,
+  CircleHelp,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNavigate, useLocation } from "react-router-dom";
@@ -85,9 +86,11 @@ const Navbar = () => {
       { path: "/messages", label: "Message", icon: MessageSquare, badge: unreadMessagesCount },
       { path: "/social", label: "Social", icon: Users },
       { path: "/ai", label: "AI Assistant", icon: Bot },
+      { path: "/contact", label: "Help", icon: CircleHelp },
       ...(role === "admin" ? [{ path: "/meta-ads", label: "Meta Ads", icon: BarChart3 }] : []),
     ] : [
-      { path: "/social", label: "Social", icon: Users }, // Social is public
+      { path: "/social", label: "Social", icon: Users },
+      { path: "/contact", label: "Help", icon: CircleHelp },
     ]),
   ];
 

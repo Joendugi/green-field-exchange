@@ -14,7 +14,7 @@ import {
   getStats, listUsers, getAllVerificationRequests, listPosts, listProducts, listEmailLogs,
   getAdminAuditLogs, getRecentActivity, getGrowthStats, getAdminSettings, updateAdminSettings,
   banUser, updateRole, broadcastNotification, hidePost, hideProduct, toggleFeatured,
-  togglePostFeatured, bulkTogglePostFeatured
+  togglePostFeatured, bulkTogglePostFeatured, listTickets
 } from "@/integrations/supabase/admin";
 
 import AdminPrivilegeManager from "./AdminPrivilegeManager";
@@ -28,6 +28,7 @@ import { AdsTab } from "./admin/AdsTab";
 import { ContentTab } from "./admin/ContentTab";
 import { EscrowTab } from "./admin/EscrowTab";
 import { MarketHeatmap } from "./admin/MarketHeatmap";
+import { TicketsTab } from "./admin/TicketsTab";
 import type { NewAd } from "./admin/AdsTab";
 
 export type SettingsKey = "force_dark_mode" | "enable_beta_features" | "enable_ads_portal" | "enable_bulk_tools";
@@ -66,6 +67,7 @@ const AdminDashboard = () => {
   const { data: emailLogsData } = useSupabaseQuery<any[]>(["admin", "emailLogs"], listEmailLogs);
   const { data: recentActivityData } = useSupabaseQuery<any[]>(["admin", "recentActivity"], getRecentActivity);
   const { data: growthStatsData } = useSupabaseQuery<any[]>(["admin", "growthStats"], getGrowthStats);
+  const { data: ticketsData } = useSupabaseQuery<any[]>(["admin", "tickets"], listTickets);
 
   const stats: any = statsData || { users: 0, products: 0, orders: 0, revenue: 0 };
   const users: any[] = usersData || [];
@@ -77,6 +79,7 @@ const AdminDashboard = () => {
   const emailLogs: any[] = emailLogsData || [];
   const recentActivity: any[] = recentActivityData || [];
   const growthStats: any[] = growthStatsData || [];
+  const tickets: any[] = ticketsData || [];
 
   // ─── State ──────────────────────────────────────────────────────────────
   const [searchQuery, setSearchQuery] = useState("");
@@ -298,6 +301,14 @@ const AdminDashboard = () => {
           <TabsTrigger value="settings">Settings</TabsTrigger>
           <TabsTrigger value="ads">Ads</TabsTrigger>
           <TabsTrigger value="heatmap">Activity</TabsTrigger>
+          <TabsTrigger value="tickets" className="relative">
+            Tickets
+            {tickets.filter(t => t.status === 'open').length > 0 && (
+              <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-blue-500 text-[10px] text-white animate-pulse">
+                {tickets.filter(t => t.status === 'open').length}
+              </span>
+            )}
+          </TabsTrigger>
           <TabsTrigger value="escrow" className="text-destructive font-semibold">
             <AlertCircle className="mr-1 h-3 w-3" /> Escrow
           </TabsTrigger>
@@ -482,6 +493,10 @@ const AdminDashboard = () => {
 
         <TabsContent value="heatmap">
           <MarketHeatmap />
+        </TabsContent>
+
+        <TabsContent value="tickets" className="space-y-4">
+          <TicketsTab tickets={tickets} />
         </TabsContent>
 
         <TabsContent value="escrow" className="space-y-4">

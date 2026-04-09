@@ -9,6 +9,8 @@ import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import { getFeaturedStories } from "@/integrations/supabase/posts";
 import { formatDistanceToNow, parseISO } from "date-fns";
 import { useNavigate } from "react-router-dom";
+import Navbar from "@/components/Navbar";
+import Footer from "@/components/Footer";
 
 const FarmerStories = () => {
   const navigate = useNavigate();
@@ -81,7 +83,9 @@ const FarmerStories = () => {
     : combinedStories.filter(story => story.category === selectedCategory);
 
   return (
-    <div className="min-h-screen bg-card text-foreground transition-colors duration-500">
+    <div className="min-h-screen bg-background">
+      <Navbar />
+      <div className="bg-card text-foreground transition-colors duration-500">
       {/* Hero Section */}
       <section className="relative overflow-hidden bg-gradient-to-br from-primary via-green-600 to-emerald-700 text-white rounded-b-[3rem] shadow-2xl">
         <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -mr-32 -mt-32 blur-3xl animate-pulse" />
@@ -236,6 +240,8 @@ const FarmerStories = () => {
            </div>
         </div>
       </section>
+      </div>
+      <Footer />
     </div>
   );
 };

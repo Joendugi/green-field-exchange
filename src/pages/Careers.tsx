@@ -16,6 +16,8 @@ import {
   Lightbulb,
   Shield
 } from "lucide-react";
+import Navbar from "@/components/Navbar";
+import Footer from "@/components/Footer";
 
 const Careers = () => {
   const [selectedCategory, setSelectedCategory] = useState("all");
@@ -139,22 +141,24 @@ const Careers = () => {
     : openings.filter(job => job.department.toLowerCase() === selectedCategory);
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
+    <div className="min-h-screen bg-background">
+      <Navbar />
+      <div className="bg-gradient-to-b from-emerald-50 to-white">
       {/* Hero Section */}
-      <section className="relative overflow-hidden bg-gradient-to-r from-blue-600 to-indigo-600 text-white">
+      <section className="relative overflow-hidden bg-gradient-to-r from-emerald-600 to-green-600 text-white">
         <div className="container mx-auto px-4 py-20">
           <div className="text-center max-w-4xl mx-auto">
             <h1 className="text-5xl font-bold mb-6 animate-fade-in">
               Careers at Wakulima
             </h1>
-            <p className="text-xl mb-8 text-blue-100">
+            <p className="text-xl mb-8 text-emerald-100">
               Join us in building the future of sustainable agriculture and connecting farmers with the world.
             </p>
             <div className="flex flex-wrap justify-center gap-4">
-              <Button size="lg" className="bg-white text-blue-600 hover:bg-blue-50">
+              <Button size="lg" className="bg-white text-emerald-600 hover:bg-emerald-50">
                 View Open Positions
               </Button>
-              <Button size="lg" variant="outline" className="border-white text-white hover:bg-white hover:text-blue-600">
+              <Button size="lg" variant="outline" className="border-white text-white hover:bg-white hover:text-emerald-600">
                 Learn About Our Culture
               </Button>
             </div>
@@ -308,26 +312,27 @@ const Careers = () => {
         </div>
       </section>
 
-      {/* Call to Action */}
-      <section className="py-20 bg-blue-600 text-white">
+      <section className="py-20 bg-emerald-600 text-white">
         <div className="container mx-auto px-4 text-center">
           <h2 className="text-4xl font-bold mb-6">
             Ready to Make an Impact?
           </h2>
-          <p className="text-xl mb-8 text-blue-100 max-w-3xl mx-auto">
+          <p className="text-xl mb-8 text-emerald-100 max-w-3xl mx-auto">
             Even if we don't have the perfect role open right now, we'd love to hear from you. 
             We're always looking for talented people who share our passion for sustainable agriculture.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button size="lg" className="bg-white text-blue-600 hover:bg-blue-50">
+            <button className="bg-white text-emerald-600 hover:bg-emerald-50 px-8 py-3 rounded-md font-bold transition-all">
               Submit Your Resume
-            </Button>
-            <Button size="lg" variant="outline" className="border-white text-white hover:bg-white hover:text-blue-600">
+            </button>
+            <button className="border-white border-2 text-white hover:bg-white hover:text-emerald-600 px-8 py-3 rounded-md font-bold transition-all">
               Join Talent Community
-            </Button>
+            </button>
           </div>
         </div>
       </section>
+      </div>
+      <Footer />
     </div>
   );
 };

@@ -23,6 +23,8 @@ const MetaAds = lazy(() => import("@/pages/MetaAds"));
 const Mission = lazy(() => import("@/pages/Mission"));
 const About = lazy(() => import("@/pages/About"));
 const Contact = lazy(() => import("@/pages/Contact"));
+const Careers = lazy(() => import("@/pages/Careers"));
+const FarmerStories = lazy(() => import("@/pages/FarmerStories"));
 
 function AppContent() {
   const { isAuthenticated, loading } = useAuth();
@@ -48,6 +50,8 @@ function AppContent() {
           <Route path="/about" element={<About />} />
           <Route path="/mission" element={<Mission />} />
           <Route path="/contact" element={<Contact />} />
+          <Route path="/careers" element={<Careers />} />
+          <Route path="/farmer-stories" element={<FarmerStories />} />
           <Route path="/reset-password" element={<PasswordReset />} />
           
           {/* Protected Routes */}

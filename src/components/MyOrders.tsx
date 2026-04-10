@@ -46,7 +46,7 @@ const MyOrders = ({ userRole: propRole }: MyOrdersProps) => {
   const [paymentOrder, setPaymentOrder] = useState<any>(null);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   
-  const [disputeOrder, setDisputeOrder] = useState<any>(null);
+  const [targetDisputeOrder, setTargetDisputeOrder] = useState<any>(null);
   const [isDisputeModalOpen, setIsDisputeModalOpen] = useState(false);
   const [disputeReason, setDisputeReason] = useState("");
 
@@ -106,18 +106,18 @@ const MyOrders = ({ userRole: propRole }: MyOrdersProps) => {
   };
 
   const handleDisputeOrder = async () => {
-    if (!disputeOrder || !disputeReason) {
+    if (!targetDisputeOrder || !disputeReason) {
       toast.error("Please provide a reason for the dispute.");
       return;
     }
     const loadingToast = toast.loading("Filing dispute...");
     try {
-      await disputeOrder(disputeOrder.id, disputeReason);
+      await disputeOrder(targetDisputeOrder.id, disputeReason);
       queryClient.invalidateQueries({ queryKey: ["orders"] });
       toast.dismiss(loadingToast);
       toast.success("Dispute filed successfully. An admin will review your case.");
       setIsDisputeModalOpen(false);
-      setDisputeOrder(null);
+      setTargetDisputeOrder(null);
       setDisputeReason("");
     } catch (error: any) {
       toast.dismiss(loadingToast);
@@ -211,20 +211,6 @@ const MyOrders = ({ userRole: propRole }: MyOrdersProps) => {
     );
   };
 
-  const handleMessage = (order: any) => {
-    const isSeller = user?.id === order.farmer_id;
-    const recipient = isSeller ? order.buyer_id?.full_name : order.farmer_id?.full_name;
-    navigate("/social", {
-      state: {
-        prefill: {
-          recipient,
-          recipientId: isSeller ? order.buyer_id : order.farmer_id,
-          subject: `Regarding order #${order.id}`,
-          body: `Hi ${recipient?.split(" ")[0] || "there"}, about ${order.products?.name}...`,
-        },
-      },
-    });
-  };
 
   const handleUpdateStatus = async (orderId: string, newStatus: string) => {
     try {
@@ -390,7 +376,7 @@ const MyOrders = ({ userRole: propRole }: MyOrdersProps) => {
                       <Button size="sm" onClick={() => handleReleasePayment(order.id)} className="bg-emerald-600 hover:bg-emerald-700">
                         <CheckCircle className="mr-2 h-4 w-4" /> Confirm Receipt & Pay
                       </Button>
-                      <Button size="sm" variant="outline" className="text-red-600 border-red-200 hover:bg-red-50" onClick={() => { setDisputeOrder(order); setIsDisputeModalOpen(true); }}>
+                      <Button size="sm" variant="outline" className="text-red-600 border-red-200 hover:bg-red-50" onClick={() => { setTargetDisputeOrder(order); setIsDisputeModalOpen(true); }}>
                         <AlertCircle className="mr-2 h-4 w-4" /> Report Issue
                       </Button>
                     </>

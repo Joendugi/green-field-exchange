@@ -19,6 +19,8 @@ const AI = lazy(() => import("@/pages/AI"));
 const Messages = lazy(() => import("@/pages/Messages"));
 const UserProfile = lazy(() => import("@/pages/UserProfile"));
 const PasswordReset = lazy(() => import("@/pages/PasswordReset"));
+const ForgotPassword = lazy(() => import("@/pages/ForgotPassword"));
+const UpdatePassword = lazy(() => import("@/pages/UpdatePassword"));
 const MetaAds = lazy(() => import("@/pages/MetaAds"));
 const Mission = lazy(() => import("@/pages/Mission"));
 const About = lazy(() => import("@/pages/About"));
@@ -53,6 +55,8 @@ function AppContent() {
           <Route path="/careers" element={<Careers />} />
           <Route path="/farmer-stories" element={<FarmerStories />} />
           <Route path="/reset-password" element={<PasswordReset />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/update-password" element={<UpdatePassword />} />
           
           {/* Protected Routes */}
           <Route path="/dashboard" element={

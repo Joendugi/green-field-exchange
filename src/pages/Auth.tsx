@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -272,14 +272,12 @@ const Auth = () => {
                   </Button>
 
                   <div className="mt-4 text-center">
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      onClick={() => setShowForgotPassword(true)}
-                      className="text-sm text-muted-foreground"
+                    <Link
+                      to="/forgot-password"
+                      className="text-sm text-muted-foreground hover:underline"
                     >
                       Forgot your password?
-                    </Button>
+                    </Link>
                   </div>
                 </form>
                 </>

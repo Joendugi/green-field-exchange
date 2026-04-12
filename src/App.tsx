@@ -54,7 +54,8 @@ function AppContent() {
           <Route path="/contact" element={<Contact />} />
           <Route path="/careers" element={<Careers />} />
           <Route path="/farmer-stories" element={<FarmerStories />} />
-          <Route path="/reset-password" element={<PasswordReset />} />
+          <Route path="/reset-password" element={<Navigate to="/forgot-password" replace />} />
+          <Route path="/password-reset" element={<PasswordReset />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/update-password" element={<UpdatePassword />} />
           

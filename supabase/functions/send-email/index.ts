@@ -47,6 +47,8 @@ serve(async (req) => {
     const batchSize = 100;
     const results = [];
 
+    const EMAIL_FROM = Deno.env.get('EMAIL_FROM') || 'onboarding@resend.dev';
+
     for (let i = 0; i < recipients.length; i += batchSize) {
       const batch = recipients.slice(i, i + batchSize);
       
@@ -57,7 +59,7 @@ serve(async (req) => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          from: 'Wakulima Exchange <notifications@wakulima-exchange.com>',
+          from: EMAIL_FROM,
           to: batch,
           subject: subject,
           html: html,

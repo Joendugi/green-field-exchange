@@ -406,8 +406,8 @@ const Marketplace = () => {
                   </div>
                   <div className="text-sm flex items-center gap-1.5 flex-wrap">
                     <span className="font-semibold">Farmer:</span> 
-                    {product.farmer_id?.full_name || "Unknown"}
-                    {product.farmer_id?.verified && (
+                    {product.profiles?.full_name || "Unknown"}
+                    {product.profiles?.verified && (
                       <Badge variant="secondary" className="bg-blue-500/10 text-blue-600 border-blue-200 text-[10px] h-4 px-1.5 flex items-center gap-0.5">
                         <ShieldCheck className="h-2.5 w-2.5" /> Verified
                       </Badge>

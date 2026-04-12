@@ -11,14 +11,15 @@ export async function createOrder(input: OrderInput) {
     const { data: userData, error: userError } = await supabase.auth.getUser();
     if (userError || !userData.user) throw new Error("Not authenticated");
 
-    // Fetch product to get farmer_id and price
+    // Fetch product to get farmer_id, price, and current quantity
     const { data: product, error: prodError } = await supabase
         .from("products")
-        .select("farmer_id, price, currency")
+        .select("farmer_id, price, currency, quantity")
         .eq("id", input.product_id)
         .single();
 
     if (prodError || !product) throw new Error("Product not found");
+    if (product.quantity < input.quantity) throw new Error("Insufficient quantity available");
 
     const totalPrice = product.price * input.quantity;
 
@@ -39,6 +40,18 @@ export async function createOrder(input: OrderInput) {
         .single();
 
     if (error) throw error;
+
+    // Deduct quantity from product
+    const { error: updateError } = await supabase
+        .from("products")
+        .update({ quantity: product.quantity - input.quantity })
+        .eq("id", input.product_id);
+
+    if (updateError) {
+        console.error("Failed to deduct quantity:", updateError);
+        // We don't throw here to avoid canceling the order, but we should log it
+    }
+
     return data;
 }
 

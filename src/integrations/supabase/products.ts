@@ -34,11 +34,19 @@ export async function listProducts(params: {
   limit?: number;
   cursor?: string;
 } = {}): Promise<ProductRow[]> {
-  const { data, error } = await supabase
+  let query = supabase
     .from("products")
     .select("*")
-    .order("created_at", { ascending: false })
-    .limit(params.limit || 40);
+    .eq("is_hidden", false)
+    .gt("quantity", 0)
+    .or(`expiry_date.is.null,expiry_date.gt.${new Date().toISOString()}`)
+    .order("created_at", { ascending: false });
+
+  if (params.category) {
+    query = query.eq("category", params.category);
+  }
+  
+  const { data, error } = await query.limit(params.limit || 40);
 
   if (error) {
     console.error("Supabase error in listProducts:", error);

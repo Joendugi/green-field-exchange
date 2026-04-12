@@ -285,7 +285,7 @@ const Profile = () => {
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => navigate("/password-reset")}
+              onClick={() => navigate("/forgot-password")}
               className="text-muted-foreground"
             >
               <Mail className="w-4 h-4 mr-2" />

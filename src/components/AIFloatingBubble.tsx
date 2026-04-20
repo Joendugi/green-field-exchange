@@ -35,12 +35,12 @@ const AIFloatingBubble = () => {
         }));
       setMessages(formattedHistory);
     } else {
-        setMessages([
-            {
-              role: "assistant",
-              content: "Hi! I'm your Wakulima AI. How can I help you with your farm or orders today?",
-            },
-          ]);
+      setMessages([
+        {
+          role: "assistant",
+          content: "Hi! I'm your  wakulima agri-connect AI. How can I help you with your farm or orders today?",
+        },
+      ]);
     }
   }, [history]);
 
@@ -78,7 +78,7 @@ const AIFloatingBubble = () => {
           <CardHeader className="bg-primary text-primary-foreground py-3 px-4 flex flex-row items-center justify-between rounded-t-lg">
             <div className="flex items-center gap-2">
               <Bot className="h-5 w-5" />
-              <CardTitle className="text-sm">Wakulima AI Assistant</CardTitle>
+              <CardTitle className="text-sm"> wakulima agri-connect AI Assistant</CardTitle>
             </div>
             <div className="flex items-center gap-1">
               <Button variant="ghost" size="icon" className="h-7 w-7 text-primary-foreground hover:bg-white/10" onClick={() => setIsMinimized(true)}>
@@ -133,15 +133,15 @@ const AIFloatingBubble = () => {
 
       {isOpen && isMinimized && (
         <Card className="mb-4 shadow-xl border-primary/20 animate-in slide-in-from-bottom-2">
-            <Button 
-                variant="outline" 
-                className="gap-2 bg-primary text-primary-foreground hover:bg-primary/90 border-0"
-                onClick={() => setIsMinimized(false)}
-            >
-                <Bot className="h-4 w-4" />
-                <span>AI Assistant (Active)</span>
-                <Maximize2 className="h-3 w-3 ml-2" />
-            </Button>
+          <Button
+            variant="outline"
+            className="gap-2 bg-primary text-primary-foreground hover:bg-primary/90 border-0"
+            onClick={() => setIsMinimized(false)}
+          >
+            <Bot className="h-4 w-4" />
+            <span>AI Assistant (Active)</span>
+            <Maximize2 className="h-3 w-3 ml-2" />
+          </Button>
         </Card>
       )}
 

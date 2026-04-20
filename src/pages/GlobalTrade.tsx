@@ -2,12 +2,12 @@ import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { 
-  Globe, 
-  Ship, 
-  Package, 
-  TrendingUp, 
-  MapPin, 
+import {
+  Globe,
+  Ship,
+  Package,
+  TrendingUp,
+  MapPin,
   Calendar,
   DollarSign,
   CheckCircle,
@@ -124,15 +124,15 @@ const GlobalTrade = () => {
   ];
 
   const filteredOpportunities = tradeOpportunities.filter(opportunity => {
-    const regionMatch = selectedRegion === "all" || 
+    const regionMatch = selectedRegion === "all" ||
       (selectedRegion === "north_america" && opportunity.destination.includes("USA")) ||
       (selectedRegion === "south_america" && (opportunity.origin.includes("Mexico") || opportunity.origin.includes("Peru") || opportunity.origin.includes("Colombia")));
-    
-    const categoryMatch = selectedCategory === "all" || 
+
+    const categoryMatch = selectedCategory === "all" ||
       (selectedCategory === "fruits" && opportunity.product === "Avocados") ||
       (selectedCategory === "grains" && opportunity.product === "Quinoa") ||
       (selectedCategory === "coffee" && opportunity.product === "Coffee Beans");
-    
+
     return regionMatch && categoryMatch;
   });
 
@@ -192,7 +192,7 @@ const GlobalTrade = () => {
           <div className="grid md:grid-cols-2 gap-6">
             <div>
               <label className="block text-sm font-medium mb-2">Region</label>
-              <select 
+              <select
                 value={selectedRegion}
                 onChange={(e) => setSelectedRegion(e.target.value)}
                 className="w-full p-3 border rounded-lg"
@@ -206,7 +206,7 @@ const GlobalTrade = () => {
             </div>
             <div>
               <label className="block text-sm font-medium mb-2">Product Category</label>
-              <select 
+              <select
                 value={selectedCategory}
                 onChange={(e) => setSelectedCategory(e.target.value)}
                 className="w-full p-3 border rounded-lg"
@@ -241,7 +241,7 @@ const GlobalTrade = () => {
                     <div className="text-2xl font-bold text-green-600">
                       {opportunity.price}
                     </div>
-                    <Badge 
+                    <Badge
                       variant={opportunity.status === 'available' ? 'default' : 'secondary'}
                       className="text-xs"
                     >
@@ -330,7 +330,7 @@ const GlobalTrade = () => {
             Expand Your Global Reach
           </h2>
           <p className="text-xl mb-8 text-indigo-100">
-            Join thousands of farmers and buyers trading internationally through Wakulima's trusted platform
+            Join thousands of farmers and buyers trading internationally through  wakulima agri-connect's trusted platform
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Button size="lg" className="bg-white text-indigo-600 hover:bg-indigo-50">

@@ -192,7 +192,7 @@ const Auth = () => {
           <div className="flex justify-center mb-4">
             <Sprout className="h-12 w-12 text-primary" />
           </div>
-          <CardTitle className="text-2xl font-bold">Wakulima</CardTitle>
+          <CardTitle className="text-2xl font-bold"> wakulima agri-connect</CardTitle>
           <CardDescription>
             Direct platform for farmers and sustainable agriculture
           </CardDescription>
@@ -244,42 +244,42 @@ const Auth = () => {
                     </div>
                   </div>
                   <form onSubmit={handleSignIn} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="signin-email">Email</Label>
-                    <Input
-                      id="signin-email"
-                      type="email"
-                      placeholder="you@example.com"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="signin-password">Password</Label>
-                    <Input
-                      id="signin-password"
-                      type="password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      required
-                    />
-                  </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="signin-email">Email</Label>
+                      <Input
+                        id="signin-email"
+                        type="email"
+                        placeholder="you@example.com"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="signin-password">Password</Label>
+                      <Input
+                        id="signin-password"
+                        type="password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        required
+                      />
+                    </div>
 
-                  <Button type="submit" className="w-full" disabled={isLoading}>
-                    {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    Sign In
-                  </Button>
+                    <Button type="submit" className="w-full" disabled={isLoading}>
+                      {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                      Sign In
+                    </Button>
 
-                  <div className="mt-4 text-center">
-                    <Link
-                      to="/forgot-password"
-                      className="text-sm text-muted-foreground hover:underline"
-                    >
-                      Forgot your password?
-                    </Link>
-                  </div>
-                </form>
+                    <div className="mt-4 text-center">
+                      <Link
+                        to="/forgot-password"
+                        className="text-sm text-muted-foreground hover:underline"
+                      >
+                        Forgot your password?
+                      </Link>
+                    </div>
+                  </form>
                 </>
               ) : (
                 <form onSubmit={handleForgotPassword} className="space-y-4">
@@ -357,66 +357,66 @@ const Auth = () => {
                   </div>
                 </div>
                 <form onSubmit={handleSignUp} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="signup-name">Full Name</Label>
-                  <Input
-                    id="signup-name"
-                    type="text"
-                    placeholder="John Doe"
-                    value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="signup-email">Email</Label>
-                  <Input
-                    id="signup-email"
-                    type="email"
-                    placeholder="you@example.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="signup-password">Password</Label>
-                  <Input
-                    id="signup-password"
-                    type="password"
-                    value={password}
-                    onChange={(e) => {
-                      setPassword(e.target.value);
-                      if (e.target.value) validatePassword(e.target.value);
-                    }}
-                    required
-                    minLength={8}
-                  />
-                  {passwordError && (
-                    <Alert variant="destructive" className="mt-2">
-                      <AlertCircle className="h-4 w-4" />
-                      <AlertDescription>{passwordError}</AlertDescription>
-                    </Alert>
-                  )}
-                  <p className="text-xs text-muted-foreground">
-                    Must contain uppercase, lowercase, and a number
-                  </p>
-                </div>
-                <div className="hidden">
-                  <Label>I am a</Label>
-                  <RadioGroup value={role} onValueChange={(value: any) => setRole(value)}>
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="farmer" id="farmer" />
-                      <Label htmlFor="farmer" className="font-normal cursor-pointer">
-                        Farmer
-                      </Label>
-                    </div>
-                  </RadioGroup>
-                </div>
-                <Button type="submit" className="w-full" disabled={isLoading}>
-                  {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Create Account
-                </Button>
+                  <div className="space-y-2">
+                    <Label htmlFor="signup-name">Full Name</Label>
+                    <Input
+                      id="signup-name"
+                      type="text"
+                      placeholder="John Doe"
+                      value={fullName}
+                      onChange={(e) => setFullName(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="signup-email">Email</Label>
+                    <Input
+                      id="signup-email"
+                      type="email"
+                      placeholder="you@example.com"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="signup-password">Password</Label>
+                    <Input
+                      id="signup-password"
+                      type="password"
+                      value={password}
+                      onChange={(e) => {
+                        setPassword(e.target.value);
+                        if (e.target.value) validatePassword(e.target.value);
+                      }}
+                      required
+                      minLength={8}
+                    />
+                    {passwordError && (
+                      <Alert variant="destructive" className="mt-2">
+                        <AlertCircle className="h-4 w-4" />
+                        <AlertDescription>{passwordError}</AlertDescription>
+                      </Alert>
+                    )}
+                    <p className="text-xs text-muted-foreground">
+                      Must contain uppercase, lowercase, and a number
+                    </p>
+                  </div>
+                  <div className="hidden">
+                    <Label>I am a</Label>
+                    <RadioGroup value={role} onValueChange={(value: any) => setRole(value)}>
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="farmer" id="farmer" />
+                        <Label htmlFor="farmer" className="font-normal cursor-pointer">
+                          Farmer
+                        </Label>
+                      </div>
+                    </RadioGroup>
+                  </div>
+                  <Button type="submit" className="w-full" disabled={isLoading}>
+                    {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Create Account
+                  </Button>
                 </form>
               </>
             </TabsContent>

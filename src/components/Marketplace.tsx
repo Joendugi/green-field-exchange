@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { ShoppingCart, MapPin, Search, Sparkles, Loader2, Gavel, TrendingUp, Package, Gift } from "lucide-react";
+import { ShoppingCart, MapPin, Search, Sparkles, Loader2, TrendingUp, Package, Gift } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -14,7 +14,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/contexts/AuthContext";
 import { listProductsWithProfiles, getSmartMatches } from "@/integrations/supabase/products";
 import { createOrder } from "@/integrations/supabase/orders";
-import { createOffer } from "@/integrations/supabase/offers";
+
 import { ExternalLink, Tag, Megaphone, ShieldCheck, Zap } from "lucide-react";
 
 const Marketplace = () => {
@@ -26,10 +26,7 @@ const Marketplace = () => {
   const [orderQuantity, setOrderQuantity] = useState("");
   const [deliveryAddress, setDeliveryAddress] = useState("");
 
-  // Offer States
-  const [offerPrice, setOfferPrice] = useState("");
-  const [offerQuantity, setOfferQuantity] = useState("");
-  const [offerMessage, setOfferMessage] = useState("");
+
 
   const [smartMatches, setSmartMatches] = useState<any[]>([]);
   const [isMatching, setIsMatching] = useState(false);
@@ -77,41 +74,7 @@ const Marketplace = () => {
   // Orders & Offers
 
 
-  const handleMakeOffer = async (product: any) => {
-    try {
-      if (!isAuthenticated) {
-        toast.error("Please sign in to make an offer");
-        navigate("/auth");
-        return;
-      }
 
-      const quantity = parseFloat(offerQuantity);
-      const price = parseFloat(offerPrice);
-
-      if (isNaN(quantity) || quantity <= 0) {
-        toast.error("Please enter a valid quantity");
-        return;
-      }
-      if (isNaN(price) || price <= 0) {
-        toast.error("Please enter a valid price");
-        return;
-      }
-
-      await createOffer({
-        product_id: product.id,
-        quantity,
-        amount_per_unit: price,
-        message: offerMessage,
-      });
-
-      toast.success("Offer sent successfully!");
-      setOfferPrice("");
-      setOfferQuantity("");
-      setOfferMessage("");
-    } catch (error: any) {
-      toast.error(error.message);
-    }
-  };
 
   const renderProductSkeletons = () => (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -428,124 +391,63 @@ const Marketplace = () => {
                       Login to Order
                     </Button>
                   ) : (
-                    <div className="flex gap-2 w-full">
-                      {/* Place Order Dialog */}
-                      <Dialog>
-                        <DialogTrigger asChild>
+                    <Dialog>
+                      <DialogTrigger asChild>
+                        <Button
+                          className="w-full"
+                          onClick={() => setSelectedProduct(product)}
+                          disabled={profile && product.farmer_id === profile.id}
+                        >
+                          {profile && product.farmer_id === profile.id ? "Your Product" : "Place Order"}
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent>
+                        <DialogHeader>
+                          <DialogTitle>Place Order</DialogTitle>
+                          <DialogDescription>
+                            Order {product.name} from {product.farmer_id?.full_name || "Unknown"}
+                          </DialogDescription>
+                        </DialogHeader>
+                        <div className="space-y-4">
+                          <div>
+                            <Label>Quantity ({product.unit})</Label>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              max={product.quantity}
+                              value={orderQuantity}
+                              onChange={(e) => setOrderQuantity(e.target.value)}
+                              placeholder="Enter quantity"
+                            />
+                          </div>
+                          <div>
+                            <Label>Delivery Address</Label>
+                            <Textarea
+                              value={deliveryAddress}
+                              onChange={(e) => setDeliveryAddress(e.target.value)}
+                              placeholder="Enter your delivery address"
+                            />
+                          </div>
+                          {orderQuantity && (
+                            <div className="p-4 bg-secondary rounded-lg">
+                              <div className="flex justify-between items-center">
+                                <span className="font-semibold">Total Price:</span>
+                                <span className="text-2xl font-bold text-primary">
+                                  ${(parseFloat(orderQuantity) * (product.discountedPrice || product.price)).toFixed(2)}
+                                </span>
+                              </div>
+                            </div>
+                          )}
                           <Button
-                            className="flex-1"
-                            onClick={() => setSelectedProduct(product)}
-                            disabled={profile && product.farmer_id === profile.id}
+                            className="w-full"
+                            onClick={handlePlaceOrder}
+                            disabled={!orderQuantity || !deliveryAddress}
                           >
-                            {profile && product.farmer_id === profile.id ? "Your Product" : "Place Order"}
+                            Confirm Order
                           </Button>
-                        </DialogTrigger>
-                        <DialogContent>
-                          <DialogHeader>
-                            <DialogTitle>Place Order</DialogTitle>
-                            <DialogDescription>
-                              Order {product.name} from {product.farmer_id?.full_name || "Unknown"}
-                            </DialogDescription>
-                          </DialogHeader>
-                          <div className="space-y-4">
-                            <div>
-                              <Label>Quantity ({product.unit})</Label>
-                              <Input
-                                type="number"
-                                step="0.01"
-                                max={product.quantity}
-                                value={orderQuantity}
-                                onChange={(e) => setOrderQuantity(e.target.value)}
-                                placeholder="Enter quantity"
-                              />
-                            </div>
-                            <div>
-                              <Label>Delivery Address</Label>
-                              <Textarea
-                                value={deliveryAddress}
-                                onChange={(e) => setDeliveryAddress(e.target.value)}
-                                placeholder="Enter your delivery address"
-                              />
-                            </div>
-                            {orderQuantity && (
-                              <div className="p-4 bg-secondary rounded-lg">
-                                <div className="flex justify-between items-center">
-                                  <span className="font-semibold">Total Price:</span>
-                                  <span className="text-2xl font-bold text-primary">
-                                    ${(parseFloat(orderQuantity) * (product.discountedPrice || product.price)).toFixed(2)}
-                                  </span>
-                                </div>
-                              </div>
-                            )}
-                            <Button
-                              className="w-full"
-                              onClick={handlePlaceOrder}
-                              disabled={!orderQuantity || !deliveryAddress}
-                            >
-                              Confirm Order
-                            </Button>
-                          </div>
-                        </DialogContent>
-                      </Dialog>
-  
-                      {/* Bargain Dialog */}
-                      <Dialog>
-                        <DialogTrigger asChild>
-                          <Button variant="outline" className="flex-1 bg-primary/5 hover:bg-primary/10 border-primary/20 text-primary">
-                            <Gavel className="mr-2 h-4 w-4" /> Bargain
-                          </Button>
-                        </DialogTrigger>
-                        <DialogContent>
-                          <DialogHeader>
-                            <DialogTitle>Make a Price Offer</DialogTitle>
-                            <DialogDescription>
-                              Suggest a different price for {product.name}. The farmer can accept, reject, or counter.
-                            </DialogDescription>
-                          </DialogHeader>
-                          <div className="space-y-4 py-4">
-                            <div className="grid grid-cols-2 gap-4">
-                              <div className="space-y-2">
-                                <Label>Quantity ({product.unit})</Label>
-                                <Input
-                                  type="number"
-                                  value={offerQuantity}
-                                  onChange={(e) => setOfferQuantity(e.target.value)}
-                                  placeholder="1"
-                                />
-                              </div>
-                              <div className="space-y-2">
-                                <Label>Your Price (per {product.unit})</Label>
-                                <div className="relative">
-                                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">{product.currency === "USD" ? "$" : (product.currency || "$")}</span>
-                                  <Input
-                                    type="number"
-                                    className="pl-7"
-                                    value={offerPrice}
-                                    onChange={(e) => setOfferPrice(e.target.value)}
-                                    placeholder={product.price.toString()}
-                                  />
-                                </div>
-                              </div>
-                            </div>
-                            <div className="space-y-2">
-                              <Label>Message to Farmer (Optional)</Label>
-                              <Textarea
-                                placeholder="e.g. I'm buying in bulk, can we do a discount?"
-                                value={offerMessage}
-                                onChange={(e) => setOfferMessage(e.target.value)}
-                              />
-                            </div>
-                            <Button
-                              className="w-full"
-                              onClick={() => handleMakeOffer(product)}
-                              disabled={!offerPrice || !offerQuantity}
-                            >
-                              Send Offer
-                            </Button>
-                          </div>
-                        </DialogContent>
-                      </Dialog>
-                    </div>
+                        </div>
+                      </DialogContent>
+                    </Dialog>
                   )}
                 </CardFooter>
               </Card>

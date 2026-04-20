@@ -39,7 +39,7 @@ serve(async (req) => {
     }
 
     // Call LLM for moderation
-    const prompt = `You are a content moderator for a farmer marketplace called "Wakulima Exchange". 
+    const prompt = `You are a content moderator for a farmer marketplace called " wakulima agri-connect Exchange". 
     Analyze the following list of items and identify any that violate policies:
     - Spam or irrelevant content
     - Offensive or abusive language

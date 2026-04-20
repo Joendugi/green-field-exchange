@@ -37,7 +37,7 @@ const Contact = () => {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         const formData = new FormData(e.target as HTMLFormElement);
-        
+
         setIsSubmitting(true);
         try {
             // Apply rate limiting: 3 attempts per 10 minutes per IP/User
@@ -86,7 +86,7 @@ const Contact = () => {
                                 <div>
                                     <h3 className="font-bold text-lg">Email Us</h3>
                                     <p className="text-muted-foreground">For general inquiries and support.</p>
-                                    <a href="mailto:support@wakulima.online" className="text-primary font-semibold hover:underline mt-2 block">support@wakulima.online</a>
+                                    <a href="mailto:support@ wakulima agri-connect.online" className="text-primary font-semibold hover:underline mt-2 block">support@ wakulima agri-connect.online</a>
                                 </div>
                             </div>
 
@@ -119,9 +119,9 @@ const Contact = () => {
                             </h3>
                             <div className="space-y-4">
                                 {[
-                                    { name: "Farmer Relations", email: "farmers@wakulima.online" },
-                                    { name: "Order Support", email: "orders@wakulima.online" },
-                                    { name: "Press & Media", email: "press@wakulima.online" },
+                                    { name: "Farmer Relations", email: "farmers@ wakulima agri-connect.online" },
+                                    { name: "Order Support", email: "orders@ wakulima agri-connect.online" },
+                                    { name: "Press & Media", email: "press@ wakulima agri-connect.online" },
                                 ].map((dept, i) => (
                                     <div key={i} className="flex justify-between items-center text-sm border-b border-border/50 pb-2 hover:border-primary/30 transition-colors cursor-pointer group">
                                         <span className="text-muted-foreground group-hover:text-foreground transition-colors">{dept.name}</span>
@@ -172,7 +172,7 @@ const Contact = () => {
                     <Accordion type="single" collapsible className="space-y-4">
                         {[
                             {
-                                q: "How do I verify my farm on Wakulima?",
+                                q: "How do I verify my farm on  wakulima agri-connect?",
                                 a: "Simply sign up as a farmer and submit your business registration and harvest certifications via the dashboard. Our team will review and verify your profile within 48 hours."
                             },
                             {

@@ -146,7 +146,7 @@ const Navbar = () => {
         <div className="flex items-center gap-6">
           <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigate("/")}>
             <Sprout className="h-8 w-8 text-primary" />
-            <h1 className="text-xl font-bold text-foreground">Wakulima</h1>
+            <h1 className="text-xl font-bold text-foreground"> wakulima agri-connect</h1>
           </div>
 
           {/* Desktop Nav */}
@@ -289,7 +289,7 @@ const Navbar = () => {
               <SheetHeader>
                 <SheetTitle className="flex items-center gap-2">
                   <Sprout className="h-6 w-6 text-primary" />
-                  Wakulima
+                  wakulima agri-connect
                 </SheetTitle>
               </SheetHeader>
               <div className="flex flex-col gap-2 mt-6">

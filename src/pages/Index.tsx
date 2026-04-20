@@ -105,11 +105,10 @@ function LandingNav({ onBrowse, onLogin }: { onBrowse: () => void; onLogin: () =
 
   return (
     <header
-      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${
-        scrolled
+      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${scrolled
           ? "bg-background/85 backdrop-blur-xl border-b border-border/50 shadow-sm"
           : "bg-transparent"
-      }`}
+        }`}
     >
       <div className="container mx-auto px-6 h-16 flex items-center justify-between">
         {/* Logo */}
@@ -118,7 +117,7 @@ function LandingNav({ onBrowse, onLogin }: { onBrowse: () => void; onLogin: () =
             <Sprout className="h-5 w-5 text-white" />
           </div>
           <span className={`text-lg font-extrabold tracking-tight transition-colors duration-300 ${scrolled ? "text-foreground" : "text-white drop-shadow"}`}>
-            Wakulima
+            wakulima agri-connect
           </span>
         </div>
 
@@ -128,11 +127,10 @@ function LandingNav({ onBrowse, onLogin }: { onBrowse: () => void; onLogin: () =
             <button
               key={item}
               onClick={item === "Marketplace" ? onBrowse : undefined}
-              className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 ${
-                scrolled
+              className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 ${scrolled
                   ? "text-muted-foreground hover:text-foreground hover:bg-secondary/60"
                   : "text-white/80 hover:text-white hover:bg-white/10"
-              }`}
+                }`}
             >
               {item}
             </button>
@@ -144,9 +142,8 @@ function LandingNav({ onBrowse, onLogin }: { onBrowse: () => void; onLogin: () =
           <Button
             variant="ghost"
             size="sm"
-            className={`rounded-full transition-all ${
-              scrolled ? "" : "text-white/90 hover:bg-white/10 hover:text-white"
-            }`}
+            className={`rounded-full transition-all ${scrolled ? "" : "text-white/90 hover:bg-white/10 hover:text-white"
+              }`}
             onClick={onLogin}
           >
             Log in
@@ -162,9 +159,8 @@ function LandingNav({ onBrowse, onLogin }: { onBrowse: () => void; onLogin: () =
 
         {/* Mobile hamburger */}
         <button
-          className={`md:hidden p-2 rounded-xl transition-colors ${
-            scrolled ? "hover:bg-secondary/60" : "text-white hover:bg-white/10"
-          }`}
+          className={`md:hidden p-2 rounded-xl transition-colors ${scrolled ? "hover:bg-secondary/60" : "text-white hover:bg-white/10"
+            }`}
           onClick={() => setMobileOpen((v) => !v)}
         >
           {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
@@ -289,7 +285,7 @@ const Index = () => {
                 To Your Doorstep
               </h1>
               <p className="text-lg text-white/75 mb-10 leading-relaxed max-w-lg">
-                Wakulima connects local farmers directly with consumers through a transparent, AI-powered marketplace — freshness guaranteed, community empowered.
+                wakulima agri-connect connects local farmers directly with consumers through a transparent, AI-powered marketplace — freshness guaranteed, community empowered.
               </p>
 
               <div className="flex flex-wrap gap-4 mb-12">
@@ -448,7 +444,7 @@ const Index = () => {
         <div className="container mx-auto px-6">
           <div className="text-center mb-20 reveal">
             <p className="text-xs font-semibold tracking-[0.2em] text-primary uppercase mb-3">The Process</p>
-            <h2 className="text-4xl lg:text-5xl font-extrabold mb-5">How Wakulima Works</h2>
+            <h2 className="text-4xl lg:text-5xl font-extrabold mb-5">How  wakulima agri-connect Works</h2>
             <p className="text-muted-foreground max-w-xl mx-auto text-lg">Two simple steps to bridge the gap between farm and table.</p>
           </div>
 
@@ -485,7 +481,7 @@ const Index = () => {
         <div className="container mx-auto px-6">
           <div className="grid md:grid-cols-2 gap-8 reveal">
             {/* Mission Card */}
-            <div 
+            <div
               onClick={() => navigate("/mission")}
               className="group relative cursor-pointer overflow-hidden rounded-3xl border border-border/60 bg-card hover:border-emerald-500/30 transition-all duration-500 hover:-translate-y-1 hover:shadow-2xl hover:shadow-emerald-500/10 p-8 sm:p-10"
             >
@@ -502,7 +498,7 @@ const Index = () => {
             </div>
 
             {/* Stories Card */}
-            <div 
+            <div
               onClick={() => navigate("/farmer-stories")}
               className="group relative cursor-pointer overflow-hidden rounded-3xl border border-border/60 bg-card hover:border-primary/30 transition-all duration-500 hover:-translate-y-1 hover:shadow-2xl hover:shadow-primary/10 p-8 sm:p-10"
             >
@@ -510,7 +506,7 @@ const Index = () => {
               <div className="relative z-10">
                 <Badge className="mb-6 px-3 py-1 bg-primary/10 text-primary border-primary/20 text-[10px] tracking-widest uppercase">Community</Badge>
                 <h3 className="text-3xl font-extrabold mb-4 group-hover:text-primary transition-colors duration-300">Stories From The Field</h3>
-                <p className="text-muted-foreground mb-8">Don't just take our word for it. Hear directly from the farmers and buyers whose lives have been transformed by Wakulima.</p>
+                <p className="text-muted-foreground mb-8">Don't just take our word for it. Hear directly from the farmers and buyers whose lives have been transformed by  wakulima agri-connect.</p>
                 <div className="flex items-center text-sm font-bold text-primary">
                   Meet Our Farmers
                   <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-2 transition-transform duration-300" />
@@ -540,7 +536,7 @@ const Index = () => {
                 Ready to join the revolution<br />of agricultural trade?
               </h2>
               <p className="text-lg text-white/80 mb-12 max-w-xl mx-auto">
-                Join thousands of farmers and buyers already growing together on Wakulima. No fees for the first 6 months.
+                Join thousands of farmers and buyers already growing together on  wakulima agri-connect. No fees for the first 6 months.
               </p>
               <div className="flex flex-wrap justify-center gap-4">
                 <Button

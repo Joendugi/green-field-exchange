@@ -19,9 +19,9 @@ const PrivacyPolicy = () => {
                                 <section>
                                     <h3 className="text-lg font-semibold mb-2 text-primary">1. Introduction</h3>
                                     <p>
-                                        Welcome to Wakulima ("we," "our," or "us"). We are committed to protecting your personal information and your right to privacy.
+                                        Welcome to  wakulima agri-connect ("we," "our," or "us"). We are committed to protecting your personal information and your right to privacy.
                                         If you have any questions or concerns about this privacy notice, or our practices with regards to your personal information, please
-                                        contact us at support@wakulima.online.
+                                        contact us at support@ wakulima agri-connect.online.
                                     </p>
                                 </section>
 
@@ -76,10 +76,10 @@ const PrivacyPolicy = () => {
                                 <section>
                                     <h3 className="text-lg font-semibold mb-2 text-primary">7. Contact Us</h3>
                                     <p>
-                                        If you have questions or comments about this policy, you may email us at support@wakulima.online or by post to:
+                                        If you have questions or comments about this policy, you may email us at support@ wakulima agri-connect.online or by post to:
                                     </p>
                                     <address className="mt-2 not-italic">
-                                        Wakulima Global Inc.<br />
+                                        wakulima agri-connect Global Inc.<br />
                                         123 Innovation Way<br />
                                         San Jose, CA 95110<br />
                                         United States

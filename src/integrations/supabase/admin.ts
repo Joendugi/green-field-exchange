@@ -220,402 +220,402 @@ export async function isAdmin(): Promise<boolean> {
 
 // User Management (admin only)
 export async function listUsers(): Promise<any[]> {
-    const isUserAdmin = await isAdmin();
-    if (!isUserAdmin) throw new Error("Unauthorized");
+  const isUserAdmin = await isAdmin();
+  if (!isUserAdmin) throw new Error("Unauthorized");
 
-    // Fetch profiles and user_roles separately to avoid FK join ambiguity
-    const { data: profiles, error: profError } = await supabase
-        .from("profiles")
-        .select("*")
-        .order("created_at", { ascending: false });
-    if (profError) throw profError;
+  // Fetch profiles and user_roles separately to avoid FK join ambiguity
+  const { data: profiles, error: profError } = await supabase
+    .from("profiles")
+    .select("*")
+    .order("created_at", { ascending: false });
+  if (profError) throw profError;
 
-    const { data: roles } = await supabase
-        .from("user_roles")
-        .select("user_id, role");
+  const { data: roles } = await supabase
+    .from("user_roles")
+    .select("user_id, role");
 
-    const roleMap = (roles || []).reduce((acc: Record<string, string>, r: any) => {
-        acc[r.user_id] = r.role;
-        return acc;
-    }, {});
+  const roleMap = (roles || []).reduce((acc: Record<string, string>, r: any) => {
+    acc[r.user_id] = r.role;
+    return acc;
+  }, {});
 
-    return (profiles || []).map((p: any) => ({ ...p, user_roles: [{ role: roleMap[p.user_id] ?? null }] }));
+  return (profiles || []).map((p: any) => ({ ...p, user_roles: [{ role: roleMap[p.user_id] ?? null }] }));
 }
 
 export async function updateRole(userId: string, role: string): Promise<void> {
-    const isUserAdmin = await isAdmin();
-    if (!isUserAdmin) throw new Error("Unauthorized");
+  const isUserAdmin = await isAdmin();
+  if (!isUserAdmin) throw new Error("Unauthorized");
 
-    const { error } = await supabase
-        .from("user_roles")
-        .upsert({ user_id: userId, role }, { onConflict: "user_id,role" });
+  const { error } = await supabase
+    .from("user_roles")
+    .upsert({ user_id: userId, role }, { onConflict: "user_id,role" });
 
-    if (error) throw error;
-    await logAdminAction("update_role", "user", userId, `Updated role to ${role}`);
+  if (error) throw error;
+  await logAdminAction("update_role", "user", userId, `Updated role to ${role}`);
 }
 
 export async function banUser(userId: string, ban: boolean, reason?: string): Promise<void> {
-    const isUserAdmin = await isAdmin();
-    if (!isUserAdmin) throw new Error("Unauthorized");
+  const isUserAdmin = await isAdmin();
+  if (!isUserAdmin) throw new Error("Unauthorized");
 
-    const { error } = await supabase
-        .from("profiles")
-        .update({ is_banned: ban, ban_reason: ban ? (reason || null) : null })
-        .eq("id", userId);
+  const { error } = await supabase
+    .from("profiles")
+    .update({ is_banned: ban, ban_reason: ban ? (reason || null) : null })
+    .eq("id", userId);
 
-    if (error) throw error;
-    await logAdminAction(ban ? "ban_user" : "unban_user", "user", userId, reason);
+  if (error) throw error;
+  await logAdminAction(ban ? "ban_user" : "unban_user", "user", userId, reason);
 }
 
 export async function getStats() {
-    const isUserAdmin = await isAdmin();
-    if (!isUserAdmin) throw new Error("Unauthorized");
+  const isUserAdmin = await isAdmin();
+  if (!isUserAdmin) throw new Error("Unauthorized");
 
-    const [usersResult, productsResult, ordersResult] = await Promise.all([
-        supabase.from("profiles").select("id", { count: "exact", head: true }),
-        supabase.from("products").select("id", { count: "exact", head: true }),
-        supabase.from("orders").select("total_price")
-    ]);
+  const [usersResult, productsResult, ordersResult] = await Promise.all([
+    supabase.from("profiles").select("id", { count: "exact", head: true }),
+    supabase.from("products").select("id", { count: "exact", head: true }),
+    supabase.from("orders").select("total_price")
+  ]);
 
-    const revenue = (ordersResult.data || []).reduce((sum, order) => sum + (order.total_price || 0), 0);
-    
-    return {
-        users: usersResult.count || 0,
-        products: productsResult.count || 0,
-        orders: ordersResult.data?.length || 0,
-        revenue
-    };
+  const revenue = (ordersResult.data || []).reduce((sum, order) => sum + (order.total_price || 0), 0);
+
+  return {
+    users: usersResult.count || 0,
+    products: productsResult.count || 0,
+    orders: ordersResult.data?.length || 0,
+    revenue
+  };
 }
 
 export async function listPosts() {
-    const isUserAdmin = await isAdmin();
-    if (!isUserAdmin) throw new Error("Unauthorized");
-    // Use separate fetch to avoid PostgREST join ambiguity on user_id column
-    const { data: posts, error } = await supabase
-        .from("posts")
-        .select("*")
-        .order("created_at", { ascending: false });
-    if (error) {
-        console.error("Error in admin listPosts:", error);
-        throw error;
-    }
-    if (!posts || posts.length === 0) return [];
+  const isUserAdmin = await isAdmin();
+  if (!isUserAdmin) throw new Error("Unauthorized");
+  // Use separate fetch to avoid PostgREST join ambiguity on user_id column
+  const { data: posts, error } = await supabase
+    .from("posts")
+    .select("*")
+    .order("created_at", { ascending: false });
+  if (error) {
+    console.error("Error in admin listPosts:", error);
+    throw error;
+  }
+  if (!posts || posts.length === 0) return [];
 
-    // Enrich with profile data
-    const userIds = [...new Set(posts.map((p: any) => p.user_id))];
-    const { data: profiles } = await supabase
-        .from("profiles")
-        .select("user_id, full_name, avatar_url, username")
-        .in("user_id", userIds);
-    const profileMap = (profiles || []).reduce((acc: Record<string, any>, p: any) => {
-        acc[p.user_id] = p;
-        return acc;
-    }, {});
-    return posts.map((p: any) => ({ ...p, profiles: profileMap[p.user_id] ?? null }));
+  // Enrich with profile data
+  const userIds = [...new Set(posts.map((p: any) => p.user_id))];
+  const { data: profiles } = await supabase
+    .from("profiles")
+    .select("user_id, full_name, avatar_url, username")
+    .in("user_id", userIds);
+  const profileMap = (profiles || []).reduce((acc: Record<string, any>, p: any) => {
+    acc[p.user_id] = p;
+    return acc;
+  }, {});
+  return posts.map((p: any) => ({ ...p, profiles: profileMap[p.user_id] ?? null }));
 }
 
 export async function listProducts() {
-    const isUserAdmin = await isAdmin();
-    if (!isUserAdmin) throw new Error("Unauthorized");
-    // Fetch products and join profiles separately to avoid FK join ambiguity
-    const { data: products, error } = await supabase
-        .from("products")
-        .select("*")
-        .order("created_at", { ascending: false });
-    if (error) {
-        console.error("Error in admin listProducts:", error);
-        throw error;
-    }
-    if (!products || products.length === 0) return [];
+  const isUserAdmin = await isAdmin();
+  if (!isUserAdmin) throw new Error("Unauthorized");
+  // Fetch products and join profiles separately to avoid FK join ambiguity
+  const { data: products, error } = await supabase
+    .from("products")
+    .select("*")
+    .order("created_at", { ascending: false });
+  if (error) {
+    console.error("Error in admin listProducts:", error);
+    throw error;
+  }
+  if (!products || products.length === 0) return [];
 
-    const farmerIds = [...new Set(products.map((p: any) => p.farmer_id))];
-    const { data: profiles } = await supabase
-        .from("profiles")
-        .select("user_id, full_name, avatar_url, username")
-        .in("user_id", farmerIds);
-    const profileMap = (profiles || []).reduce((acc: Record<string, any>, p: any) => {
-        acc[p.user_id] = p;
-        return acc;
-    }, {});
-    return products.map((p: any) => ({ ...p, profiles: profileMap[p.farmer_id] ?? null }));
+  const farmerIds = [...new Set(products.map((p: any) => p.farmer_id))];
+  const { data: profiles } = await supabase
+    .from("profiles")
+    .select("user_id, full_name, avatar_url, username")
+    .in("user_id", farmerIds);
+  const profileMap = (profiles || []).reduce((acc: Record<string, any>, p: any) => {
+    acc[p.user_id] = p;
+    return acc;
+  }, {});
+  return products.map((p: any) => ({ ...p, profiles: profileMap[p.farmer_id] ?? null }));
 }
 
 export async function listEmailLogs() {
-    const isUserAdmin = await isAdmin();
-    if (!isUserAdmin) throw new Error("Unauthorized");
-    // email_logs uses 'timestamp' not 'created_at' as its sort column
-    const { data, error } = await supabase
-        .from("email_logs")
-        .select("*")
-        .order("timestamp", { ascending: false });
-    if (error && (error.code === '42P01' || error.code === 'PGRST116')) return []; // table doesn't exist
-    if (error) throw error;
-    return data || [];
+  const isUserAdmin = await isAdmin();
+  if (!isUserAdmin) throw new Error("Unauthorized");
+  // email_logs uses 'timestamp' not 'created_at' as its sort column
+  const { data, error } = await supabase
+    .from("email_logs")
+    .select("*")
+    .order("timestamp", { ascending: false });
+  if (error && (error.code === '42P01' || error.code === 'PGRST116')) return []; // table doesn't exist
+  if (error) throw error;
+  return data || [];
 }
 
 export async function listAdvertisements() {
-    const isUserAdmin = await isAdmin();
-    if (!isUserAdmin) throw new Error("Unauthorized");
-    // advertisements table is optional — return empty if not found
-    const { data, error } = await supabase
-        .from("advertisements")
-        .select("*")
-        .order("created_at", { ascending: false });
-    if (error && (error.code === '42P01' || error.code === '42501' || error.message?.includes('404'))) return [];
-    if (error) throw error;
-    return data || [];
+  const isUserAdmin = await isAdmin();
+  if (!isUserAdmin) throw new Error("Unauthorized");
+  // advertisements table is optional — return empty if not found
+  const { data, error } = await supabase
+    .from("advertisements")
+    .select("*")
+    .order("created_at", { ascending: false });
+  if (error && (error.code === '42P01' || error.code === '42501' || error.message?.includes('404'))) return [];
+  if (error) throw error;
+  return data || [];
 }
 
 export async function getRecentActivity() {
-    const isUserAdmin = await isAdmin();
-    if (!isUserAdmin) throw new Error("Unauthorized");
-    
-    // Simplistic recent activity from audit logs
-    const logs = await getAdminAuditLogs(10);
-    return logs.map(l => ({
-        id: l.id,
-        icon: "🛡️",
-        label: l.action,
-        time: l.timestamp,
-        type: l.target_type
-    }));
+  const isUserAdmin = await isAdmin();
+  if (!isUserAdmin) throw new Error("Unauthorized");
+
+  // Simplistic recent activity from audit logs
+  const logs = await getAdminAuditLogs(10);
+  return logs.map(l => ({
+    id: l.id,
+    icon: "🛡️",
+    label: l.action,
+    time: l.timestamp,
+    type: l.target_type
+  }));
 }
 
 export async function getGrowthStats() {
-    const isUserAdmin = await isAdmin();
-    if (!isUserAdmin) throw new Error("Unauthorized");
-    
-    // Get user growth by month
-    const { data: profiles, error: pError } = await supabase
-        .from("profiles")
-        .select("created_at");
-        
-    if (pError) throw pError;
-    
-    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-    const currentYear = new Date().getFullYear();
-    
-    const statsMap: Record<string, { users: number, revenue: number }> = {};
-    
-    profiles.forEach(p => {
-        const d = new Date(p.created_at);
-        if (d.getFullYear() === currentYear) {
-            const m = months[d.getMonth()];
-            if (!statsMap[m]) statsMap[m] = { users: 0, revenue: 0 };
-            statsMap[m].users++;
-        }
-    });
+  const isUserAdmin = await isAdmin();
+  if (!isUserAdmin) throw new Error("Unauthorized");
 
-    // Get revenue by month
-    const { data: orders, error: oError } = await supabase
-        .from("orders")
-        .select("total_price, created_at")
-        .eq("status", "completed");
-        
-    if (!oError && orders) {
-        orders.forEach(o => {
-            const d = new Date(o.created_at);
-            if (d.getFullYear() === currentYear) {
-                const m = months[d.getMonth()];
-                if (!statsMap[m]) statsMap[m] = { users: 0, revenue: 0 };
-                statsMap[m].revenue += Number(o.total_price || 0);
-            }
-        });
+  // Get user growth by month
+  const { data: profiles, error: pError } = await supabase
+    .from("profiles")
+    .select("created_at");
+
+  if (pError) throw pError;
+
+  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const currentYear = new Date().getFullYear();
+
+  const statsMap: Record<string, { users: number, revenue: number }> = {};
+
+  profiles.forEach(p => {
+    const d = new Date(p.created_at);
+    if (d.getFullYear() === currentYear) {
+      const m = months[d.getMonth()];
+      if (!statsMap[m]) statsMap[m] = { users: 0, revenue: 0 };
+      statsMap[m].users++;
     }
+  });
 
-    return Object.entries(statsMap)
-        .map(([label, data]) => ({ label, ...data }))
-        .sort((a,b) => months.indexOf(a.label) - months.indexOf(b.label));
+  // Get revenue by month
+  const { data: orders, error: oError } = await supabase
+    .from("orders")
+    .select("total_price, created_at")
+    .eq("status", "completed");
+
+  if (!oError && orders) {
+    orders.forEach(o => {
+      const d = new Date(o.created_at);
+      if (d.getFullYear() === currentYear) {
+        const m = months[d.getMonth()];
+        if (!statsMap[m]) statsMap[m] = { users: 0, revenue: 0 };
+        statsMap[m].revenue += Number(o.total_price || 0);
+      }
+    });
+  }
+
+  return Object.entries(statsMap)
+    .map(([label, data]) => ({ label, ...data }))
+    .sort((a, b) => months.indexOf(a.label) - months.indexOf(b.label));
 }
 
 export async function broadcastNotification(opts: { title: string, message: string, sendEmail?: boolean }) {
-    const isUserAdmin = await isAdmin();
-    if (!isUserAdmin) throw new Error("Unauthorized");
-    
-    // Create broadcast record (triggers in-app notifications)
-    const { data: broadcast, error: bError } = await supabase
-        .from("broadcast_messages")
-        .insert({
-            title: opts.title,
-            message: opts.message,
-            sent_email: opts.sendEmail || false,
-            admin_id: await getCurrentUserId()
-        })
-        .select()
-        .single();
+  const isUserAdmin = await isAdmin();
+  if (!isUserAdmin) throw new Error("Unauthorized");
 
-    if (bError) throw bError;
+  // Create broadcast record (triggers in-app notifications)
+  const { data: broadcast, error: bError } = await supabase
+    .from("broadcast_messages")
+    .insert({
+      title: opts.title,
+      message: opts.message,
+      sent_email: opts.sendEmail || false,
+      admin_id: await getCurrentUserId()
+    })
+    .select()
+    .single();
 
-    // Send emails if requested
-    if (opts.sendEmail) {
-        const { data: users, error: uError } = await supabase.from("profiles").select("email:id(email)"); // Need join or auth list
-        // Supabase has strict RLS on auth.users, usually you'd maintain an email column in profiles or use a service role in an edge function
+  if (bError) throw bError;
 
-        // Calling an Edge Function that has service role access to send to ALL users
-        await supabase.functions.invoke('send-email', {
-            body: {
-                to: "ALL_USERS", // Specialized logic in edge function
-                subject: opts.title,
-                html: `<div style="font-family: sans-serif; padding: 20px; color: #333;">
-                        <h2 style="color: #2F855A;">Wakulima News: ${opts.title}</h2>
+  // Send emails if requested
+  if (opts.sendEmail) {
+    const { data: users, error: uError } = await supabase.from("profiles").select("email:id(email)"); // Need join or auth list
+    // Supabase has strict RLS on auth.users, usually you'd maintain an email column in profiles or use a service role in an edge function
+
+    // Calling an Edge Function that has service role access to send to ALL users
+    await supabase.functions.invoke('send-email', {
+      body: {
+        to: "ALL_USERS", // Specialized logic in edge function
+        subject: opts.title,
+        html: `<div style="font-family: sans-serif; padding: 20px; color: #333;">
+                        <h2 style="color: #2F855A;"> wakulima agri-connect News: ${opts.title}</h2>
                         <p>${opts.message}</p>
                         <hr style="border: 0; border-top: 1px solid #EEE;" />
-                        <p style="font-size: 12px; color: #777;">You are receiving this as a member of Wakulima Exchange.</p>
+                        <p style="font-size: 12px; color: #777;">You are receiving this as a member of  wakulima agri-connect Exchange.</p>
                       </div>`
-            }
-        });
-    }
+      }
+    });
+  }
 
-    await logAdminAction("broadcast", "settings", undefined, opts.title);
+  await logAdminAction("broadcast", "settings", undefined, opts.title);
 }
 
 export async function hidePost(args: { postId: string, hide: boolean }) {
-    const isUserAdmin = await isAdmin();
-    if (!isUserAdmin) throw new Error("Unauthorized");
-    const { error } = await supabase.from("posts").update({ hidden: args.hide }).eq("id", args.postId);
-    if (error) throw error;
-    await logAdminAction(args.hide ? "hide_post" : "unhide_post", "post", args.postId);
+  const isUserAdmin = await isAdmin();
+  if (!isUserAdmin) throw new Error("Unauthorized");
+  const { error } = await supabase.from("posts").update({ hidden: args.hide }).eq("id", args.postId);
+  if (error) throw error;
+  await logAdminAction(args.hide ? "hide_post" : "unhide_post", "post", args.postId);
 }
 
 export async function hideProduct(args: { productId: string, hide: boolean }) {
-    const isUserAdmin = await isAdmin();
-    if (!isUserAdmin) throw new Error("Unauthorized");
-    const { error } = await supabase.from("products").update({ hidden: args.hide }).eq("id", args.productId);
-    if (error) throw error;
-    await logAdminAction(args.hide ? "hide_product" : "unhide_product", "product", args.productId);
+  const isUserAdmin = await isAdmin();
+  if (!isUserAdmin) throw new Error("Unauthorized");
+  const { error } = await supabase.from("products").update({ hidden: args.hide }).eq("id", args.productId);
+  if (error) throw error;
+  await logAdminAction(args.hide ? "hide_product" : "unhide_product", "product", args.productId);
 }
 
 export async function toggleFeatured(args: { productId: string, featured: boolean }) {
-    const isUserAdmin = await isAdmin();
-    if (!isUserAdmin) throw new Error("Unauthorized");
-    const { error } = await supabase.from("products").update({ featured: args.featured }).eq("id", args.productId);
-    if (error) throw error;
-    await logAdminAction("toggle_featured", "product", args.productId, `Featured: ${args.featured}`);
+  const isUserAdmin = await isAdmin();
+  if (!isUserAdmin) throw new Error("Unauthorized");
+  const { error } = await supabase.from("products").update({ featured: args.featured }).eq("id", args.productId);
+  if (error) throw error;
+  await logAdminAction("toggle_featured", "product", args.productId, `Featured: ${args.featured}`);
 }
 
 export async function togglePostFeatured(args: { postId: string, isFeatured: boolean }) {
-    const isUserAdmin = await isAdmin();
-    if (!isUserAdmin) throw new Error("Unauthorized");
-    const { error } = await supabase.from("posts").update({ isFeatured: args.isFeatured } as any).eq("id", args.postId);
-    if (error) throw error;
-    await logAdminAction("toggle_post_featured", "post", args.postId, `Featured: ${args.isFeatured}`);
+  const isUserAdmin = await isAdmin();
+  if (!isUserAdmin) throw new Error("Unauthorized");
+  const { error } = await supabase.from("posts").update({ isFeatured: args.isFeatured } as any).eq("id", args.postId);
+  if (error) throw error;
+  await logAdminAction("toggle_post_featured", "post", args.postId, `Featured: ${args.isFeatured}`);
 }
 
 export async function bulkTogglePostFeatured(args: { postIds: string[], isFeatured: boolean }) {
-    const isUserAdmin = await isAdmin();
-    if (!isUserAdmin) throw new Error("Unauthorized");
-    const { error } = await supabase.from("posts").update({ isFeatured: args.isFeatured } as any).in("id", args.postIds);
-    if (error) throw error;
-    await logAdminAction("bulk_toggle_post_featured", "post", undefined, `Featured ${args.postIds.length} posts`);
+  const isUserAdmin = await isAdmin();
+  if (!isUserAdmin) throw new Error("Unauthorized");
+  const { error } = await supabase.from("posts").update({ isFeatured: args.isFeatured } as any).in("id", args.postIds);
+  if (error) throw error;
+  await logAdminAction("bulk_toggle_post_featured", "post", undefined, `Featured ${args.postIds.length} posts`);
 }
 
 // Escrow Management
 export async function listDisputedOrders() {
-    const isUserAdmin = await isAdmin();
-    if (!isUserAdmin) throw new Error("Unauthorized");
+  const isUserAdmin = await isAdmin();
+  if (!isUserAdmin) throw new Error("Unauthorized");
 
-    // Manual join to avoid FK hint failures (buyer_id/farmer_id -> profiles.user_id)
-    const { data: orders, error } = await supabase
-        .from("orders")
-        .select("*, products(*)")
-        .eq("status", "disputed")
-        .order("created_at", { ascending: false });
+  // Manual join to avoid FK hint failures (buyer_id/farmer_id -> profiles.user_id)
+  const { data: orders, error } = await supabase
+    .from("orders")
+    .select("*, products(*)")
+    .eq("status", "disputed")
+    .order("created_at", { ascending: false });
 
-    if (error) throw error;
-    if (!orders || orders.length === 0) return [];
+  if (error) throw error;
+  if (!orders || orders.length === 0) return [];
 
-    // Get all relevant profile IDs
-    const userIds = [...new Set([
-        ...orders.map((o: any) => o.buyer_id),
-        ...orders.map((o: any) => o.farmer_id)
-    ].filter(Boolean))];
+  // Get all relevant profile IDs
+  const userIds = [...new Set([
+    ...orders.map((o: any) => o.buyer_id),
+    ...orders.map((o: any) => o.farmer_id)
+  ].filter(Boolean))];
 
-    const { data: profiles } = await supabase
-        .from("profiles")
-        .select("user_id, full_name, avatar_url")
-        .in("user_id", userIds);
+  const { data: profiles } = await supabase
+    .from("profiles")
+    .select("user_id, full_name, avatar_url")
+    .in("user_id", userIds);
 
-    const profileMap = (profiles || []).reduce((acc: Record<string, any>, p: any) => {
-        acc[p.user_id] = p;
-        return acc;
-    }, {});
+  const profileMap = (profiles || []).reduce((acc: Record<string, any>, p: any) => {
+    acc[p.user_id] = p;
+    return acc;
+  }, {});
 
-    return orders.map((o: any) => ({
-        ...o,
-        buyer: profileMap[o.buyer_id] ?? null,
-        farmer: profileMap[o.farmer_id] ?? null,
-    }));
+  return orders.map((o: any) => ({
+    ...o,
+    buyer: profileMap[o.buyer_id] ?? null,
+    farmer: profileMap[o.farmer_id] ?? null,
+  }));
 }
 
 export async function resolveDispute(args: { orderId: string, resolution: "refund" | "release" }) {
-    const isUserAdmin = await isAdmin();
-    if (!isUserAdmin) throw new Error("Unauthorized");
+  const isUserAdmin = await isAdmin();
+  if (!isUserAdmin) throw new Error("Unauthorized");
 
-    const status = args.resolution === "refund" ? "cancelled" : "completed";
-    const escrow_status = args.resolution === "refund" ? "refunded" : "released";
+  const status = args.resolution === "refund" ? "cancelled" : "completed";
+  const escrow_status = args.resolution === "refund" ? "refunded" : "released";
 
-    const { error } = await supabase
-        .from("orders")
-        .update({ status, escrow_status })
-        .eq("id", args.orderId);
+  const { error } = await supabase
+    .from("orders")
+    .update({ status, escrow_status })
+    .eq("id", args.orderId);
 
-    if (error) throw error;
+  if (error) throw error;
 
-    await logAdminAction("resolve_dispute", "order", args.orderId, `Resolved as ${args.resolution}`);
+  await logAdminAction("resolve_dispute", "order", args.orderId, `Resolved as ${args.resolution}`);
 }
 
 // AI Content Moderation Stub
 export async function moderateContent() {
-    const isUserAdmin = await isAdmin();
-    if (!isUserAdmin) throw new Error("Unauthorized");
-    
-    try {
-        const { data, error } = await supabase.functions.invoke('moderate-content');
-        if (error) throw error;
-        
-        await logAdminAction("moderate_scan", "moderation", undefined, `Flagged: ${data.flagged?.length || 0}`);
-        return { flagged: data.flagged || [] };
-    } catch (error) {
-        console.error("AI Moderation failed", error);
-        return { flagged: [] }; // Fallback to avoid breaking UI
-    }
+  const isUserAdmin = await isAdmin();
+  if (!isUserAdmin) throw new Error("Unauthorized");
+
+  try {
+    const { data, error } = await supabase.functions.invoke('moderate-content');
+    if (error) throw error;
+
+    await logAdminAction("moderate_scan", "moderation", undefined, `Flagged: ${data.flagged?.length || 0}`);
+    return { flagged: data.flagged || [] };
+  } catch (error) {
+    console.error("AI Moderation failed", error);
+    return { flagged: [] }; // Fallback to avoid breaking UI
+  }
 }
 // Analytics
 export async function getGlobalHeatmap() {
-    const isUserAdmin = await isAdmin();
-    if (!isUserAdmin) throw new Error("Unauthorized");
-    
-    // Aggregate by profiles.location
-    const { data: products } = await supabase.from("products").select("location, price");
-    const { data: orders } = await supabase.from("orders").select("total_price, products!inner(location)").eq("status", "completed");
-    
-    const heatmap: Record<string, { location: string, products: number, orders: number, revenue: number }> = {};
-    
-    (products || []).forEach(p => {
-        const loc = p.location || "Unknown";
-        if (!heatmap[loc]) heatmap[loc] = { location: loc, products: 0, orders: 0, revenue: 0 };
-        heatmap[loc].products++;
-    });
-    
-    (orders || []).forEach((o: any) => {
-        const loc = o.products?.location || "Unknown";
-        if (!heatmap[loc]) heatmap[loc] = { location: loc, products: 0, orders: 0, revenue: 0 };
-        heatmap[loc].orders++;
-        heatmap[loc].revenue += Number(o.total_price || 0);
-    });
-    
-    return Object.values(heatmap).sort((a,b) => b.revenue - a.revenue);
+  const isUserAdmin = await isAdmin();
+  if (!isUserAdmin) throw new Error("Unauthorized");
+
+  // Aggregate by profiles.location
+  const { data: products } = await supabase.from("products").select("location, price");
+  const { data: orders } = await supabase.from("orders").select("total_price, products!inner(location)").eq("status", "completed");
+
+  const heatmap: Record<string, { location: string, products: number, orders: number, revenue: number }> = {};
+
+  (products || []).forEach(p => {
+    const loc = p.location || "Unknown";
+    if (!heatmap[loc]) heatmap[loc] = { location: loc, products: 0, orders: 0, revenue: 0 };
+    heatmap[loc].products++;
+  });
+
+  (orders || []).forEach((o: any) => {
+    const loc = o.products?.location || "Unknown";
+    if (!heatmap[loc]) heatmap[loc] = { location: loc, products: 0, orders: 0, revenue: 0 };
+    heatmap[loc].orders++;
+    heatmap[loc].revenue += Number(o.total_price || 0);
+  });
+
+  return Object.values(heatmap).sort((a, b) => b.revenue - a.revenue);
 }
 
 export async function listTickets() {
-    const isUserAdmin = await isAdmin();
-    if (!isUserAdmin) throw new Error("Unauthorized");
-    
-    const { data, error } = await supabase
-        .from("support_tickets")
-        .select("*")
-        .order("created_at", { ascending: false });
+  const isUserAdmin = await isAdmin();
+  if (!isUserAdmin) throw new Error("Unauthorized");
 
-    if (error) throw error;
-    return data || [];
+  const { data, error } = await supabase
+    .from("support_tickets")
+    .select("*")
+    .order("created_at", { ascending: false });
+
+  if (error) throw error;
+  return data || [];
 }

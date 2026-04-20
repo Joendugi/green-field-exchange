@@ -1,4 +1,4 @@
--- Core user profile and role tables for Wakulima
+-- Core user profile and role tables for  wakulima agri-connect
 
 -- Updated-at trigger helper
 CREATE OR REPLACE FUNCTION public.update_updated_at_column()

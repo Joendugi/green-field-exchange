@@ -20,7 +20,7 @@ class CacheManager {
     // Also store in localStorage for persistence across sessions
     try {
       localStorage.setItem(
-        `wakulima_cache_${key}`,
+        ` wakulima agri-connect_cache_${key}`,
         JSON.stringify({
           data,
           timestamp: Date.now(),
@@ -41,7 +41,7 @@ class CacheManager {
 
     // Then check localStorage
     try {
-      const stored = localStorage.getItem(`wakulima_cache_${key}`);
+      const stored = localStorage.getItem(` wakulima agri-connect_cache_${key}`);
       if (stored) {
         const item: CacheItem<T> = JSON.parse(stored);
         if (!this.isExpired(item)) {
@@ -50,7 +50,7 @@ class CacheManager {
           return item.data;
         } else {
           // Clean up expired item
-          localStorage.removeItem(`wakulima_cache_${key}`);
+          localStorage.removeItem(` wakulima agri-connect_cache_${key}`);
         }
       }
     } catch (error) {
@@ -63,7 +63,7 @@ class CacheManager {
   invalidate(key: string): void {
     this.cache.delete(key);
     try {
-      localStorage.removeItem(`wakulima_cache_${key}`);
+      localStorage.removeItem(` wakulima agri-connect_cache_${key}`);
     } catch (error) {
       console.warn('Failed to remove from localStorage:', error);
     }
@@ -84,7 +84,7 @@ class CacheManager {
     // Also clean localStorage
     try {
       Object.keys(localStorage).forEach(key => {
-        if (key.startsWith('wakulima_cache_') && key.includes(pattern)) {
+        if (key.startsWith(' wakulima agri-connect_cache_') && key.includes(pattern)) {
           localStorage.removeItem(key);
         }
       });
@@ -97,7 +97,7 @@ class CacheManager {
     this.cache.clear();
     try {
       Object.keys(localStorage).forEach(key => {
-        if (key.startsWith('wakulima_cache_')) {
+        if (key.startsWith(' wakulima agri-connect_cache_')) {
           localStorage.removeItem(key);
         }
       });

@@ -228,7 +228,7 @@ const OffersManager = () => {
                     <div className="text-center py-16 border-2 border-dashed rounded-2xl">
                         <Handshake className="h-12 w-12 text-muted-foreground mx-auto mb-4 opacity-50" />
                         <h3 className="text-lg font-semibold">No Active Negotiations</h3>
-                        <p className="text-muted-foreground">Prices you've bargained for will appear here.</p>
+                        <p className="text-muted-foreground">Your active price negotiations will appear here.</p>
                     </div>
                 )}
             </div>

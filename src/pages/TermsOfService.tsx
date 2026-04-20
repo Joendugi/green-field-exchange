@@ -19,7 +19,7 @@ const TermsOfService = () => {
                                 <section>
                                     <h3 className="text-lg font-semibold mb-2 text-primary">1. Agreement to Terms</h3>
                                     <p>
-                                        By accessing or using the Wakulima website, you agree to be bound by these Terms of Service. If you do not agree to these terms, please do not use our services.
+                                        By accessing or using the  wakulima agri-connect website, you agree to be bound by these Terms of Service. If you do not agree to these terms, please do not use our services.
                                     </p>
                                 </section>
 
@@ -40,7 +40,7 @@ const TermsOfService = () => {
                                 <section>
                                     <h3 className="text-lg font-semibold mb-2 text-primary">4. Marketplace Transactions</h3>
                                     <p>
-                                        Wakulima facilitates connections between buyers and farmers. We are not a party to the actual transaction between buyers and sellers. We do not guarantee the quality, safety, or legality of items advertised.
+                                        wakulima agri-connect facilitates connections between buyers and farmers. We are not a party to the actual transaction between buyers and sellers. We do not guarantee the quality, safety, or legality of items advertised.
                                     </p>
                                 </section>
 
@@ -61,7 +61,7 @@ const TermsOfService = () => {
                                 <section>
                                     <h3 className="text-lg font-semibold mb-2 text-primary">7. Contact Us</h3>
                                     <p>
-                                        If you have any questions about these Terms, please contact us at support@wakulima.online.
+                                        If you have any questions about these Terms, please contact us at support@ wakulima agri-connect.online.
                                     </p>
                                 </section>
                             </div>

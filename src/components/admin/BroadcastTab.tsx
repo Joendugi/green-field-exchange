@@ -46,7 +46,7 @@ export const BroadcastTab = ({
                         className="bg-muted/30 border-primary/20 focus-visible:ring-primary/40 h-12 text-lg font-medium"
                     />
                 </div>
-                
+
                 <div className="space-y-2">
                     <Label htmlFor="message" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Message Content</Label>
                     <Textarea
@@ -76,8 +76,8 @@ export const BroadcastTab = ({
                     </div>
                 </div>
 
-                <Button 
-                    onClick={onSend} 
+                <Button
+                    onClick={onSend}
                     className="w-full h-14 bg-primary hover:bg-primary/90 text-white font-bold text-lg shadow-lg shadow-primary/20 transition-all hover:scale-[1.01] active:scale-95 rounded-xl"
                 >
                     <Zap className="h-5 w-5 mr-2" />
@@ -106,17 +106,17 @@ export const BroadcastTab = ({
                             <div className="space-y-1 min-w-0">
                                 <p className="font-bold text-sm truncate">{broadcastTitle || "Update Title"}</p>
                                 <p className="text-xs text-muted-foreground line-clamp-3">{broadcastMessage || "Your message will appear here for all users to see..."}</p>
-                                <p className="text-[10px] text-muted-foreground pt-2">Just now • Wakulima Official</p>
+                                <p className="text-[10px] text-muted-foreground pt-2">Just now •  wakulima agri-connect Official</p>
                             </div>
                         </div>
                     </div>
 
                     {sendEmail && (
                         <div className="bg-background/80 border border-primary/10 rounded-2xl shadow-xl p-4 flex items-center gap-3 animate-in fade-in slide-in-from-top-2">
-                           <div className="h-8 w-8 rounded-lg bg-emerald-100 flex items-center justify-center shrink-0">
-                               <Mail className="h-4 w-4 text-emerald-600" />
-                           </div>
-                           <p className="text-[11px] font-medium text-muted-foreground tracking-tight">Email delivery is active for this broadcast.</p>
+                            <div className="h-8 w-8 rounded-lg bg-emerald-100 flex items-center justify-center shrink-0">
+                                <Mail className="h-4 w-4 text-emerald-600" />
+                            </div>
+                            <p className="text-[11px] font-medium text-muted-foreground tracking-tight">Email delivery is active for this broadcast.</p>
                         </div>
                     )}
                 </div>

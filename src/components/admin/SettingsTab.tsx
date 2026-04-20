@@ -25,7 +25,7 @@ const PRESET_COLORS = [
     { label: "Teal", value: "174 72% 40%", hex: "#0d9488" },
 ];
 
-const STORAGE_KEY = "wakulima_admin_primary_color";
+const STORAGE_KEY = " wakulima agri-connect_admin_primary_color";
 
 interface SettingsTabProps {
     adminSettings: Record<SettingsKey, boolean>;
@@ -82,7 +82,7 @@ export const SettingsTab = ({ adminSettings, onSettingChange, savingKey }: Setti
         setCustomHex("#22c55e");
         localStorage.removeItem(STORAGE_KEY);
         applyColor(defaultColor);
-        toast.success("Brand color reset to default Wakulima green");
+        toast.success("Brand color reset to default  wakulima agri-connect green");
     };
 
     return (

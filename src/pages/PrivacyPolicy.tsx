@@ -80,8 +80,8 @@ const PrivacyPolicy = () => {
                                     </p>
                                     <address className="mt-2 not-italic">
                                         wakulima agri-connect Global Inc.<br />
-                                        123 Innovation Way<br />
-                                        San Jose, CA 95110<br />
+                                        123 wayaki  Way<br />
+                                        Nairobi, westlands 95110<br />
                                         United States
                                     </address>
                                 </section>

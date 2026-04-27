@@ -38,14 +38,14 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useQueryClient } from "@tanstack/react-query";
 
 const MetaAds = () => {
-  const { user, profile } = useAuth();
+  const { user } = useAuth();
   const queryClient = useQueryClient();
 
   // Queries
   const { data: analytics, isLoading: isLoadingAnalytics } = useSupabaseQuery<any>(
     ["meta", "analytics"],
     () => getMetaAnalytics({
-      userId: profile?.id,
+      userId: user?.id,
       dateRange: {
         start: Date.now() - (30 * 24 * 60 * 60 * 1000),
         end: Date.now(),
@@ -55,12 +55,12 @@ const MetaAds = () => {
 
   const { data: campaigns, isLoading: isLoadingCampaigns } = useSupabaseQuery<any[]>(
     ["meta", "campaigns"],
-    () => getMetaAdCampaigns({ userId: profile?.id, limit: 10 })
+    () => getMetaAdCampaigns({ userId: user?.id, limit: 10 })
   );
 
   const { data: audiences, isLoading: isLoadingAudiences } = useSupabaseQuery<any[]>(
     ["meta", "audiences"],
-    () => getMetaAudiences(profile?.id)
+    () => getMetaAudiences(user?.id)
   );
 
   const [activeTab, setActiveTab] = useState("overview");
@@ -93,7 +93,7 @@ const MetaAds = () => {
   const handleCreateCampaign = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!user || !profile) {
+    if (!user) {
       toast.error("Authentication required");
       return;
     }
@@ -101,7 +101,7 @@ const MetaAds = () => {
     try {
       await createMetaAdCampaign({
         ...campaignForm,
-        userId: profile.id,
+        userId: user.id,
         targetAudience: campaignForm.targetAudience || undefined
       });
 
@@ -126,7 +126,7 @@ const MetaAds = () => {
   const handleCreateAudience = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!user || !profile) {
+    if (!user) {
       toast.error("Authentication required");
       return;
     }
@@ -134,7 +134,7 @@ const MetaAds = () => {
     try {
       await createMetaCustomAudience({
         ...audienceForm,
-        userId: profile.id
+        userId: user.id
       });
 
       toast.success("Audience created successfully!");
@@ -152,12 +152,12 @@ const MetaAds = () => {
   };
 
   const handleTrackConversion = async (type: string, value: number) => {
-    if (!profile) return;
+    if (!user) return;
     try {
       await trackMetaConversion({
         conversionType: type,
         conversionData: { timestamp: Date.now() },
-        userId: profile.id,
+        userId: user.id,
         value,
         currency: "USD"
       });

@@ -87,7 +87,7 @@ const Navbar = () => {
       { path: "/social", label: "Social", icon: Users },
       { path: "/ai", label: "AI Assistant", icon: Bot },
       { path: "/contact", label: "Help", icon: CircleHelp },
-      ...(role === "admin" ? [{ path: "/meta-ads", label: "Meta Ads", icon: BarChart3 }] : []),
+      // ...(role === "admin" ? [{ path: "/meta-ads", label: "Meta Ads", icon: BarChart3 }] : []),
     ] : [
       { path: "/social", label: "Social", icon: Users },
       { path: "/contact", label: "Help", icon: CircleHelp },

@@ -89,13 +89,13 @@ const Dashboard = () => {
             <div className="relative mb-6">
               <div className="overflow-x-auto pb-2 scrollbar-hide -mx-4 px-4 md:mx-0 md:px-0">
                 <TabsList className={`inline-flex w-auto md:w-full min-w-full md:grid ${isAuthenticated ?
-                  (role === "admin" ? "md:grid-cols-7" : "md:grid-cols-6")
+                  (role === "admin" ? "md:grid-cols-6" : "md:grid-cols-5")
                   : "grid-cols-1"} justify-start md:justify-center`}>
                   {isAuthenticated && <TabsTrigger value="profile">Profile</TabsTrigger>}
                   {isAuthenticated && <TabsTrigger value="orders">Orders</TabsTrigger>}
                   <TabsTrigger value="products">My Products</TabsTrigger>
                   {isAuthenticated && <TabsTrigger value="insights">Insights</TabsTrigger>}
-                  {isAuthenticated && <TabsTrigger value="negotiations">Offers</TabsTrigger>}
+                  {/* {isAuthenticated && <TabsTrigger value="negotiations">Offers</TabsTrigger>} */}
                   {isAuthenticated && <TabsTrigger value="settings">Settings</TabsTrigger>}
                   {role === "admin" && <TabsTrigger value="admin" className="text-primary font-bold">Admin</TabsTrigger>}
                 </TabsList>
@@ -124,11 +124,11 @@ const Dashboard = () => {
               </LazyLoader>
             </TabsContent>
 
-            <TabsContent value="negotiations">
+            {/* <TabsContent value="negotiations">
               <LazyLoader>
                 <OffersManager />
               </LazyLoader>
-            </TabsContent>
+            </TabsContent> */}
 
             <TabsContent value="settings">
               <Settings />

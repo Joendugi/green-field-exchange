@@ -12,10 +12,10 @@ import {
   Onboarding,
   AIAssistant,
   FarmerAnalytics,
-  OffersManager
+  OffersManager,
+  Profile,
+  Settings
 } from "@/components/LazyComponents";
-import Profile from "@/components/Profile";
-import Settings from "@/components/Settings";
 
 const LazyLoader = ({ children }: { children: React.ReactNode }) => (
   <Suspense fallback={<DashboardSkeleton />}>
@@ -103,7 +103,9 @@ const Dashboard = () => {
             </div>
 
             <TabsContent value="profile">
-              <Profile />
+              <LazyLoader>
+                <Profile />
+              </LazyLoader>
             </TabsContent>
 
             <TabsContent value="orders">
@@ -131,7 +133,9 @@ const Dashboard = () => {
             </TabsContent> */}
 
             <TabsContent value="settings">
-              <Settings />
+              <LazyLoader>
+                <Settings />
+              </LazyLoader>
             </TabsContent>
 
             {role === "admin" && (

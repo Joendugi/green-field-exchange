@@ -28,6 +28,7 @@ const Contact = lazy(() => import("@/pages/Contact"));
 const Careers = lazy(() => import("@/pages/Careers"));
 const FarmerStories = lazy(() => import("@/pages/FarmerStories"));
 const PrivacyPolicy = lazy(() => import("@/pages/PrivacyPolicy"));
+const TermsOfService = lazy(() => import("@/pages/TermsOfService"));
 
 function AppContent() {
   const { isAuthenticated, loading } = useAuth();
@@ -60,6 +61,7 @@ function AppContent() {
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/update-password" element={<UpdatePassword />} />
           <Route path="/privacy" element={<PrivacyPolicy />} />
+          <Route path="/terms" element={<TermsOfService />} />
           
           {/* Protected Routes */}
           <Route path="/dashboard" element={

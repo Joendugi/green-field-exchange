@@ -5,7 +5,7 @@
   <!-- Homepage - highest priority -->
   <url>
     <loc>https://wakulima.online/</loc>
-    <lastmod>2026-03-24</lastmod>
+    <lastmod>2026-05-08</lastmod>
     <changefreq>daily</changefreq>
     <priority>1.0</priority>
     <xhtml:link rel="alternate" hreflang="en-ke" href="https://wakulima.online/"/>
@@ -15,7 +15,7 @@
   <!-- Marketplace - frequently updated with new products -->
   <url>
     <loc>https://wakulima.online/marketplace</loc>
-    <lastmod>2026-03-24</lastmod>
+    <lastmod>2026-05-08</lastmod>
     <changefreq>hourly</changefreq>
     <priority>0.95</priority>
   </url>
@@ -23,31 +23,31 @@
   <!-- Category pages - important for long-tail keywords -->
   <url>
     <loc>https://wakulima.online/marketplace?category=vegetables</loc>
-    <lastmod>2026-03-24</lastmod>
+    <lastmod>2026-05-08</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.85</priority>
   </url>
   <url>
     <loc>https://wakulima.online/marketplace?category=fruits</loc>
-    <lastmod>2026-03-24</lastmod>
+    <lastmod>2026-05-08</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.85</priority>
   </url>
   <url>
     <loc>https://wakulima.online/marketplace?category=grains</loc>
-    <lastmod>2026-03-24</lastmod>
+    <lastmod>2026-05-08</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.80</priority>
   </url>
   <url>
     <loc>https://wakulima.online/marketplace?category=dairy</loc>
-    <lastmod>2026-03-24</lastmod>
+    <lastmod>2026-05-08</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.80</priority>
   </url>
   <url>
     <loc>https://wakulima.online/marketplace?category=livestock</loc>
-    <lastmod>2026-03-24</lastmod>
+    <lastmod>2026-05-08</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.80</priority>
   </url>
@@ -55,7 +55,7 @@
   <!-- Social community - freshness signal -->
   <url>
     <loc>https://wakulima.online/social</loc>
-    <lastmod>2026-03-24</lastmod>
+    <lastmod>2026-05-08</lastmod>
     <changefreq>hourly</changefreq>
     <priority>0.75</priority>
   </url>
@@ -63,7 +63,7 @@
   <!-- Auth pages -->
   <url>
     <loc>https://wakulima.online/auth</loc>
-    <lastmod>2026-03-24</lastmod>
+    <lastmod>2026-05-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.60</priority>
   </url>
@@ -71,15 +71,21 @@
   <!-- Static content pages -->
   <url>
     <loc>https://wakulima.online/about</loc>
-    <lastmod>2026-03-24</lastmod>
+    <lastmod>2026-05-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.70</priority>
   </url>
   <url>
     <loc>https://wakulima.online/mission</loc>
-    <lastmod>2026-03-24</lastmod>
+    <lastmod>2026-05-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.65</priority>
+  </url>
+  <url>
+    <loc>https://wakulima.online/privacy-policy</loc>
+    <lastmod>2026-05-08</lastmod>
+    <changefreq>yearly</changefreq>
+    <priority>0.40</priority>
   </url>
 
 </urlset>

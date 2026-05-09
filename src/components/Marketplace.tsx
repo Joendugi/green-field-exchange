@@ -77,7 +77,7 @@ const Marketplace = () => {
 
 
   const renderProductSkeletons = () => (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
       {Array.from({ length: 6 }).map((_, idx) => (
         <Card key={idx} className="p-4">
           <Skeleton className="h-40 w-full rounded-lg" />
@@ -297,7 +297,7 @@ const Marketplace = () => {
       {isLoadingProducts ? (
         renderProductSkeletons()
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
           {displayItems.map((item: any, idx) => {
             if (item.isAd) {
               return <SponsoredAdCard key={item.id} ad={item} />;
@@ -326,8 +326,8 @@ const Marketplace = () => {
                       </Badge>
                     )}
                   </div>
-                  <CardTitle>{product.name}</CardTitle>
-                  <CardDescription>{product.description}</CardDescription>
+                  <CardTitle className="text-base line-clamp-1" title={product.name}>{product.name}</CardTitle>
+                  <CardDescription className="text-xs line-clamp-2">{product.description}</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-2">
                   <div className="flex flex-col gap-1">
@@ -335,15 +335,15 @@ const Marketplace = () => {
                       <div className="flex flex-col">
                         {product.hasLoyaltyDiscount ? (
                           <>
-                            <span className="text-2xl font-bold text-primary">
+                            <span className="text-lg font-bold text-primary">
                               {product.currency === "USD" ? "$" : (product.currency || "$")}{product.discountedPrice.toFixed(2)}/{product.unit}
                             </span>
-                            <span className="text-xs text-muted-foreground line-through decoration-rose-400">
+                            <span className="text-[10px] text-muted-foreground line-through decoration-rose-400">
                               Was {product.currency === "USD" ? "$" : (product.currency || "$")}{product.price}
                             </span>
                           </>
                         ) : (
-                          <span className="text-2xl font-bold text-primary">
+                          <span className="text-lg font-bold text-primary">
                             {product.currency === "USD" ? "$" : (product.currency || "$")}{product.price}/{product.unit}
                           </span>
                         )}
@@ -363,24 +363,24 @@ const Marketplace = () => {
                       </div>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <MapPin className="h-4 w-4" />
-                    <span>{product.location}</span>
+                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <MapPin className="h-3.5 w-3.5" />
+                    <span className="truncate">{product.location}</span>
                   </div>
-                  <div className="text-sm flex items-center gap-1.5 flex-wrap">
-                    <span className="font-semibold">Farmer:</span> 
-                    {product.profiles?.full_name || "Unknown"}
+                  <div className="text-xs flex items-center gap-1 flex-wrap">
+                    <span className="font-semibold text-muted-foreground">Farmer:</span> 
+                    <span className="truncate max-w-[80px]" title={product.profiles?.full_name}>{product.profiles?.full_name || "Unknown"}</span>
                     {product.profiles?.verified && (
-                      <Badge variant="secondary" className="bg-blue-500/10 text-blue-600 border-blue-200 text-[10px] h-4 px-1.5 flex items-center gap-0.5">
-                        <ShieldCheck className="h-2.5 w-2.5" /> Verified
+                      <Badge variant="secondary" className="bg-blue-500/10 text-blue-600 border-blue-200 text-[9px] h-3.5 px-1 flex items-center gap-0.5">
+                        <ShieldCheck className="h-2 w-2" />
                       </Badge>
                     )}
                   </div>
-                  <div className="text-sm">
-                    <span className="font-semibold">Available:</span> {product.quantity} {product.unit}
+                  <div className="text-xs">
+                    <span className="font-semibold text-muted-foreground">Available:</span> {product.quantity} {product.unit}
                   </div>
                   {product.expiry_date && (
-                    <div className="text-sm text-amber-600 flex items-center gap-1">
+                    <div className="text-xs text-amber-600 flex items-center gap-1">
                       <span className="font-semibold">Best Before:</span> {new Date(product.expiry_date).toLocaleDateString()}
                     </div>
                   )}

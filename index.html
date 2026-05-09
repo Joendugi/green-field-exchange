@@ -5,6 +5,21 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
+  <!-- Prevent flash of incorrect theme -->
+  <script>
+    (function() {
+      try {
+        var localTheme = localStorage.getItem('theme');
+        var theme = localTheme || 'dark';
+        if (theme === 'dark') {
+          document.documentElement.classList.add('dark');
+        } else {
+          document.documentElement.classList.remove('dark');
+        }
+      } catch (e) {}
+    })();
+  </script>
+
   <!-- PRIMARY SEO: Title & Description (Kenya farming keywords) -->
   <title>Wakulima Kenya | Soko la Wakulima - Buy Fresh Farm Produce Direct from Kenyan Farmers</title>
   <meta name="description"

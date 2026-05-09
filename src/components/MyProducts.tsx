@@ -836,7 +836,7 @@ const MyProducts = () => {
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
         {products.map((product) => (
           <Card key={product.id}>
             <CardHeader>
@@ -851,7 +851,7 @@ const MyProducts = () => {
                   </Badge>
                 </div>
               </div>
-              <div className="aspect-video bg-secondary rounded-lg mb-4 overflow-hidden">
+              <div className="aspect-[4/3] bg-secondary rounded-lg mb-4 overflow-hidden">
                 {product.image_url ? (
                   <img src={product.image_url} alt={product.name} className="w-full h-full object-cover" loading="lazy" />
                 ) : (
@@ -860,26 +860,26 @@ const MyProducts = () => {
                   </div>
                 )}
               </div>
-              <CardTitle>{product.name}</CardTitle>
-              <CardDescription>{product.description}</CardDescription>
+              <CardTitle className="text-base line-clamp-1" title={product.name}>{product.name}</CardTitle>
+              <CardDescription className="text-xs line-clamp-2">{product.description}</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-2 text-sm">
+              <div className="space-y-1 text-xs">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Price:</span>
-                  <span className="font-semibold">${product.price}/{product.unit}</span>
+                  <span className="font-semibold text-primary">${product.price}/{product.unit}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Quantity:</span>
+                  <span className="text-muted-foreground">Qty:</span>
                   <span>{product.quantity} {product.unit}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Location:</span>
-                  <span>{product.location}</span>
+                  <span className="text-muted-foreground">Loc:</span>
+                  <span className="truncate max-w-[80px]" title={product.location}>{product.location}</span>
                 </div>
                 {product.expiry_date && (
-                  <div className="flex justify-between text-destructive">
-                    <span className="text-muted-foreground">Expires:</span>
+                  <div className="flex justify-between text-destructive mt-1">
+                    <span className="text-muted-foreground">Exp:</span>
                     <span className="font-medium underline decoration-dotted">
                       {new Date(product.expiry_date).toLocaleDateString()}
                     </span>
@@ -887,7 +887,7 @@ const MyProducts = () => {
                 )}
               </div>
             </CardContent>
-            <CardFooter className="flex gap-2">
+            <CardFooter className="flex gap-1 p-4 pt-0">
               <Button
                 variant="outline"
                 size="sm"

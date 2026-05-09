@@ -25,10 +25,10 @@ const Onboarding = ({ open, onComplete, onDismiss }: OnboardingProps) => {
 
   const commonStart = [
     {
-      title: "Welcome to  wakulima agri-connect!",
+      title: "Welcome to Wakulima!",
       description: "The future of sustainable agricultural trade",
       icon: <Sparkles className="h-16 w-16 text-primary" />,
-      content: " wakulima agri-connect connects the entire supply chain. Let's show you how to make the most of your new account!",
+      content: "Wakulima connects the entire supply chain. Let's show you how to make the most of your new account!",
     }
   ];
 
@@ -102,7 +102,7 @@ const Onboarding = ({ open, onComplete, onDismiss }: OnboardingProps) => {
       if (typeof window !== "undefined") {
         window.localStorage.removeItem(STEP_STORAGE_KEY);
       }
-      toast.success("Welcome aboard! Enjoy exploring  wakulima agri-connect!");
+      toast.success("Welcome aboard! Enjoy exploring Wakulima!");
     } catch (error: any) {
       console.error("Error completing onboarding:", error);
       onComplete();

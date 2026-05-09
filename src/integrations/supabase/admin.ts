@@ -457,10 +457,10 @@ export async function broadcastNotification(opts: { title: string, message: stri
         to: "ALL_USERS", // Specialized logic in edge function
         subject: opts.title,
         html: `<div style="font-family: sans-serif; padding: 20px; color: #333;">
-                        <h2 style="color: #2F855A;"> wakulima agri-connect News: ${opts.title}</h2>
+                        <h2 style="color: #2F855A;">Wakulima News: ${opts.title}</h2>
                         <p>${opts.message}</p>
                         <hr style="border: 0; border-top: 1px solid #EEE;" />
-                        <p style="font-size: 12px; color: #777;">You are receiving this as a member of  wakulima agri-connect Exchange.</p>
+                        <p style="font-size: 12px; color: #777;">You are receiving this as a member of Wakulima Exchange.</p>
                       </div>`
       }
     });

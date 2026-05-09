@@ -192,7 +192,7 @@ const Auth = () => {
           <div className="flex justify-center mb-4">
             <Sprout className="h-12 w-12 text-primary" />
           </div>
-          <CardTitle className="text-2xl font-bold"> wakulima agri-connect</CardTitle>
+          <CardTitle className="text-2xl font-bold">Wakulima</CardTitle>
           <CardDescription>
             Direct platform for farmers and sustainable agriculture
           </CardDescription>

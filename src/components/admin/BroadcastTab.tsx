@@ -106,7 +106,7 @@ export const BroadcastTab = ({
                             <div className="space-y-1 min-w-0">
                                 <p className="font-bold text-sm truncate">{broadcastTitle || "Update Title"}</p>
                                 <p className="text-xs text-muted-foreground line-clamp-3">{broadcastMessage || "Your message will appear here for all users to see..."}</p>
-                                <p className="text-[10px] text-muted-foreground pt-2">Just now •  wakulima agri-connect Official</p>
+                                <p className="text-[10px] text-muted-foreground pt-2">Just now • Wakulima Official</p>
                             </div>
                         </div>
                     </div>

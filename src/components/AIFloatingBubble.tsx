@@ -38,7 +38,7 @@ const AIFloatingBubble = () => {
       setMessages([
         {
           role: "assistant",
-          content: "Hi! I'm your  wakulima agri-connect AI. How can I help you with your farm or orders today?",
+          content: "Hi! I'm your Wakulima AI. How can I help you with your farm or orders today?",
         },
       ]);
     }
@@ -78,7 +78,7 @@ const AIFloatingBubble = () => {
           <CardHeader className="bg-primary text-primary-foreground py-3 px-4 flex flex-row items-center justify-between rounded-t-lg">
             <div className="flex items-center gap-2">
               <Bot className="h-5 w-5" />
-              <CardTitle className="text-sm"> wakulima agri-connect AI Assistant</CardTitle>
+              <CardTitle className="text-sm">Wakulima AI Assistant</CardTitle>
             </div>
             <div className="flex items-center gap-1">
               <Button variant="ghost" size="icon" className="h-7 w-7 text-primary-foreground hover:bg-white/10" onClick={() => setIsMinimized(true)}>

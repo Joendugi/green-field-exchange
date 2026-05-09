@@ -53,10 +53,10 @@ const AdminDashboard = () => {
 
   // ─── Queries ────────────────────────────────────────────────────────────
   // ─── Queries ────────────────────────────────────────────────────────────
-  const { data: statsData } = useSupabaseQuery<any>(["admin", "stats"], getStats);
-  const { data: usersData } = useSupabaseQuery<any[]>(["admin", "users"], listUsers);
+  const { data: statsData, isLoading: statsLoading } = useSupabaseQuery<any>(["admin", "stats"], getStats);
+  const { data: usersData, isLoading: usersLoading } = useSupabaseQuery<any[]>(["admin", "users"], listUsers);
   const { data: verificationRequestsData } = useSupabaseQuery<any[]>(["admin", "verificationRequests"], () => getAllVerificationRequests());
-  const { data: postsData } = useSupabaseQuery<any[]>(["admin", "posts"], listPosts);
+  const { data: postsData, isLoading: postsLoading } = useSupabaseQuery<any[]>(["admin", "posts"], listPosts);
   const { data: productsData } = useSupabaseQuery<any[]>(["admin", "products"], listProducts);
   const { data: advertisementsData } = useSupabaseQuery<any[]>(["admin", "advertisements"], async () => {
     const { data } = await supabase.from("advertisements").select("*").order("created_at", { ascending: false });
@@ -93,8 +93,7 @@ const AdminDashboard = () => {
   const [sendEmail, setSendEmail] = useState(false);
 
   // ─── Loading guard (AFTER all hooks) ────────────────────────────────────
-  const isLoading =
-    !statsData && !usersData && !postsData; // Simplistic loading check
+  const isLoading = statsLoading || usersLoading || postsLoading;
 
   if (isLoading) return <AdminDashboardSkeleton />;
 

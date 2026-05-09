@@ -16,15 +16,8 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 
     // Show loading if we are still fetching auth state OR 
     // if we are authenticated but the profile (user object) isn't ready yet
-    if (loading || (isAuthenticated && !user)) {
-        return (
-            <div className="min-h-screen flex items-center justify-center bg-background">
-                <div className="flex flex-col items-center gap-4">
-                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                    <p className="text-sm text-muted-foreground animate-pulse">Setting up your account...</p>
-                </div>
-            </div>
-        );
+    if (loading) {
+        return <>{children}</>;
     }
 
     return isAuthenticated && user ? <>{children}</> : null;

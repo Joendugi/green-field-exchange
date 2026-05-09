@@ -27,7 +27,7 @@ const FarmerStories = () => {
       location: "Salinas Valley, CA",
       avatar: "/avatars/maria.jpg",
       farm: "Green Valley Organics",
-      story: "After 20 years of farming,  wakulima agri-connect helped me connect directly with Bay Area families. My income increased 40% and I'm now teaching my children sustainable farming practices.",
+      story: "After 20 years of farming, Wakulima helped me connect directly with Bay Area families. My income increased 40% and I'm now teaching my children sustainable farming practices.",
       category: "organic",
       rating: 4.9,
       products: 45,
@@ -42,7 +42,7 @@ const FarmerStories = () => {
       location: "Central Valley, CA",
       avatar: "/avatars/james.jpg",
       farm: "Sunrise Farms",
-      story: "As a third-generation farmer, I was skeptical about technology. But  wakulima agri-connect's transparent pricing and direct connections changed everything. We now sell 80% of our harvest before it's even picked.",
+      story: "As a third-generation farmer, I was skeptical about technology. But Wakulima's transparent pricing and direct connections changed everything. We now sell 80% of our harvest before it's even picked.",
       category: "traditional",
       rating: 4.8,
       products: 32,
@@ -63,7 +63,7 @@ const FarmerStories = () => {
   // Interleave featured posts into stories
   const postsAsStories = (featuredPosts || []).map((post: any) => ({
     id: post.id,
-    name: post.profiles?.full_name || post.profiles?.username || " wakulima agri-connect Farmer",
+    name: post.profiles?.full_name || post.profiles?.username || "Wakulima Farmer",
     location: post.profiles?.location || "Unknown Location",
     avatar: post.profiles?.avatar_url,
     farm: post.profiles?.bio?.split('.')[0] || "Harvest Community",
@@ -98,7 +98,7 @@ const FarmerStories = () => {
                 Farmer Stories
               </h1>
               <p className="text-xl md:text-2xl text-green-100/90 leading-relaxed max-w-2xl mx-auto">
-                Real success from the fields. Discover the people behind your food and their journey with  wakulima agri-connect.
+                Real success from the fields. Discover the people behind your food and their journey with Wakulima.
               </p>
               <div className="flex flex-wrap justify-center gap-6 pt-4">
                 <Button size="lg" className="bg-white text-primary hover:bg-green-50 font-bold px-8 h-14 rounded-2xl shadow-xl transition-all hover:scale-105 active:scale-95" onClick={() => navigate("/social")}>

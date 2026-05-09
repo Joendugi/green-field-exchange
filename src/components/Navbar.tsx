@@ -35,6 +35,7 @@ import {
 } from "@/components/ui/sheet";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Skeleton } from "@/components/ui/skeleton";
 import ThemeToggle from "./ThemeToggle";
 import { formatDistanceToNow } from "date-fns";
 import AIFloatingBubble from "./AIFloatingBubble";
@@ -46,7 +47,7 @@ import { useQueryClient } from "@tanstack/react-query";
 const Navbar = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { isAuthenticated, logout, user, role } = useAuth();
+  const { isAuthenticated, logout, user, role, loading } = useAuth();
   const queryClient = useQueryClient();
 
   const { data: notificationsData } = useSupabaseQuery<any>(
@@ -146,7 +147,7 @@ const Navbar = () => {
         <div className="flex items-center gap-6">
           <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigate("/")}>
             <Sprout className="h-8 w-8 text-primary" />
-            <h1 className="text-xl font-bold text-foreground"> wakulima agri-connect</h1>
+            <h1 className="text-xl font-bold text-foreground">Wakulima</h1>
           </div>
 
           {/* Desktop Nav */}
@@ -173,7 +174,12 @@ const Navbar = () => {
         {/* Right Actions */}
         <div className="flex items-center gap-2">
           {/* Profile / Auth */}
-          {isAuthenticated ? (
+          {loading ? (
+            <div className="hidden md:flex items-center gap-2">
+              <Skeleton className="h-9 w-16" />
+              <Skeleton className="h-9 w-20" />
+            </div>
+          ) : isAuthenticated ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon">
@@ -289,7 +295,7 @@ const Navbar = () => {
               <SheetHeader>
                 <SheetTitle className="flex items-center gap-2">
                   <Sprout className="h-6 w-6 text-primary" />
-                  wakulima agri-connect
+                  Wakulima
                 </SheetTitle>
               </SheetHeader>
               <div className="flex flex-col gap-2 mt-6">

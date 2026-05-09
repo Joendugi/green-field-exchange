@@ -8,6 +8,7 @@ import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import AdminRoute from "@/components/AdminRoute";
 import GlobalNotifications from "@/components/GlobalNotifications";
+import NotificationPermissionBanner from "@/components/NotificationPermissionBanner";
 
 // Lazy load pages for code splitting
 const Index = lazy(() => import("@/pages/Index"));
@@ -29,27 +30,23 @@ const Careers = lazy(() => import("@/pages/Careers"));
 const FarmerStories = lazy(() => import("@/pages/FarmerStories"));
 const PrivacyPolicy = lazy(() => import("@/pages/PrivacyPolicy"));
 const TermsOfService = lazy(() => import("@/pages/TermsOfService"));
+const NotFound = lazy(() => import("@/pages/NotFound"));
 
 function AppContent() {
   const { isAuthenticated, loading } = useAuth();
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <LoadingSpinner size="lg" />
-      </div>
-    );
-  }
+
 
   return (
     <div className="min-h-screen bg-background">
       <GlobalNotifications />
+      <NotificationPermissionBanner />
       <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-background"><LoadingSpinner size="lg" /></div>}>
         <Routes>
           {/* Public Routes */}
           <Route path="/" element={<Index />} />
           <Route path="/marketplace" element={<Navigate to="/" replace />} />
-          <Route path="/auth" element={!isAuthenticated ? <Auth /> : <Navigate to="/dashboard" replace />} />
+          <Route path="/auth" element={loading ? <div className="min-h-screen flex items-center justify-center bg-background"><LoadingSpinner size="lg" /></div> : (!isAuthenticated ? <Auth /> : <Navigate to="/dashboard" replace />)} />
           <Route path="/social" element={<Social />} />
           <Route path="/about" element={<About />} />
           <Route path="/mission" element={<Mission />} />
@@ -102,7 +99,7 @@ function AppContent() {
           } />
 
           {/* Fallback */}
-          <Route path="*" element={<Navigate to="/" replace />} />
+          <Route path="*" element={<NotFound />} />
         </Routes>
       </Suspense>
     </div>

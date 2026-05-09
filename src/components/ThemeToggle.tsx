@@ -6,9 +6,11 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 const ThemeToggle = () => {
   const [isDarkMode, setIsDarkMode] = useState(() => {
     if (typeof window !== "undefined") {
-      return localStorage.getItem("theme") === "dark";
+      const savedTheme = localStorage.getItem("theme");
+      // Default to dark mode if not explicitly set to light
+      return savedTheme !== "light";
     }
-    return false;
+    return true; // Default to dark on server/SSR if applicable
   });
 
   useEffect(() => {

@@ -65,7 +65,7 @@ export async function createPost(input: PostInput) {
 export async function getPosts() {
     const { data, error } = await supabase
         .from("posts")
-        .select("*")
+        .select("*, post_likes(*), post_comments(*, profiles(*)), post_reposts(*)")
         .order("created_at", { ascending: false });
 
     if (error) {
@@ -73,7 +73,7 @@ export async function getPosts() {
         throw error;
     }
     
-    // Fetch user profiles separately
+    // Fetch user profiles separately for the main post
     return await fetchUserProfiles(data || []);
 }
 
@@ -87,18 +87,43 @@ export async function toggleLike(postId: string) {
         .select("*")
         .eq("post_id", postId)
         .eq("user_id", userData.user.id)
-        .single();
+        .maybeSingle();
 
     if (existingLike) {
         await supabase
             .from("post_likes")
             .delete()
             .eq("id", existingLike.id);
-        
-        // Decrement count (normally handled by triggers, but for UI update speed we might do it here or rely on invalidate)
     } else {
         await supabase
             .from("post_likes")
+            .insert({
+                post_id: postId,
+                user_id: userData.user.id,
+            });
+    }
+}
+
+export async function toggleRepost(postId: string) {
+    const { data: userData } = await supabase.auth.getUser();
+    if (!userData.user) throw new Error("Not authenticated");
+
+    // Check if reposted
+    const { data: existingRepost } = await supabase
+        .from("post_reposts")
+        .select("*")
+        .eq("post_id", postId)
+        .eq("user_id", userData.user.id)
+        .maybeSingle();
+
+    if (existingRepost) {
+        await supabase
+            .from("post_reposts")
+            .delete()
+            .eq("id", existingRepost.id);
+    } else {
+        await supabase
+            .from("post_reposts")
             .insert({
                 post_id: postId,
                 user_id: userData.user.id,
@@ -117,7 +142,7 @@ export async function addComment(postId: string, content: string) {
             user_id: userData.user.id,
             content,
         })
-        .select("*")
+        .select("*, profiles(*)")
         .single();
 
     if (error) {
@@ -127,12 +152,24 @@ export async function addComment(postId: string, content: string) {
     return data;
 }
 
+export async function toggleCommentSolution(commentId: string, isSolution: boolean) {
+    const { error } = await supabase
+        .from("post_comments")
+        .update({ is_solution: isSolution })
+        .eq("id", commentId);
+
+    if (error) {
+        console.error("Error in toggleCommentSolution:", error);
+        throw error;
+    }
+}
+
 export async function getUserPosts(userId: string) {
     if (!userId) return [];
     
     const { data, error } = await supabase
         .from("posts")
-        .select("*")
+        .select("*, post_likes(*), post_comments(*, profiles(*)), post_reposts(*)")
         .eq("user_id", userId)
         .order("created_at", { ascending: false });
 
@@ -148,7 +185,7 @@ export async function getUserPosts(userId: string) {
 export async function getFeaturedStories() {
     const { data, error } = await supabase
         .from("posts")
-        .select("*")
+        .select("*, post_likes(*), post_comments(*, profiles(*)), post_reposts(*)")
         .eq("is_featured", true)
         .order("created_at", { ascending: false });
 

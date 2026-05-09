@@ -12,7 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useSupabaseQuery } from "@/hooks/useSupabaseQuery";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
-import { getPosts, createPost, toggleLike, addComment, updatePostFeaturedStatus } from "@/integrations/supabase/posts";
+import { getPosts, createPost, toggleLike, addComment, updatePostFeaturedStatus, toggleRepost, toggleCommentSolution } from "@/integrations/supabase/posts";
 import { followUser, unfollowUser, getFollowing } from "@/integrations/supabase/follows";
 import { uploadFile } from "@/integrations/supabase/storage";
 import { useQueryClient } from "@tanstack/react-query";
@@ -154,7 +154,17 @@ const SocialFeedEnhanced = () => {
   };
 
   const handleRepostToggle = async (postId: string, isReposted: boolean) => {
-    toast.info("Reposting functionality is coming soon to the Supabase migration!");
+    try {
+      if (!isAuthenticated) {
+        toast.error("Please login to repost");
+        return;
+      }
+      await toggleRepost(postId);
+      queryClient.invalidateQueries({ queryKey: ["posts"] });
+      toast.success(isReposted ? "Repost removed" : "Shared to your network!");
+    } catch (error: any) {
+      toast.error(error.message);
+    }
   };
 
   const handleAddComment = async (postId: string) => {
@@ -182,7 +192,13 @@ const SocialFeedEnhanced = () => {
   };
 
   const handleToggleSolution = async (commentId: string, isSolution: boolean) => {
-     toast.info("Solution marking is planned for the next Phase of Supabase Edge Functions");
+    try {
+      await toggleCommentSolution(commentId, isSolution);
+      queryClient.invalidateQueries({ queryKey: ["posts"] });
+      toast.success(isSolution ? "Solution removed" : "Marked as the best solution!");
+    } catch (error: any) {
+      toast.error(error.message);
+    }
   };
 
   if (isLoadingPosts) {

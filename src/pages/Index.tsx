@@ -66,10 +66,10 @@ const featuredItems = [
 /*  Stats row data                             */
 /* ─────────────────────────────────────────── */
 const stats = [
-  { label: "Active Users", value: 250000, suffix: "k+", display: "250k+", icon: Users, color: "text-sky-500", bg: "bg-sky-500/10" },
-  { label: "Daily Orders", value: 8500, suffix: "+", display: "8.5k+", icon: ShoppingCart, color: "text-orange-500", bg: "bg-orange-500/10" },
-  { label: "Regions Covered", value: 48, suffix: "+", display: "48+", icon: Globe, color: "text-violet-500", bg: "bg-violet-500/10" },
-  { label: "YoY Growth", value: 142, suffix: "%", display: "142%", icon: TrendingUp, color: "text-primary", bg: "bg-primary/10" },
+  { label: "Community Members", value: 100, suffix: "+", display: "Growing", icon: Users, color: "text-sky-500", bg: "bg-sky-500/10" },
+  { label: "Direct Orders", value: 50, suffix: "+", display: "Active", icon: ShoppingCart, color: "text-orange-500", bg: "bg-orange-500/10" },
+  { label: "Regions Covered", value: 5, suffix: "+", display: "Local", icon: Globe, color: "text-violet-500", bg: "bg-violet-500/10" },
+  { label: "Market Visibility", value: 100, suffix: "%", display: "Live", icon: TrendingUp, color: "text-primary", bg: "bg-primary/10" },
 ];
 
 /* ─────────────────────────────────────────── */
@@ -322,9 +322,9 @@ const Index = () => {
               {/* Micro-stats row — on dark bg */}
               <div className="flex flex-wrap sm:flex-nowrap items-center gap-4 sm:gap-6 pt-6 border-t border-white/15">
                 {[
-                  { num: "12k+", label: "Certified Farmers" },
-                  { num: "45m+", label: "Products Shared" },
-                  { num: "⭐ 4.9", label: "Average Rating" },
+                  { num: "Verified", label: "Farmer Profiles" },
+                  { num: "Fresh", label: "Daily Harvest" },
+                  { num: "Secure", label: "Trade Escrow" },
                 ].map((s, i) => (
                   <div key={i} className={`flex items-center gap-2.5 ${i > 0 ? "sm:pl-6 sm:border-l sm:border-white/20" : ""}`}>
                     <p className="text-xl sm:text-2xl font-extrabold leading-tight text-white">{s.num}</p>
@@ -354,9 +354,9 @@ const Index = () => {
                     <span className="p-2 bg-gradient-to-br from-emerald-500 to-green-400 rounded-xl shadow-lg">
                       <Zap className="h-4 w-4 text-white" />
                     </span>
-                    <span className="font-bold text-sm">Live Prices</span>
+                    <span className="font-bold text-sm">Direct Trade</span>
                   </div>
-                  <p className="text-xs text-muted-foreground">Real-time market price tracking for every harvest.</p>
+                  <p className="text-xs text-muted-foreground">Peer-to-peer marketplace for every harvest.</p>
                 </div>
 
                 {/* Floating card — bottom right */}
@@ -374,8 +374,8 @@ const Index = () => {
                 <div className="absolute top-1/2 -right-14 -translate-y-1/2 glass p-3 rounded-xl shadow-xl animate-float-delayed backdrop-blur-xl border border-white/20 flex items-center gap-2">
                   <BarChart3 className="h-5 w-5 text-primary" />
                   <div>
-                    <p className="text-xs font-bold leading-none">+38%</p>
-                    <p className="text-[10px] text-muted-foreground leading-tight">Farmer income</p>
+                    <p className="text-xs font-bold leading-none">Smart</p>
+                    <p className="text-[10px] text-muted-foreground leading-tight">Analytics</p>
                   </div>
                 </div>
               </div>
@@ -498,7 +498,7 @@ const Index = () => {
               <div className="relative z-10">
                 <Badge className="mb-6 px-3 py-1 bg-emerald-500/10 text-emerald-600 border-emerald-200 text-[10px] tracking-widest uppercase">Our Core Mission</Badge>
                 <h3 className="text-3xl font-extrabold mb-4 group-hover:text-emerald-600 transition-colors duration-300">Empowering a Sustainable Future</h3>
-                <p className="text-muted-foreground mb-8">Discover how we are building transparent supply chains for 2M+ users and bringing fair trade to local agriculture.</p>
+                <p className="text-muted-foreground mb-8">Discover how we are building transparent supply chains and bringing fair trade to local agriculture.</p>
                 <div className="flex items-center text-sm font-bold text-emerald-600">
                   Read Our Mission
                   <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-2 transition-transform duration-300" />
@@ -539,7 +539,7 @@ const Index = () => {
 
             <div className="relative z-10 max-w-3xl mx-auto">
               <Badge className="mb-8 bg-white/15 text-white border-white/20 px-4 py-1.5 text-xs tracking-widest uppercase">
-                Join 2M+ users
+                Join our community
               </Badge>
               <h2 className="text-4xl lg:text-5xl font-extrabold mb-6 leading-tight">
                 Ready to join the revolution<br />of agricultural trade?

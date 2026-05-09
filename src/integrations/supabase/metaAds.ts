@@ -140,14 +140,14 @@ export async function getMetaAnalytics(args: {
   // Mocking analytics aggregating logic for now as it requires complex grouping
   // In a real app, this would be a specialized RPC or view
   return {
-    pixelEvents: 1250,
-    conversions: 45,
-    campaigns: 12,
-    totalImpressions: 450000,
-    totalClicks: 8500,
-    totalSpend: 2450.50,
-    totalConversions: 320,
-    averageCTR: 0.018,
-    averageCPC: 0.28,
+    pixelEvents: 0,
+    conversions: 0,
+    campaigns: 0,
+    totalImpressions: 0,
+    totalClicks: 0,
+    totalSpend: 0,
+    totalConversions: 0,
+    averageCTR: 0,
+    averageCPC: 0,
   };
 }

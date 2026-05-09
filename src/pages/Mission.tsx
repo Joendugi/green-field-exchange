@@ -38,17 +38,17 @@ const Mission = () => {
                     <Badge className="mb-6 px-4 py-1.5 bg-emerald-500/10 text-emerald-600 border-emerald-200">Our Mission</Badge>
                     <h1 className="text-5xl lg:text-6xl font-bold mb-8 text-gradient italic">Growing a Better Future</h1>
                     <p className="text-xl text-muted-foreground max-w-3xl mx-auto leading-relaxed">
-                        Our mission is to empower 2 million farmers worldwide by providing them with the tools, market access, and data they need to thrive in a digital economy.
+                        Our mission is to empower farmers across Kenya by providing them with the tools, market access, and data they need to thrive in a digital economy.
                     </p>
                 </section>
 
                 {/* Impact Metrics */}
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-8 mb-24 reveal">
                     {[
-                        { label: "Farmers Empowered", value: "2M+", sub: "Target by 2030", icon: Heart },
-                        { label: "Waste Reduction", value: "40%", sub: "Through AI Logistics", icon: Leaf },
-                        { label: "Fair Trade Value", value: "$4.5B", sub: "Annual Market Impact", icon: TrendingUp },
-                        { label: "Global Reach", value: "125", sub: "Countries & Regions", icon: Globe },
+                        { label: "Farmers Empowered", value: "Goal-Driven", sub: "Connecting communities", icon: Heart },
+                        { label: "Waste Reduction", value: "Optimized", sub: "Direct farm-to-table", icon: Leaf },
+                        { label: "Fair Trade Value", value: "Fair Price", sub: "Market transparency", icon: TrendingUp },
+                        { label: "Regional Reach", value: "Local", sub: "Across Kenyan counties", icon: Globe },
                     ].map((metric, i) => (
                         <div key={i} className="p-8 rounded-[32px] glass text-center group hover:bg-primary/5 transition-colors">
                             <div className="w-12 h-12 bg-primary/10 rounded-2xl flex items-center justify-center mb-4 mx-auto group-hover:scale-110 transition-transform">
@@ -72,7 +72,7 @@ const Mission = () => {
                         {
                             icon: TrendingUp,
                             title: "Prosperity",
-                            desc: "Ensuring fair market value for every harvest, increasing farmer income by an average of 40%.",
+                            desc: "Ensuring fair market value for every harvest, increasing farmer income by removing unnecessary middlemen.",
                             color: "text-primary"
                         },
                         {

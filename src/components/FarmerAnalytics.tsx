@@ -73,7 +73,7 @@ const FarmerAnalytics = () => {
                         <CardDescription className="text-blue-700 font-semibold flex items-center gap-2 text-xs md:text-sm">
                             <ArrowUpRight className="h-3 w-3 md:h-4 md:h-4" /> Growth
                         </CardDescription>
-                        <CardTitle className="text-xl sm:text-2xl md:text-3xl font-extrabold">+12%</CardTitle>
+                        <CardTitle className="text-xl sm:text-2xl md:text-3xl font-extrabold">Upward</CardTitle>
                     </CardHeader>
                 </Card>
                 <Card className="bg-purple-50 border-purple-200">

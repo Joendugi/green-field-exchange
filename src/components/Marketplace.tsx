@@ -15,7 +15,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { listProductsWithProfiles, getSmartMatches } from "@/integrations/supabase/products";
 import { createOrder } from "@/integrations/supabase/orders";
 
-import { ExternalLink, Tag, Megaphone, ShieldCheck, Zap } from "lucide-react";
+import { ExternalLink, Tag, Megaphone, ShieldCheck, Zap, Star, ChevronRight, Share2, Trash2, ShoppingCart, Search, Filter, Loader2, Info } from "lucide-react";
 
 const Marketplace = () => {
   const navigate = useNavigate();
@@ -393,13 +393,34 @@ const Marketplace = () => {
                   ) : (
                     <Dialog>
                       <DialogTrigger asChild>
-                        <Button
-                          className="w-full"
-                          onClick={() => setSelectedProduct(product)}
-                          disabled={profile && product.farmer_id === profile.id}
-                        >
-                          {profile && product.farmer_id === profile.id ? "Your Product" : "Place Order"}
-                        </Button>
+                        <div className="flex gap-2 w-full">
+                          <Button
+                            className="flex-1"
+                            onClick={() => setSelectedProduct(product)}
+                            disabled={profile && product.farmer_id === profile.id}
+                          >
+                            {profile && product.farmer_id === profile.id ? "Your Product" : "Place Order"}
+                          </Button>
+                          <Button 
+                            variant="outline" 
+                            size="icon"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (navigator.share) {
+                                navigator.share({
+                                  title: `Check out this ${product.name} on Wakulima!`,
+                                  text: product.description,
+                                  url: window.location.href,
+                                }).catch(console.error);
+                              } else {
+                                navigator.clipboard.writeText(window.location.href);
+                                toast.success("Link copied to clipboard!");
+                              }
+                            }}
+                          >
+                            <Share2 className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </DialogTrigger>
                       <DialogContent>
                         <DialogHeader>

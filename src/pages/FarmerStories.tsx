@@ -24,32 +24,32 @@ const FarmerStories = () => {
   const staticStories = [
     {
       id: "s1",
-      name: "Maria Rodriguez",
-      location: "Salinas Valley, CA",
-      avatar: "/avatars/maria.jpg",
-      farm: "Green Valley Organics",
-      story: "After 20 years of farming, Wakulima helped me connect directly with Bay Area families. My income increased 40% and I'm now teaching my children sustainable farming practices.",
+      name: "Maria Wambui",
+      location: "Limuru, Kiambu",
+      avatar: "",
+      farm: "Highland Greens",
+      story: "Joining Wakulima transformed how I sell my kale and spinach. I used to rely on brokers at the roadside, but now I get orders directly from supermarkets in Nairobi. My revenue has stabilized significantly.",
       category: "organic",
-      rating: 4.9,
-      products: 45,
-      joinedDate: "2023-06-15",
+      rating: 5.0,
+      products: 12,
+      joinedDate: "2024-01-15",
       isStatic: true,
-      impact: "Feeds 200+ families weekly",
+      impact: "Supplies 5 local schools",
       image: undefined
     },
     {
       id: "s2",
-      name: "James Chen",
-      location: "Central Valley, CA",
-      avatar: "/avatars/james.jpg",
-      farm: "Sunrise Farms",
-      story: "As a third-generation farmer, I was skeptical about technology. But Wakulima's transparent pricing and direct connections changed everything. We now sell 80% of our harvest before it's even picked.",
+      name: "David Kipkorir",
+      location: "Molo, Nakuru",
+      avatar: "",
+      farm: "Kipkorir Potato Farm",
+      story: "Potatoes are a tough business with middlemen taking everything. Wakulima gave me a direct link to buyers. For the first time in years, I'm getting the fair market price for my hard work.",
       category: "traditional",
-      rating: 4.8,
-      products: 32,
-      joinedDate: "2023-03-20",
+      rating: 4.9,
+      products: 8,
+      joinedDate: "2023-11-20",
       isStatic: true,
-      impact: "Preserved 150-acre family farm",
+      impact: "Supporting a family of 6",
       image: undefined
     }
   ];
@@ -70,7 +70,7 @@ const FarmerStories = () => {
     farm: post.profiles?.bio?.split('.')[0] || "Harvest Community",
     story: post.content,
     category: "community",
-    rating: (Math.random() * (5.0 - 4.5) + 4.5).toFixed(1), // Visual aesthetic
+    rating: "Active", // Visual aesthetic
     products: Math.floor(Math.random() * 20) + 5,
     joinedDate: post.created_at,
     isStatic: false,
@@ -185,7 +185,7 @@ const FarmerStories = () => {
                         </div>
                       </div>
                       <Badge variant="outline" className="text-primary font-bold border-primary/20 bg-primary/5">
-                        ★ {story.rating}
+                        {story.rating === "Active" ? "Verified" : `★ ${story.rating}`}
                       </Badge>
                     </div>
 

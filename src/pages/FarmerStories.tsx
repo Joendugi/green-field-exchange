@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Helmet } from "react-helmet-async";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -84,6 +85,11 @@ const FarmerStories = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <Helmet>
+        <title>Farmer Stories | Wakulima Kenya</title>
+        <meta name="description" content="Read real success stories from Kenyan farmers. Learn how Wakulima helps agricultural communities connect directly with consumers." />
+        <meta name="keywords" content="wakulima, farmer stories kenya, agricultural success stories, wakulima farmers, community voices" />
+      </Helmet>
       <Navbar />
       <div className="bg-card text-foreground transition-colors duration-500">
         {/* Hero Section */}

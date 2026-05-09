@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { Helmet } from "react-helmet-async";
 import Navbar from "@/components/Navbar";
 import { Badge } from "@/components/ui/badge";
 import { CircleCheckBig, Leaf, TrendingUp, Zap, Globe, Heart, Shield } from "lucide-react";
@@ -26,6 +27,11 @@ const Mission = () => {
 
     return (
         <div className="min-h-screen bg-background">
+            <Helmet>
+                <title>Our Mission | Wakulima Kenya</title>
+                <meta name="description" content="Discover Wakulima's mission to empower Kenyan farmers, promote organic agriculture, and provide direct from farm to consumer fresh produce delivery." />
+                <meta name="keywords" content="wakulima, wakulima mission, kenyan farmers, organic agriculture, empower farmers" />
+            </Helmet>
             <Navbar />
             <main className="container mx-auto px-4 py-20">
                 <section className="text-center mb-20 reveal">

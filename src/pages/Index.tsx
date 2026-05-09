@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
+import { Helmet } from "react-helmet-async";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import {
@@ -233,6 +234,11 @@ const Index = () => {
   if (isAuthenticated || showMarketplace) {
     return (
       <div className="min-h-screen bg-background text-foreground animate-fade-in">
+        <Helmet>
+          <title>Marketplace | Wakulima Kenya</title>
+          <meta name="description" content="Buy and sell farm fresh produce online in Kenya. Connect with verified farmers directly for wholesale and retail agricultural products." />
+          <meta name="keywords" content="wakulima, marketplace, buy farm produce online, fresh vegetables kenya, agricultural products" />
+        </Helmet>
         <Navbar />
         <div className="fixed bottom-4 left-4 z-50"><ThemeToggle /></div>
         <div className="container mx-auto px-4 py-6"><Marketplace /></div>
@@ -243,6 +249,11 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background overflow-hidden selection:bg-primary/30 selection:text-foreground">
+      <Helmet>
+        <title>Wakulima | Online Farmers Market Kenya</title>
+        <meta name="description" content="Kenya's leading online farmers market. Direct from farm to consumer. Buy fresh vegetables, fruits, and wholesale produce online." />
+        <meta name="keywords" content="wakulima, online farmers market Kenya, direct from farm, farm to consumer, buy vegetables online" />
+      </Helmet>
       {/* Landing Navbar */}
       <LandingNav onBrowse={handleBrowse} onLogin={handleLogin} />
       <div className="fixed bottom-4 left-4 z-[60]"><ThemeToggle /></div>

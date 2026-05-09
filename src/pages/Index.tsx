@@ -30,6 +30,9 @@ import ThemeToggle from "@/components/ThemeToggle";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import Footer from "@/components/Footer";
+import { useSupabaseQuery } from "@/hooks/useSupabaseQuery";
+import { listProductsWithProfiles } from "@/integrations/supabase/products";
+import LoadingSpinner from "@/components/ui/LoadingSpinner";
 
 /* ─────────────────────────────────────────── */
 /*  Tiny animated number hook                  */
@@ -53,24 +56,12 @@ function useCountUp(target: number, duration = 1800, started = false) {
 /* ─────────────────────────────────────────── */
 /*  Product cards strip data                   */
 /* ─────────────────────────────────────────── */
-const featuredItems = [
-  { name: "Golden Mangoes", farm: "Sunrise Farm", price: "$3.50/kg", tag: "Seasonal", color: "from-amber-400/20 to-orange-300/10", img: "https://images.unsplash.com/photo-1553279768-865429fa0078?w=300&h=300&fit=crop", alt: "Fresh Golden Mangoes harvest from Sunrise Farm" },
-  { name: "Heirloom Tomatoes", farm: "Red Soil Co.", price: "$4.20/kg", tag: "Organic", color: "from-red-400/20 to-rose-300/10", img: "https://images.unsplash.com/photo-1592924357228-91a4daadcfea?w=300&h=300&fit=crop", alt: "Organic Heirloom Tomatoes basket from Red Soil Co." },
-  { name: "Sweet Corn", farm: "Prairie Roots", price: "$1.80/ear", tag: "Fresh", color: "from-yellow-400/20 to-lime-300/10", img: "https://images.unsplash.com/photo-1550583724-b2692b85b150?w=300&h=300&fit=crop", alt: "Fresh Sweet Corn ears from Prairie Roots farm" },
-  { name: "Baby Spinach", farm: "GreenThumb", price: "$2.90/bag", tag: "Certified", color: "from-emerald-400/20 to-green-300/10", img: "https://images.unsplash.com/photo-1576045057995-568f588f82fb?w=300&h=300&fit=crop", alt: "Certified Baby Spinach bag from GreenThumb fields" },
-  { name: "Fresh Strawberries", farm: "Berry Valley", price: "$5.60/kg", tag: "Top Pick", color: "from-pink-400/20 to-red-300/10", img: "https://images.unsplash.com/photo-1464965911861-746a04b4bca6?w=300&h=300&fit=crop", alt: "Top Pick Fresh Strawberries box from Berry Valley" },
-  { name: "Purple Eggplant", farm: "Dusk Hill Farm", price: "$3.10/kg", tag: "Exotic", color: "from-purple-400/20 to-violet-300/10", img: "https://images.unsplash.com/photo-1615484477778-ca3b77940c25?w=300&h=300&fit=crop", alt: "Exotic Purple Eggplant from Dusk Hill Farm" },
-];
+
 
 /* ─────────────────────────────────────────── */
 /*  Stats row data                             */
 /* ─────────────────────────────────────────── */
-const stats = [
-  { label: "Community Members", value: 100, suffix: "+", display: "Growing", icon: Users, color: "text-sky-500", bg: "bg-sky-500/10" },
-  { label: "Direct Orders", value: 50, suffix: "+", display: "Active", icon: ShoppingCart, color: "text-orange-500", bg: "bg-orange-500/10" },
-  { label: "Regions Covered", value: 5, suffix: "+", display: "Local", icon: Globe, color: "text-violet-500", bg: "bg-violet-500/10" },
-  { label: "Market Visibility", value: 100, suffix: "%", display: "Live", icon: TrendingUp, color: "text-primary", bg: "bg-primary/10" },
-];
+
 
 /* ─────────────────────────────────────────── */
 /*  How-it-works steps                         */
@@ -199,6 +190,44 @@ const Index = () => {
   const [showMarketplace, setShowMarketplace] = useState(false);
   const [statsVisible, setStatsVisible] = useState(false);
   const statsRef = useRef<HTMLDivElement>(null);
+
+  const { data: liveProducts = [], isLoading: isLoadingProducts } = useSupabaseQuery<any[]>(
+    ["products", "freshPicks"],
+    () => listProductsWithProfiles({ limit: 8 })
+  );
+
+  // Real-time stats fetching
+  const { data: memberCount = 0 } = useSupabaseQuery<number>(
+    ["stats", "members"],
+    async () => {
+      const { count } = await supabase.from("profiles").select("*", { count: "exact", head: true });
+      return count || 0;
+    }
+  );
+
+  const { data: orderCount = 0 } = useSupabaseQuery<number>(
+    ["stats", "orders"],
+    async () => {
+      const { count } = await supabase.from("orders").select("*", { count: "exact", head: true });
+      return count || 0;
+    }
+  );
+
+  const { data: regionCount = 0 } = useSupabaseQuery<number>(
+    ["stats", "regions"],
+    async () => {
+      const { data } = await supabase.from("products").select("location");
+      const unique = new Set((data || []).map(p => p.location.toLowerCase().trim()));
+      return unique.size || 0;
+    }
+  );
+
+  const stats = [
+    { label: "Community Members", value: memberCount, suffix: "+", display: `${memberCount}+`, icon: Users, color: "text-sky-500", bg: "bg-sky-500/10" },
+    { label: "Direct Orders", value: orderCount, suffix: "+", display: `${orderCount}+`, icon: ShoppingCart, color: "text-orange-500", bg: "bg-orange-500/10" },
+    { label: "Regions Covered", value: regionCount, suffix: "+", display: `${regionCount}+`, icon: Globe, color: "text-violet-500", bg: "bg-violet-500/10" },
+    { label: "Market Visibility", value: 100, suffix: "%", display: "100%", icon: TrendingUp, color: "text-primary", bg: "bg-primary/10" },
+  ];
 
   /* Stable callbacks — must be declared before any early returns */
   const handleLogin = useCallback(() => navigate("/auth"), [navigate]);
@@ -405,28 +434,44 @@ const Index = () => {
             </Button>
           </div>
         </div>
-        <div className="flex gap-5 px-6 overflow-x-auto pb-4 scrollbar-hide snap-x snap-mandatory">
-          {featuredItems.map((item, i) => (
-            <div
-              key={i}
-              onClick={handleBrowse}
-              className={`snap-start shrink-0 w-44 rounded-3xl overflow-hidden border border-border/60 hover:border-primary/40 cursor-pointer transition-all duration-300 hover:-translate-y-2 hover:shadow-xl hover:shadow-primary/10 bg-gradient-to-br ${item.color} backdrop-blur-sm group`}
-            >
-              <div className="h-32 overflow-hidden relative">
-                <img src={item.img} alt={item.alt} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
-                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-300" />
-                <span className="absolute top-2 right-2 bg-white/90 text-[9px] font-bold uppercase tracking-widest text-primary px-2 py-0.5 rounded-full opacity-80 group-hover:opacity-100 group-hover:scale-105 transition-all duration-200 shadow">
-                  View
-                </span>
-              </div>
-              <div className="p-4">
-                <span className="text-[10px] font-bold uppercase tracking-widest text-primary/80 mb-1 block">{item.tag}</span>
-                <p className="font-bold text-sm leading-tight mb-1">{item.name}</p>
-                <p className="text-xs text-muted-foreground mb-2">{item.farm}</p>
-                <p className="text-base font-extrabold text-primary">{item.price}</p>
-              </div>
+        <div className="flex gap-5 px-6 overflow-x-auto pb-4 scrollbar-hide snap-x snap-mandatory min-h-[250px]">
+          {isLoadingProducts ? (
+            <div className="w-full flex items-center justify-center">
+              <LoadingSpinner size="lg" />
             </div>
-          ))}
+          ) : liveProducts.length > 0 ? (
+            liveProducts.map((item, i) => (
+              <div
+                key={i}
+                onClick={handleBrowse}
+                className="snap-start shrink-0 w-48 rounded-3xl overflow-hidden border border-border/60 hover:border-primary/40 cursor-pointer transition-all duration-300 hover:-translate-y-2 hover:shadow-xl hover:shadow-primary/10 bg-card backdrop-blur-sm group"
+              >
+                <div className="h-32 overflow-hidden relative bg-secondary/30">
+                  {item.image_url ? (
+                    <img src={item.image_url} alt={item.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <ShoppingCart className="h-10 w-10 text-muted-foreground/30" />
+                    </div>
+                  )}
+                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-300" />
+                  <span className="absolute top-2 right-2 bg-white/90 text-[9px] font-bold uppercase tracking-widest text-primary px-2 py-0.5 rounded-full opacity-80 group-hover:opacity-100 group-hover:scale-105 transition-all duration-200 shadow">
+                    View
+                  </span>
+                </div>
+                <div className="p-4">
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-primary/80 mb-1 block">{item.category}</span>
+                  <p className="font-bold text-sm leading-tight mb-1 truncate">{item.name}</p>
+                  <p className="text-xs text-muted-foreground mb-2 truncate">{item.profiles?.full_name || "Wakulima Farmer"}</p>
+                  <p className="text-base font-extrabold text-primary">{item.currency || "KES"} {item.price}</p>
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="w-full flex items-center justify-center py-12">
+              <p className="text-muted-foreground text-sm italic">New harvests arriving soon...</p>
+            </div>
+          )}
         </div>
       </section>
 
@@ -593,9 +638,9 @@ const Index = () => {
 /* ─────────────────────────────────────────── */
 /*  Stat Card sub-component                    */
 /* ─────────────────────────────────────────── */
-function StatCard({ stat, started, delay }: { stat: typeof stats[0]; started: boolean; delay: number }) {
+function StatCard({ stat, started, delay }: { stat: any; started: boolean; delay: number }) {
   // Parse numeric target from display string  
-  const rawNum = parseInt(stat.display.replace(/[^0-9]/g, ""), 10);
+  const rawNum = parseInt(stat.display.replace(/[^0-9]/g, ""), 10) || 0;
   const count = useCountUp(rawNum, 1800, started);
   const suffix = stat.display.replace(/[0-9]/g, "").trim(); // e.g. "k+", "%", "+"
 
@@ -608,7 +653,7 @@ function StatCard({ stat, started, delay }: { stat: typeof stats[0]; started: bo
         <stat.icon className={`h-7 w-7 ${stat.color}`} />
       </div>
       <h3 className="text-4xl font-extrabold mb-1 tabular-nums">
-        {count}{suffix}
+        {isNaN(rawNum) ? stat.display : <>{count}{suffix}</>}
       </h3>
       <p className="text-sm text-muted-foreground font-medium uppercase tracking-wider text-center">{stat.label}</p>
     </div>

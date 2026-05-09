@@ -240,7 +240,6 @@ const Index = () => {
           <meta name="keywords" content="wakulima, marketplace, buy farm produce online, fresh vegetables kenya, agricultural products" />
         </Helmet>
         <Navbar />
-        <div className="fixed bottom-4 left-4 z-50"><ThemeToggle /></div>
         <div className="container mx-auto px-4 py-6"><Marketplace /></div>
         <Footer />
       </div>
@@ -256,7 +255,6 @@ const Index = () => {
       </Helmet>
       {/* Landing Navbar */}
       <LandingNav onBrowse={handleBrowse} onLogin={handleLogin} />
-      <div className="fixed bottom-4 left-4 z-[60]"><ThemeToggle /></div>
 
       {/* ======================================= */}
       {/* HERO                                     */}

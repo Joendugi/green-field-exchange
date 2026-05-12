@@ -11,6 +11,8 @@ import { Search, UserPlus, Shield, Crown, AlertTriangle, CheckCircle, XCircle } 
 import { useSupabaseQuery } from "@/hooks/useSupabaseQuery";
 import { useQueryClient } from "@tanstack/react-query";
 import { listUsers, updateRole, banUser } from "@/integrations/supabase/admin";
+import { supabase } from "@/integrations/supabase/client";
+import { Loader2 } from "lucide-react";
 
 const AdminPrivilegeManager = () => {
   const queryClient = useQueryClient();
@@ -23,6 +25,10 @@ const AdminPrivilegeManager = () => {
   const [newRole, setNewRole] = useState("");
   const [banDialogOpen, setBanDialogOpen] = useState(false);
   const [banReason, setBanReason] = useState("");
+  const [addRoleDialogOpen, setAddRoleDialogOpen] = useState(false);
+  const [addRoleEmail, setAddRoleEmail] = useState("");
+  const [addRoleType, setAddRoleType] = useState("admin");
+  const [isAddingRole, setIsAddingRole] = useState(false);
 
   const filteredUsers = users.filter((user: any) =>
     user.full_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -53,6 +59,31 @@ const AdminPrivilegeManager = () => {
     }
   };
 
+  const handleAddRoleByEmail = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsAddingRole(true);
+    try {
+      const { data: userData, error: userError } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("email", addRoleEmail)
+        .maybeSingle();
+
+      if (userError || !userData) {
+        throw new Error("User with this email not found. They must have a profile first.");
+      }
+
+      await handleRoleChange(userData.id, addRoleType);
+      setAddRoleDialogOpen(false);
+      setAddRoleEmail("");
+      queryClient.invalidateQueries({ queryKey: ["admin", "users"] });
+    } catch (error: any) {
+      toast.error(error.message);
+    } finally {
+      setIsAddingRole(false);
+    }
+  };
+
   const getRoleBadgeVariant = (role: string) => {
     switch (role) {
       case "admin": return "destructive";
@@ -76,6 +107,54 @@ const AdminPrivilegeManager = () => {
           <h2 className="text-2xl font-bold">Admin Privilege Manager</h2>
           <p className="text-muted-foreground">Manage user roles and administrative access</p>
         </div>
+        <Dialog open={addRoleDialogOpen} onOpenChange={setAddRoleDialogOpen}>
+          <DialogTrigger asChild>
+            <Button className="bg-emerald-600 hover:bg-emerald-700">
+              <UserPlus className="mr-2 h-4 w-4" /> Add Role by Email
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Add Role to User</DialogTitle>
+              <DialogDescription>
+                Assign a role to a user by entering their email address.
+              </DialogDescription>
+            </DialogHeader>
+            <form onSubmit={handleAddRoleByEmail} className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="email">User Email</Label>
+                <Input 
+                  id="email" 
+                  type="email" 
+                  value={addRoleEmail} 
+                  onChange={(e) => setAddRoleEmail(e.target.value)}
+                  placeholder="user@example.com" 
+                  required 
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="role">Role</Label>
+                <Select value={addRoleType} onValueChange={setAddRoleType}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="user">User</SelectItem>
+                    <SelectItem value="farmer">Farmer</SelectItem>
+                    <SelectItem value="admin">Admin</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setAddRoleDialogOpen(false)}>Cancel</Button>
+                <Button type="submit" disabled={isAddingRole} className="bg-emerald-600 hover:bg-emerald-700">
+                  {isAddingRole && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Assign Role
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
       </div>
 
       {/* Search and Quick Actions */}

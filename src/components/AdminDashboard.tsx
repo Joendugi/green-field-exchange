@@ -29,6 +29,7 @@ import { ContentTab } from "./admin/ContentTab";
 import { EscrowTab } from "./admin/EscrowTab";
 import { MarketHeatmap } from "./admin/MarketHeatmap";
 import { TicketsTab } from "./admin/TicketsTab";
+import { CareersTab } from "./admin/CareersTab";
 import type { NewAd } from "./admin/AdsTab";
 
 export type SettingsKey = "force_dark_mode" | "enable_beta_features" | "enable_ads_portal" | "enable_bulk_tools";
@@ -311,6 +312,7 @@ const AdminDashboard = () => {
           <TabsTrigger value="escrow" className="text-destructive font-semibold">
             <AlertCircle className="mr-1 h-3 w-3" /> Escrow
           </TabsTrigger>
+          <TabsTrigger value="careers">Careers</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-6 pt-4">
@@ -500,6 +502,10 @@ const AdminDashboard = () => {
 
         <TabsContent value="escrow" className="space-y-4">
           <EscrowTab />
+        </TabsContent>
+
+        <TabsContent value="careers">
+          <CareersTab />
         </TabsContent>
       </Tabs>
     </div>

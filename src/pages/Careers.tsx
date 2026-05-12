@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -14,73 +15,24 @@ import {
   TrendingUp,
   Globe,
   Lightbulb,
-  Shield
+  Shield,
+  Loader2
 } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import { listJobOpenings } from "@/integrations/supabase/admin";
+import { JobApplicationDialog } from "@/components/JobApplicationDialog";
 
 const Careers = () => {
   const [selectedCategory, setSelectedCategory] = useState("all");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedJob, setSelectedJob] = useState<{ id: string; title: string } | null>(null);
+  const [isAppDialogOpen, setIsAppDialogOpen] = useState(false);
 
-  const openings = [
-    {
-      id: 1,
-      title: "Senior Full Stack Engineer",
-      department: "Engineering",
-      location: "San Jose, CA",
-      type: "Full-time",
-      experience: "Senior",
-      salary: "$150k - $200k",
-      description: "Build scalable platform connecting farmers with buyers globally. Experience with React, Node.js, and cloud infrastructure required.",
-      requirements: [
-        "5+ years of full-stack development experience",
-        "Expertise in React, TypeScript, and Node.js",
-        "Experience with cloud platforms (AWS, GCP, Azure)",
-        "Passion for sustainable agriculture"
-      ],
-      benefits: ["Equity", "Health insurance", "Flexible work", "Impact bonus"],
-      postedDate: "2024-01-15",
-      featured: true
-    },
-    {
-      id: 2,
-      title: "Product Manager",
-      department: "Product",
-      location: "San Francisco, CA",
-      type: "Full-time",
-      experience: "Mid",
-      salary: "$120k - $160k",
-      description: "Lead product strategy for our farmer and buyer platforms. Drive user research, feature development, and market expansion.",
-      requirements: [
-        "3+ years of product management experience",
-        "Experience with B2B or marketplace platforms",
-        "Strong analytical and communication skills",
-        "Understanding of agricultural industry preferred"
-      ],
-      benefits: ["Equity", "Health insurance", "Remote options", "Learning budget"],
-      postedDate: "2024-01-12",
-      featured: true
-    },
-    {
-      id: 3,
-      title: "Farmer Success Manager",
-      department: "Operations",
-      location: "Remote",
-      type: "Full-time",
-      experience: "Mid",
-      salary: "$80k - $100k",
-      description: "Support farmers in maximizing their success on Wakulima. Provide training, resolve issues, and gather feedback.",
-      requirements: [
-        "2+ years of customer success experience",
-        "Background in agriculture or farming",
-        "Excellent communication and problem-solving skills",
-        "Fluency in Spanish preferred"
-      ],
-      benefits: ["Health insurance", "Remote work", "Travel opportunities", "Performance bonus"],
-      postedDate: "2024-01-10",
-      featured: false
-    }
-  ];
+  const { data: openings = [], isLoading } = useQuery({
+    queryKey: ["jobOpenings", "active"],
+    queryFn: () => listJobOpenings(true),
+  });
 
   const categories = [
     { id: "all", label: "All Positions" },
@@ -136,9 +88,13 @@ const Careers = () => {
     }
   ];
 
-  const filteredOpenings = selectedCategory === "all"
-    ? openings
-    : openings.filter(job => job.department.toLowerCase() === selectedCategory);
+  const filteredOpenings = openings.filter(job => {
+    const matchesCategory = selectedCategory === "all" || job.department.toLowerCase() === selectedCategory;
+    const matchesSearch = job.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                          job.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          job.department.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesCategory && matchesSearch;
+  });
 
   return (
     <div className="min-h-screen bg-background">
@@ -201,6 +157,17 @@ const Careers = () => {
                 </Button>
               ))}
             </div>
+            <div className="mt-6 max-w-md mx-auto">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Input 
+                  placeholder="Search by job title, description or department..." 
+                  className="pl-10"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </div>
+            </div>
           </div>
         </section>
 
@@ -208,9 +175,14 @@ const Careers = () => {
         <section className="py-16">
           <div className="container mx-auto px-4">
             <h2 className="text-4xl font-bold text-center mb-12">Open Positions</h2>
-            <div className="grid lg:grid-cols-2 gap-8">
-              {filteredOpenings.map((job) => (
-                <Card key={job.id} className="hover:shadow-lg transition-shadow">
+            {isLoading ? (
+              <div className="flex justify-center py-20">
+                <Loader2 className="h-10 w-10 animate-spin text-emerald-600" />
+              </div>
+            ) : (
+              <div className="grid lg:grid-cols-2 gap-8">
+                {filteredOpenings.map((job) => (
+                  <Card key={job.id} className="hover:shadow-lg transition-shadow">
                   <CardHeader>
                     <div className="flex items-start justify-between">
                       <div>
@@ -218,7 +190,7 @@ const Careers = () => {
                         <div className="flex flex-wrap gap-2 mb-3">
                           <Badge variant="secondary">{job.department}</Badge>
                           <Badge variant="outline">{job.type}</Badge>
-                          {job.featured && <Badge className="bg-yellow-100 text-yellow-800">Featured</Badge>}
+                          {job.is_featured && <Badge className="bg-yellow-100 text-yellow-800">Featured</Badge>}
                         </div>
                       </div>
                       <div className="text-right">
@@ -270,7 +242,13 @@ const Careers = () => {
 
                     {/* Apply Button */}
                     <div className="flex gap-3">
-                      <Button className="flex-1">
+                      <Button 
+                        className="flex-1 bg-emerald-600 hover:bg-emerald-700"
+                        onClick={() => {
+                          setSelectedJob({ id: job.id, title: job.title });
+                          setIsAppDialogOpen(true);
+                        }}
+                      >
                         Apply Now
                       </Button>
                       <Button variant="outline">
@@ -281,6 +259,7 @@ const Careers = () => {
                 </Card>
               ))}
             </div>
+            )}
 
             {filteredOpenings.length === 0 && (
               <div className="text-center py-12">
@@ -322,7 +301,13 @@ const Careers = () => {
               We're always looking for talented people who share our passion for sustainable agriculture.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <button className="bg-white text-emerald-600 hover:bg-emerald-50 px-8 py-3 rounded-md font-bold transition-all">
+              <button 
+                onClick={() => {
+                  setSelectedJob({ id: "00000000-0000-0000-0000-000000000000", title: "General Application" });
+                  setIsAppDialogOpen(true);
+                }}
+                className="bg-white text-emerald-600 hover:bg-emerald-50 px-8 py-3 rounded-md font-bold transition-all"
+              >
                 Submit Your Resume
               </button>
               <button className="border-white border-2 text-white hover:bg-white hover:text-emerald-600 px-8 py-3 rounded-md font-bold transition-all">
@@ -332,6 +317,11 @@ const Careers = () => {
           </div>
         </section>
       </div>
+      <JobApplicationDialog 
+        job={selectedJob}
+        open={isAppDialogOpen}
+        onOpenChange={setIsAppDialogOpen}
+      />
       <Footer />
     </div>
   );

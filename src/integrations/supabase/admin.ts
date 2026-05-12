@@ -35,6 +35,38 @@ export type AdminSettingsRow = {
   updated_at: string;
 };
 
+export type JobOpeningRow = {
+  id: string;
+  title: string;
+  department: string;
+  location: string;
+  type: string;
+  experience: string;
+  salary?: string;
+  description: string;
+  requirements: string[];
+  benefits: string[];
+  is_featured: boolean;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type JobApplicationRow = {
+  id: string;
+  job_id: string;
+  full_name: string;
+  email: string;
+  phone?: string;
+  resume_url: string;
+  cover_letter?: string;
+  status: "pending" | "reviewed" | "shortlisted" | "rejected" | "hired";
+  created_at: string;
+  updated_at: string;
+  // Joined fields
+  job_title?: string;
+};
+
 export async function getCurrentUserId(): Promise<string | null> {
   const { data, error } = await supabase.auth.getUser();
   if (error) throw error;
@@ -618,4 +650,124 @@ export async function listTickets() {
 
   if (error) throw error;
   return data || [];
+}
+
+export async function listJobOpenings(onlyActive = false): Promise<JobOpeningRow[]> {
+  let query = supabase
+    .from("job_openings")
+    .select("*")
+    .order("created_at", { ascending: false });
+
+  if (onlyActive) {
+    query = query.eq("is_active", true);
+  }
+
+  const { data, error } = await query;
+  if (error) throw error;
+  return (data as JobOpeningRow[]) || [];
+}
+
+export async function createJobOpening(job: Omit<JobOpeningRow, "id" | "created_at" | "updated_at">): Promise<string> {
+  const isUserAdmin = await isAdmin();
+  if (!isUserAdmin) throw new Error("Unauthorized");
+
+  const { data, error } = await supabase
+    .from("job_openings")
+    .insert(job)
+    .select("id")
+    .single();
+
+  if (error) throw error;
+  await logAdminAction("create_job_opening", "system", data.id, `Created job: ${job.title}`);
+  return data.id;
+}
+
+export async function updateJobOpening(id: string, job: Partial<Omit<JobOpeningRow, "id" | "created_at" | "updated_at">>): Promise<void> {
+  const isUserAdmin = await isAdmin();
+  if (!isUserAdmin) throw new Error("Unauthorized");
+
+  const { error } = await supabase
+    .from("job_openings")
+    .update(job)
+    .eq("id", id);
+
+  if (error) throw error;
+  await logAdminAction("update_job_opening", "system", id, `Updated job: ${job.title || id}`);
+}
+
+export async function deleteJobOpening(id: string): Promise<void> {
+  const isUserAdmin = await isAdmin();
+  if (!isUserAdmin) throw new Error("Unauthorized");
+
+  const { error } = await supabase
+    .from("job_openings")
+    .delete()
+    .eq("id", id);
+
+  if (error) throw error;
+  await logAdminAction("delete_job_opening", "system", id);
+}
+
+export async function toggleJobOpeningActive(id: string, active: boolean): Promise<void> {
+  const isUserAdmin = await isAdmin();
+  if (!isUserAdmin) throw new Error("Unauthorized");
+
+  const { error } = await supabase
+    .from("job_openings")
+    .update({ is_active: active })
+    .eq("id", id);
+
+  if (error) throw error;
+  await logAdminAction(active ? "activate_job_opening" : "deactivate_job_opening", "system", id);
+}
+
+export async function listJobApplications(): Promise<JobApplicationRow[]> {
+  const isUserAdmin = await isAdmin();
+  if (!isUserAdmin) throw new Error("Unauthorized");
+
+  const { data, error } = await supabase
+    .from("job_applications")
+    .select("*, job_openings(title)")
+    .order("created_at", { ascending: false });
+
+  if (error) throw error;
+  
+  return (data as any[]).map(app => ({
+    ...app,
+    job_title: app.job_openings?.title
+  })) as JobApplicationRow[];
+}
+
+export async function updateJobApplicationStatus(id: string, status: JobApplicationRow["status"]): Promise<void> {
+  const isUserAdmin = await isAdmin();
+  if (!isUserAdmin) throw new Error("Unauthorized");
+
+  const { error } = await supabase
+    .from("job_applications")
+    .update({ status })
+    .eq("id", id);
+
+  if (error) throw error;
+  await logAdminAction("update_job_application", "system", id, `Status updated to: ${status}`);
+}
+
+export async function deleteJobApplication(id: string): Promise<void> {
+  const isUserAdmin = await isAdmin();
+  if (!isUserAdmin) throw new Error("Unauthorized");
+
+  const { error } = await supabase
+    .from("job_applications")
+    .delete()
+    .eq("id", id);
+
+  if (error) throw error;
+  await logAdminAction("delete_job_application", "system", id);
+}
+
+export async function submitJobApplication(app: Omit<JobApplicationRow, "id" | "status" | "created_at" | "updated_at">): Promise<void> {
+  const { error } = await supabase
+    .from("job_applications")
+    .insert(app);
+
+  if (error) throw error;
 }

@@ -97,7 +97,7 @@ const Contact = () => {
                                 <div>
                                     <h3 className="font-bold text-lg">Call Us</h3>
                                     <p className="text-muted-foreground">Mon-Fri from 8am to 5pm PST.</p>
-                                    <p className="text-primary font-semibold mt-2">+1 (800) AGRI-LINK</p>
+                                    <p className="text-primary font-semibold mt-2">+254 ()0753966919 </p>
                                 </div>
                             </div>
 
@@ -108,7 +108,7 @@ const Contact = () => {
                                 <div>
                                     <h3 className="font-bold text-lg">Visit Our HQ</h3>
                                     <p className="text-muted-foreground">Agriculture & Innovation Hub.</p>
-                                    <p className="text-primary font-semibold mt-2">123 Innovation Way, San Jose, CA 95110</p>
+                                    <p className="text-primary font-semibold mt-2">123 wayaki way , Nairobi,  </p>
                                 </div>
                             </div>
                         </div>

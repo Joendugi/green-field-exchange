@@ -9,6 +9,7 @@ import ProtectedRoute from "@/components/ProtectedRoute";
 import AdminRoute from "@/components/AdminRoute";
 import GlobalNotifications from "@/components/GlobalNotifications";
 import NotificationPermissionBanner from "@/components/NotificationPermissionBanner";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 // Lazy load pages for code splitting
 const Index = lazy(() => import("@/pages/Index"));
@@ -109,10 +110,12 @@ function AppContent() {
 function App() {
   return (
     <TooltipProvider>
-      <div className="min-h-screen bg-background">
-        <AppContent />
-        <Toaster position="top-right" richColors />
-      </div>
+      <ErrorBoundary>
+        <div className="min-h-screen bg-background">
+          <AppContent />
+          <Toaster position="top-right" richColors />
+        </div>
+      </ErrorBoundary>
     </TooltipProvider>
   );
 }

@@ -17,11 +17,11 @@ const Footer = () => (
                     <div className="space-y-4 mb-8 text-sm">
                         <p className="flex items-center gap-3 text-muted-foreground">
                             <Globe className="h-5 w-5 text-primary/60 shrink-0" />
-                            <span>123 Innovation Way, San Jose, CA 95110</span>
+                            <span>123 wayaki way , Nairobi, Kenya</span>
                         </p>
                         <p className="flex items-center gap-3 text-muted-foreground">
                             <Mail className="h-5 w-5 text-primary/60 shrink-0" />
-                            <span>support@wakulima.online</span>
+                            <span>mundiandugi@gmail.com</span>
                         </p>
                     </div>
                     <div className="flex gap-4">

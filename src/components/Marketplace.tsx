@@ -14,6 +14,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/contexts/AuthContext";
 import { listProductsWithProfiles, getSmartMatches } from "@/integrations/supabase/products";
 import { createOrder } from "@/integrations/supabase/orders";
+import { getOptimizedUrl } from "@/integrations/supabase/storage";
 
 import { ExternalLink, Tag, Megaphone, ShieldCheck, Zap, Star, ChevronRight, Share2, Trash2, ShoppingCart, Search, Filter, Loader2, Info } from "lucide-react";
 
@@ -25,6 +26,8 @@ const Marketplace = () => {
   const [selectedProduct, setSelectedProduct] = useState<any>(null);
   const [orderQuantity, setOrderQuantity] = useState("");
   const [deliveryAddress, setDeliveryAddress] = useState("");
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
 
 
 
@@ -59,17 +62,30 @@ const Marketplace = () => {
         const result = await listProductsWithProfiles({
           category: categoryFilter === "all" ? undefined : categoryFilter,
           search: searchQuery || undefined,
-          limit: 40,
+          limit: 20,
+          page: page,
         });
-        setProducts(result);
+        
+        if (page === 1) {
+          setProducts(result);
+        } else {
+          setProducts(prev => [...prev, ...result]);
+        }
+        
+        setHasMore(result.length === 20);
       } catch (e) {
         console.error("Failed to load products", e);
-        setProducts([]);
+        if (page === 1) setProducts([]);
       } finally {
         setIsLoadingProducts(false);
       }
     };
     void load();
+  }, [categoryFilter, searchQuery, page]);
+
+  // Reset page when filters change
+  useEffect(() => {
+    setPage(1);
   }, [categoryFilter, searchQuery]);
   // Orders & Offers
 
@@ -310,7 +326,7 @@ const Marketplace = () => {
                   <div className="aspect-[4/3] bg-secondary rounded-lg mb-4 overflow-hidden">
                     {product.image_url ? (
                       <img
-                        src={product.image_url}
+                        src={getOptimizedUrl(product.image_url, { width: 400, quality: 75 })}
                         alt={product.name}
                         className="w-full h-full object-cover"
                         loading="lazy"
@@ -474,6 +490,19 @@ const Marketplace = () => {
               </Card>
             );
           })}
+        </div>
+      )}
+
+      {!isLoadingProducts && hasMore && products.length > 0 && (
+        <div className="flex justify-center py-8">
+          <Button 
+            variant="outline" 
+            size="lg" 
+            onClick={() => setPage(p => p + 1)}
+            className="rounded-full px-12 border-primary text-primary hover:bg-primary/10 font-bold"
+          >
+            Load More Products
+          </Button>
         </div>
       )}
 

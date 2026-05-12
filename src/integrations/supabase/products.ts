@@ -32,6 +32,7 @@ export async function listProducts(params: {
   category?: string;
   search?: string;
   limit?: number;
+  page?: number;
   cursor?: string;
 } = {}): Promise<ProductRow[]> {
   let query = supabase
@@ -46,7 +47,20 @@ export async function listProducts(params: {
     query = query.eq("category", params.category);
   }
   
-  const { data, error } = await query.limit(params.limit || 40);
+  if (params.search) {
+    query = query.ilike("name", `%${params.search}%`);
+  }
+
+  const limit = params.limit || 40;
+  if (params.page) {
+    const from = (params.page - 1) * limit;
+    const to = from + limit - 1;
+    query = query.range(from, to);
+  } else {
+    query = query.limit(limit);
+  }
+
+  const { data, error } = await query;
 
   if (error) {
     console.error("Supabase error in listProducts:", error);
@@ -180,6 +194,7 @@ export async function listProductsWithProfiles(params: {
   category?: string;
   search?: string;
   limit?: number;
+  page?: number;
   cursor?: string;
 } = {}): Promise<(ProductRow & { profiles?: { full_name: string | null; username: string | null } })[]> {
   const products = await listProducts(params);

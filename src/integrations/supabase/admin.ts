@@ -251,15 +251,20 @@ export async function isAdmin(): Promise<boolean> {
 }
 
 // User Management (admin only)
-export async function listUsers(): Promise<any[]> {
+export async function listUsers(page = 1, pageSize = 20): Promise<{ users: any[], count: number }> {
   const isUserAdmin = await isAdmin();
   if (!isUserAdmin) throw new Error("Unauthorized");
 
-  // Fetch profiles and user_roles separately to avoid FK join ambiguity
-  const { data: profiles, error: profError } = await supabase
+  const from = (page - 1) * pageSize;
+  const to = from + pageSize - 1;
+
+  // Fetch profiles with count
+  const { data: profiles, error: profError, count } = await supabase
     .from("profiles")
-    .select("*")
-    .order("created_at", { ascending: false });
+    .select("*", { count: "exact" })
+    .order("created_at", { ascending: false })
+    .range(from, to);
+    
   if (profError) throw profError;
 
   const { data: roles } = await supabase
@@ -271,7 +276,8 @@ export async function listUsers(): Promise<any[]> {
     return acc;
   }, {});
 
-  return (profiles || []).map((p: any) => ({ ...p, user_roles: [{ role: roleMap[p.user_id] ?? null }] }));
+  const users = (profiles || []).map((p: any) => ({ ...p, user_roles: [{ role: roleMap[p.id] ?? null }] }));
+  return { users, count: count || 0 };
 }
 
 export async function updateRole(userId: string, role: string): Promise<void> {

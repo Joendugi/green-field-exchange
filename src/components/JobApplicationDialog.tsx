@@ -8,6 +8,14 @@ import { toast } from "sonner";
 import { Loader2, Upload, FileText, CheckCircle } from "lucide-react";
 import { uploadFile } from "@/integrations/supabase/storage";
 import { submitJobApplication } from "@/integrations/supabase/admin";
+import { z } from "zod";
+
+const applicationSchema = z.object({
+  full_name: z.string().min(2, "Full name must be at least 2 characters"),
+  email: z.string().email("Invalid email address"),
+  phone: z.string().min(8, "Phone number is too short").optional().or(z.literal("")),
+  cover_letter: z.string().min(20, "Cover letter should be at least 20 characters for a professional application"),
+});
 
 interface JobApplicationDialogProps {
   job: { id: string; title: string } | null;
@@ -30,6 +38,19 @@ export const JobApplicationDialog = ({ job, open, onOpenChange }: JobApplication
 
     setIsSubmitting(true);
     const formData = new FormData(e.currentTarget);
+    const data = {
+      full_name: formData.get("full_name") as string,
+      email: formData.get("email") as string,
+      phone: formData.get("phone") as string,
+      cover_letter: formData.get("cover_letter") as string,
+    };
+
+    const result = applicationSchema.safeParse(data);
+    if (!result.success) {
+      result.error.errors.forEach((err) => toast.error(err.message));
+      setIsSubmitting(false);
+      return;
+    }
     
     try {
       // 1. Upload Resume

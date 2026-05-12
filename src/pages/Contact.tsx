@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import Navbar from "@/components/Navbar";
+import { Helmet } from "react-helmet-async";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,6 +11,15 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { createTicket } from "@/integrations/supabase/tickets";
 import { useState } from "react";
 import { checkRateLimit } from "@/integrations/supabase/admin";
+import Footer from "@/components/Footer";
+import { z } from "zod";
+
+const contactSchema = z.object({
+    full_name: z.string().min(2, "Full name must be at least 2 characters"),
+    email: z.string().email("Invalid email address"),
+    subject: z.string().min(5, "Subject must be at least 5 characters").optional().or(z.literal("")),
+    message: z.string().min(10, "Message must be at least 10 characters"),
+});
 
 const Contact = () => {
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -37,6 +47,18 @@ const Contact = () => {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         const formData = new FormData(e.target as HTMLFormElement);
+        const data = {
+            full_name: formData.get("full_name") as string,
+            email: formData.get("email") as string,
+            subject: formData.get("subject") as string,
+            message: formData.get("message") as string,
+        };
+
+        const result = contactSchema.safeParse(data);
+        if (!result.success) {
+            result.error.errors.forEach((err) => toast.error(err.message));
+            return;
+        }
 
         setIsSubmitting(true);
         try {
@@ -65,6 +87,12 @@ const Contact = () => {
 
     return (
         <div className="min-h-screen bg-background">
+            <Helmet>
+                <title>Contact Us | Wakulima Support</title>
+                <meta name="description" content="Get in touch with Wakulima. Contact our Farmer Relations, Order Support, or Media teams for any inquiries or support." />
+                <meta property="og:title" content="Contact Wakulima - We're Here to Help" />
+                <meta property="og:description" content="Direct support channels for Kenyan farmers and buyers." />
+            </Helmet>
             <Navbar />
             <main className="container mx-auto px-4 py-20">
                 <section className="text-center mb-20 reveal">
@@ -200,6 +228,7 @@ const Contact = () => {
                     </Accordion>
                 </section>
             </main>
+            <Footer />
         </div>
     );
 };

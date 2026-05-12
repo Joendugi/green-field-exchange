@@ -33,6 +33,7 @@ import Footer from "@/components/Footer";
 import { useSupabaseQuery } from "@/hooks/useSupabaseQuery";
 import { listProductsWithProfiles } from "@/integrations/supabase/products";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
+import { supabase } from "@/integrations/supabase/client";
 
 /* ─────────────────────────────────────────── */
 /*  Tiny animated number hook                  */

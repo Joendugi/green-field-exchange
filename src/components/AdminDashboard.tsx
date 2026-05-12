@@ -31,6 +31,11 @@ import { MarketHeatmap } from "./admin/MarketHeatmap";
 import { TicketsTab } from "./admin/TicketsTab";
 import { CareersTab } from "./admin/CareersTab";
 import type { NewAd } from "./admin/AdsTab";
+import { checkSystemHealth } from "@/utils/health";
+import { runSmokeTests, TestResult } from "@/utils/smokeTests";
+import { useEffect, useCallback } from "react";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { CheckCircle2, XCircle, Play, ShieldCheck } from "lucide-react";
 
 export type SettingsKey = "force_dark_mode" | "enable_beta_features" | "enable_ads_portal" | "enable_bulk_tools";
 
@@ -51,6 +56,26 @@ const defaultAdminSettings: AdminSettingsState = {
 
 const AdminDashboard = () => {
   const queryClient = useQueryClient();
+  const [isRunningTests, setIsRunningTests] = useState(false);
+  const [testResults, setTestResults] = useState<TestResult[]>([]);
+  const [testDialogOpen, setTestDialogOpen] = useState(false);
+
+  const handleRunTests = async () => {
+    setIsRunningTests(true);
+    try {
+      const results = await runSmokeTests();
+      setTestResults(results);
+      if (results.every(r => r.status === "pass")) {
+        toast.success("All system checks passed!");
+      } else {
+        toast.error("Some system checks failed");
+      }
+    } catch (e) {
+      toast.error("Test execution failed");
+    } finally {
+      setIsRunningTests(false);
+    }
+  };
 
   // ─── Queries ────────────────────────────────────────────────────────────
   // ─── Queries ────────────────────────────────────────────────────────────
@@ -58,6 +83,12 @@ const AdminDashboard = () => {
   const { data: usersData, isLoading: usersLoading } = useSupabaseQuery<any[]>(["admin", "users"], listUsers);
   const { data: verificationRequestsData } = useSupabaseQuery<any[]>(["admin", "verificationRequests"], () => getAllVerificationRequests());
   const { data: postsData, isLoading: postsLoading } = useSupabaseQuery<any[]>(["admin", "posts"], listPosts);
+  
+  const { data: healthData, refetch: checkHealth } = useSupabaseQuery<any>(
+    ["admin", "health"],
+    checkSystemHealth,
+    { refetchInterval: 60000 } // Check every minute
+  );
   const { data: productsData } = useSupabaseQuery<any[]>(["admin", "products"], listProducts);
   const { data: advertisementsData } = useSupabaseQuery<any[]>(["admin", "advertisements"], async () => {
     const { data } = await supabase.from("advertisements").select("*").order("created_at", { ascending: false });
@@ -260,11 +291,31 @@ const AdminDashboard = () => {
   // ─── Render ─────────────────────────────────────────────────────────────
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-3xl font-bold">Admin Dashboard</h2>
-        <Button variant="outline" onClick={handleExportData}>
-          <Download className="mr-2 h-4 w-4" /> Export Data
-        </Button>
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
+        <div>
+          <h1 className="text-4xl font-bold tracking-tight text-gradient mb-2">Admin Command Center</h1>
+          <p className="text-muted-foreground flex items-center gap-2">
+            <Activity className="h-4 w-4" /> Comprehensive platform control and analytics
+          </p>
+        </div>
+        <div className="flex items-center gap-3">
+          {healthData && (
+            <Badge 
+              variant="outline" 
+              className={`flex items-center gap-1.5 px-3 py-1 border-2 ${
+                healthData.status === "healthy" 
+                  ? "text-emerald-600 border-emerald-500/20 bg-emerald-50" 
+                  : "text-rose-600 border-rose-500/20 bg-rose-50"
+              }`}
+            >
+              <Activity className={`h-3 w-3 ${healthData.status === "healthy" ? "animate-pulse" : ""}`} />
+              System {healthData.status === "healthy" ? "Healthy" : "Degraded"} ({healthData.latency})
+            </Badge>
+          )}
+          <Button variant="outline" onClick={handleExportData} className="rounded-xl">
+            <Download className="mr-2 h-4 w-4" /> Export Data
+          </Button>
+        </div>
       </div>
 
       {/* Stats Cards */}
@@ -301,6 +352,7 @@ const AdminDashboard = () => {
           <TabsTrigger value="settings">Settings</TabsTrigger>
           <TabsTrigger value="ads">Ads</TabsTrigger>
           <TabsTrigger value="heatmap">Activity</TabsTrigger>
+          <TabsTrigger value="heatmap">Activity</TabsTrigger>
           <TabsTrigger value="tickets" className="relative">
             Tickets
             {tickets.filter(t => t.status === 'open').length > 0 && (
@@ -313,6 +365,9 @@ const AdminDashboard = () => {
             <AlertCircle className="mr-1 h-3 w-3" /> Escrow
           </TabsTrigger>
           <TabsTrigger value="careers">Careers</TabsTrigger>
+          <TabsTrigger value="diagnostics" className="text-primary font-bold">
+            <ShieldCheck className="mr-1 h-3 w-3" /> Diagnostics
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-6 pt-4">
@@ -506,6 +561,66 @@ const AdminDashboard = () => {
 
         <TabsContent value="careers">
           <CareersTab />
+        </TabsContent>
+
+        <TabsContent value="diagnostics" className="pt-4">
+          <Card className="border-2 border-primary/20 bg-primary/5">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <ShieldCheck className="h-6 w-6 text-primary" />
+                System Integrity Diagnostics
+              </CardTitle>
+              <p className="text-muted-foreground">Run a comprehensive health check across all connected services, storage, and edge functions.</p>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="flex justify-center py-6">
+                <Button 
+                  size="lg" 
+                  onClick={handleRunTests} 
+                  disabled={isRunningTests}
+                  className="rounded-full px-8 h-14 text-lg shadow-xl shadow-primary/30 gap-2"
+                >
+                  {isRunningTests ? (
+                    <>
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                      Testing Platform...
+                    </>
+                  ) : (
+                    <>
+                      <Play className="h-5 w-5 fill-current" />
+                      Start Integrity Check
+                    </>
+                  )}
+                </Button>
+              </div>
+
+              {testResults.length > 0 && (
+                <div className="space-y-3 max-w-2xl mx-auto animate-in fade-in slide-in-from-bottom-4">
+                  {testResults.map((result, idx) => (
+                    <div 
+                      key={idx} 
+                      className={`flex items-center justify-between p-4 rounded-2xl border bg-background/50 backdrop-blur-sm transition-all ${
+                        result.status === "pass" ? "border-emerald-500/20" : "border-rose-500/20"
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        {result.status === "pass" ? (
+                          <CheckCircle2 className="h-5 w-5 text-emerald-500" />
+                        ) : (
+                          <XCircle className="h-5 w-5 text-rose-500" />
+                        )}
+                        <div>
+                          <p className="font-semibold">{result.name}</p>
+                          {result.message && <p className="text-xs text-rose-500">{result.message}</p>}
+                        </div>
+                      </div>
+                      <Badge variant="secondary" className="font-mono">{result.duration}</Badge>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
     </div>

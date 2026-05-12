@@ -4,10 +4,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Search, UserPlus, Shield, Crown, AlertTriangle, CheckCircle, XCircle } from "lucide-react";
+import { Search, UserPlus, Shield, Crown, AlertTriangle, CheckCircle, XCircle, ChevronLeft, ChevronRight } from "lucide-react";
 import { useSupabaseQuery } from "@/hooks/useSupabaseQuery";
 import { useQueryClient } from "@tanstack/react-query";
 import { listUsers, updateRole, banUser } from "@/integrations/supabase/admin";
@@ -16,8 +16,16 @@ import { Loader2 } from "lucide-react";
 
 const AdminPrivilegeManager = () => {
   const queryClient = useQueryClient();
-  const { data: usersData } = useSupabaseQuery<any[]>(["admin", "users"], listUsers);
-  const users = usersData || [];
+  const [page, setPage] = useState(1);
+  const pageSize = 10;
+
+  const { data: usersResult, isLoading } = useSupabaseQuery<{ users: any[], count: number }>(
+    ["admin", "users", page],
+    () => listUsers(page, pageSize)
+  );
+  const users = usersResult?.users || [];
+  const totalCount = usersResult?.count || 0;
+  const totalPages = Math.ceil(totalCount / pageSize);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedUser, setSelectedUser] = useState<any>(null);
@@ -319,6 +327,36 @@ const AdminPrivilegeManager = () => {
           </Card>
         )}
       </div>
+
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between px-2 py-4">
+          <p className="text-sm text-muted-foreground">
+            Showing <span className="font-medium">{(page - 1) * pageSize + 1}</span> to{" "}
+            <span className="font-medium">{Math.min(page * pageSize, totalCount)}</span> of{" "}
+            <span className="font-medium">{totalCount}</span> users
+          </p>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPage(p => Math.max(1, p - 1))}
+              disabled={page === 1 || isLoading}
+            >
+              <ChevronLeft className="h-4 w-4 mr-2" />
+              Previous
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+              disabled={page === totalPages || isLoading}
+            >
+              Next
+              <ChevronRight className="h-4 w-4 ml-2" />
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* Admin Guidelines */}
       <Card>

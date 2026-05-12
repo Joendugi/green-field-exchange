@@ -3,6 +3,7 @@ import { Helmet } from "react-helmet-async";
 import Navbar from "@/components/Navbar";
 import { Badge } from "@/components/ui/badge";
 import { CircleCheckBig, Leaf, TrendingUp, Zap, Globe, Heart, Shield } from "lucide-react";
+import Footer from "@/components/Footer";
 
 const Mission = () => {
     useEffect(() => {
@@ -120,6 +121,7 @@ const Mission = () => {
                     </div>
                 </section>
             </main>
+            <Footer />
         </div>
     );
 };

@@ -1,8 +1,10 @@
 import { useEffect } from "react";
 import Navbar from "@/components/Navbar";
+import { Helmet } from "react-helmet-async";
 import { Badge } from "@/components/ui/badge";
 import { Users, Target, Award, ShieldCheck, Mail, Linkedin, Twitter } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import Footer from "@/components/Footer";
 
 const About = () => {
     useEffect(() => {
@@ -27,6 +29,12 @@ const About = () => {
 
     return (
         <div className="min-h-screen bg-background">
+            <Helmet>
+                <title>About Us | Wakulima Kenya</title>
+                <meta name="description" content="Learn about Wakulima's journey since 2024. Our leadership, mission to remove middlemen, and vision for direct agricultural trade." />
+                <meta property="og:title" content="About Wakulima - Cultivating Direct Trade" />
+                <meta property="og:description" content="Empowering farmers and consumers through transparent technology." />
+            </Helmet>
             <Navbar />
             <main className="container mx-auto px-4 py-20">
                 <section className="text-center mb-20 reveal">
@@ -150,6 +158,7 @@ const About = () => {
                     </div>
                 </section>
             </main>
+            <Footer />
         </div>
     );
 };

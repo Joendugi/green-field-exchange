@@ -1,9 +1,12 @@
--- Phase 2 Hardening: Automated Auditing Triggers
-
 -- 1. Relax admin_id constraint to allow for system/user automated logs
 ALTER TABLE public.admin_audit_logs ALTER COLUMN admin_id DROP NOT NULL;
 
--- 2. Audit Function
+-- 2. Expand target_type check constraint to include new tables
+ALTER TABLE public.admin_audit_logs DROP CONSTRAINT IF EXISTS admin_audit_logs_target_type_check;
+ALTER TABLE public.admin_audit_logs ADD CONSTRAINT admin_audit_logs_target_type_check 
+CHECK (target_type IN ('user', 'product', 'post', 'settings', 'verification', 'order', 'review', 'job_openings', 'user_roles', 'job_applications'));
+
+-- 3. Audit Function
 CREATE OR REPLACE FUNCTION public.audit_table_change()
 RETURNS TRIGGER AS $$
 DECLARE

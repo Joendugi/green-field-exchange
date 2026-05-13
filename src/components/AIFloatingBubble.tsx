@@ -14,7 +14,12 @@ const AIFloatingBubble = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
   const [input, setInput] = useState("");
-  const [messages, setMessages] = useState<any[]>([]);
+  const [messages, setMessages] = useState<any[]>([
+    {
+      role: "assistant",
+      content: "Hi! I'm your Wakulima AI. How can I help you with your farm or orders today?",
+    },
+  ]);
   const [isLoading, setIsLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -23,26 +28,26 @@ const AIFloatingBubble = () => {
     () => getChatHistory(),
     { enabled: isAuthenticated }
   );
-  const history: any[] = historyData || [];
 
   useEffect(() => {
-    if (history && history.length > 0) {
-      const formattedHistory = [...history]
-        .sort((a, b) => a.created_at - b.created_at)
-        .map(msg => ({
-          role: msg.role,
-          content: msg.content
-        }));
-      setMessages(formattedHistory);
-    } else {
-      setMessages([
-        {
-          role: "assistant",
-          content: "Hi! I'm your Wakulima AI. How can I help you with your farm or orders today?",
-        },
-      ]);
+    if (Array.isArray(historyData) && historyData.length > 0) {
+      try {
+        const formattedHistory = [...historyData]
+          .sort((a, b) => {
+            const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
+            const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
+            return dateA - dateB;
+          })
+          .map(msg => ({
+            role: msg.role,
+            content: msg.content
+          }));
+        setMessages(formattedHistory);
+      } catch (err) {
+        console.error("Error formatting chat history:", err);
+      }
     }
-  }, [history]);
+  }, [historyData]);
 
   useEffect(() => {
     if (scrollRef.current) {

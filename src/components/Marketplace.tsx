@@ -5,7 +5,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { ShoppingCart, MapPin, Search, Sparkles, Loader2, TrendingUp, Package, Gift } from "lucide-react";
+import { 
+  ShoppingCart, MapPin, Search, Sparkles, Loader2, TrendingUp, Package, Gift,
+  ExternalLink, Tag, Megaphone, ShieldCheck, Zap, Star, ChevronRight, Share2, Trash2, Filter, Info 
+} from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -15,8 +18,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import { listProductsWithProfiles, getSmartMatches } from "@/integrations/supabase/products";
 import { createOrder } from "@/integrations/supabase/orders";
 import { getOptimizedUrl } from "@/integrations/supabase/storage";
-
-import { ExternalLink, Tag, Megaphone, ShieldCheck, Zap, Star, ChevronRight, Share2, Trash2, ShoppingCart, Search, Filter, Loader2, Info } from "lucide-react";
 
 const Marketplace = () => {
   const navigate = useNavigate();

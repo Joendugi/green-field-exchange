@@ -42,7 +42,7 @@ export class ErrorBoundary extends Component<Props, State> {
               <p className="text-muted-foreground">
                 We've encountered an unexpected error. Don't worry, your data is safe.
               </p>
-              {process.env.NODE_ENV === 'development' && (
+              {import.meta.env.DEV && (
                 <div className="mt-4 p-4 bg-muted rounded-xl text-left overflow-auto max-h-40">
                   <p className="text-xs font-mono text-red-500">{this.state.error?.toString()}</p>
                 </div>
@@ -71,6 +71,6 @@ export class ErrorBoundary extends Component<Props, State> {
       );
     }
 
-    return this.children;
+    return this.props.children;
   }
 }

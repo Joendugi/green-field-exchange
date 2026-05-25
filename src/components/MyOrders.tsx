@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Package, CheckCircle, XCircle, MessageSquare, Clock3, ShieldCheck, Star, Undo2, DollarSign, AlertCircle, CreditCard, Loader2 } from "lucide-react";
+import { Package, CheckCircle, XCircle, MessageSquare, Clock3, ShieldCheck, Star, Undo2, DollarSign, AlertCircle, CreditCard, Loader2, ChevronDown, ChevronUp } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -45,10 +45,32 @@ const MyOrders = ({ userRole: propRole }: MyOrdersProps) => {
 
   const [paymentOrder, setPaymentOrder] = useState<any>(null);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+  const [mpesaPhone, setMpesaPhone] = useState("");
+  const [bankRef, setBankRef] = useState("");
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+  const [paymentStep, setPaymentStep] = useState("input");
   
   const [targetDisputeOrder, setTargetDisputeOrder] = useState<any>(null);
   const [isDisputeModalOpen, setIsDisputeModalOpen] = useState(false);
   const [disputeReason, setDisputeReason] = useState("");
+
+  const [expandedOrders, setExpandedOrders] = useState<Record<string, boolean>>({});
+
+  const toggleExpand = (orderId: string) => {
+    setExpandedOrders(prev => ({ ...prev, [orderId]: !prev[orderId] }));
+  };
+
+  const handleExpandAll = () => {
+    const next: Record<string, boolean> = {};
+    filteredOrders.forEach(order => {
+      next[order.id] = true;
+    });
+    setExpandedOrders(next);
+  };
+
+  const handleCollapseAll = () => {
+    setExpandedOrders({});
+  };
 
   const handleMessage = async (order: any) => {
     // Determine the other party's user_id
@@ -89,19 +111,42 @@ const MyOrders = ({ userRole: propRole }: MyOrdersProps) => {
 
   const handlePayOrder = async () => {
     if (!paymentOrder) return;
-    const loadingToast = toast.loading("Processing payment via secure gateway...");
+    
+    if (paymentOrder.payment_type === "mobile_money" && paymentStep === "input") {
+      if (!mpesaPhone || mpesaPhone.length < 9) {
+        toast.error("Please enter a valid Safaricom phone number.");
+        return;
+      }
+      setPaymentStep("prompt");
+      setIsProcessingPayment(true);
+      return;
+    }
+
+    if (paymentOrder.payment_type === "bank_transfer") {
+      if (!bankRef || bankRef.length < 5) {
+        toast.error("Please enter the bank transaction reference code.");
+        return;
+      }
+    }
+
+    setIsProcessingPayment(true);
+    const loadingToast = toast.loading("Confirming transaction with Wakulima Escrow...");
     try {
-      // Simulate external payment gateway latency
-      await new Promise(r => setTimeout(r, 2000));
+      await new Promise(r => setTimeout(r, 2500));
       await payOrder(paymentOrder.id);
       queryClient.invalidateQueries({ queryKey: ["orders"] });
       toast.dismiss(loadingToast);
-      toast.success("Payment successful! Funds are now securely placed in Escrow.");
+      toast.success("Payment successful! Funds are now securely held in Escrow.");
       setIsPaymentModalOpen(false);
       setPaymentOrder(null);
+      setPaymentStep("input");
+      setMpesaPhone("");
+      setBankRef("");
     } catch (error: any) {
       toast.dismiss(loadingToast);
       toast.error(error.message);
+    } finally {
+      setIsProcessingPayment(false);
     }
   };
 
@@ -163,6 +208,7 @@ const MyOrders = ({ userRole: propRole }: MyOrdersProps) => {
   const timelineSteps = [
     { key: "pending", label: "Order Placed" },
     { key: "accepted", label: "Accepted" },
+    { key: "dispatched", label: "Dispatched" },
     { key: "completed", label: "Completed" },
   ];
 
@@ -312,120 +358,213 @@ const MyOrders = ({ userRole: propRole }: MyOrdersProps) => {
         </CardContent>
       </Card>
 
+      <div className="flex justify-between items-center bg-muted/40 p-3 rounded-lg border border-border/40 my-2">
+        <span className="text-xs font-semibold text-muted-foreground">
+          Showing {filteredOrders.length} {filteredOrders.length === 1 ? 'order' : 'orders'}
+        </span>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" className="text-xs h-8" onClick={handleExpandAll}>
+            Expand All
+          </Button>
+          <Button variant="outline" size="sm" className="text-xs h-8" onClick={handleCollapseAll}>
+            Collapse All
+          </Button>
+        </div>
+      </div>
+
       <div className="space-y-4">
-        {filteredOrders.map((order: any) => {
-          const isSeller = user?.id === order.farmer_id;
-          return (
-            <Card key={order.id} className={order.escrow_status === 'held' ? "border-blue-200" : ""}>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-lg">{order.products?.name}</CardTitle>
-                  <div className="flex gap-2">
-                    <Badge variant="outline">{isSeller ? "Sale" : "Purchase"}</Badge>
-                    {getStatusBadge(order)}
+        {filteredOrders.length === 0 ? (
+          <div className="text-center py-12 text-muted-foreground">
+            No orders found matching the filter criteria.
+          </div>
+        ) : (
+          filteredOrders.map((order: any) => {
+            const isSeller = user?.id === order.farmer_id;
+            const isExpanded = expandedOrders[order.id];
+            return (
+              <Card 
+                key={order.id} 
+                className={`${order.escrow_status === 'held' ? "border-blue-200" : ""} transition-all duration-200 overflow-hidden shadow-sm hover:shadow-md`}
+              >
+                <div 
+                  onClick={() => toggleExpand(order.id)} 
+                  className="p-4 cursor-pointer hover:bg-muted/20 transition-colors select-none flex flex-col md:flex-row md:items-center justify-between gap-4"
+                >
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-bold text-base text-foreground">{order.products?.name}</span>
+                      <span className="text-xs text-muted-foreground font-medium">
+                        • {new Date(order.created_at).toLocaleDateString()}
+                      </span>
+                      <Badge variant="outline" className="text-[10px] uppercase font-semibold">
+                        {isSeller ? "Sale" : "Purchase"}
+                      </Badge>
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      {isSeller ? `Buyer: ${order.buyer_id?.full_name}` : `Seller: ${order.farmer_id?.full_name}`}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between md:justify-end gap-3 flex-wrap md:flex-nowrap">
+                    <div className="flex items-center gap-4 text-xs font-medium mr-2">
+                      <div>
+                        <span className="text-muted-foreground">Qty: </span>
+                        <span>{order.quantity} {order.products?.unit}</span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Total: </span>
+                        <span className="text-primary font-bold">
+                          {order.currency === "KES" ? "KSh " : "$"}{order.total_price?.toLocaleString()}
+                        </span>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center gap-2">
+                      {getStatusBadge(order)}
+                      {isExpanded ? (
+                        <ChevronUp className="h-5 w-5 text-muted-foreground" />
+                      ) : (
+                        <ChevronDown className="h-5 w-5 text-muted-foreground" />
+                      )}
+                    </div>
                   </div>
                 </div>
-                <CardDescription>
-                  {isSeller ? `Buyer: ${order.buyer_id?.full_name}` : `Seller: ${order.farmer_id?.full_name}`}
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                  <div>
-                    <span className="text-muted-foreground">Quantity:</span>
-                    <p className="font-semibold">{order.quantity} {order.products?.unit}</p>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">Total Price:</span>
-                    <p className="font-semibold text-primary">${order.total_price}</p>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">Payment Type:</span>
-                    <p className="font-semibold">{order.payment_type}</p>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">Order Date:</span>
-                    <p className="font-semibold">
-                      {new Date(order.created_at).toLocaleDateString()}
-                    </p>
-                  </div>
-                </div>
 
-                <div>
-                  <span className="text-sm text-muted-foreground">Delivery Address:</span>
-                  <p className="text-sm">{order.delivery_address}</p>
-                </div>
+                {isExpanded && (
+                  <CardContent className="space-y-4 pt-4 border-t border-border/30 bg-card">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                      <div>
+                        <span className="text-muted-foreground text-xs block">Quantity</span>
+                        <p className="font-semibold">{order.quantity} {order.products?.unit}</p>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground text-xs block">Total Price</span>
+                        <p className="font-semibold text-primary">
+                          {order.currency === "KES" ? "KSh " : "$"}{order.total_price?.toLocaleString()}
+                        </p>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground text-xs block">Payment Type</span>
+                        <p className="font-semibold uppercase text-xs">{order.payment_type?.replace(/_/g, ' ')}</p>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground text-xs block">Order Date</span>
+                        <p className="font-semibold">
+                          {new Date(order.created_at).toLocaleDateString()} at {new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </p>
+                      </div>
+                    </div>
 
-                {renderTimeline(order)}
+                    <div className="p-3 bg-muted/40 rounded-lg border border-border/40">
+                      <span className="text-xs text-muted-foreground font-semibold block uppercase">Delivery / Logistics Details</span>
+                      <p className="text-sm mt-1">{order.delivery_address}</p>
+                    </div>
 
-                <div className="flex flex-wrap gap-2">
-                  <Button variant="outline" size="sm" onClick={() => handleMessage(order)}>
-                    <MessageSquare className="mr-2 h-4 w-4" />
-                    Message {isSeller ? "Buyer" : "Seller"}
-                  </Button>
+                    {renderTimeline(order)}
 
-                  {/* Buyer Actions */}
-                  {!isSeller && order.escrow_status === "awaiting_payment" && (
-                    <Button size="sm" onClick={() => { setPaymentOrder(order); setIsPaymentModalOpen(true); }} className="bg-amber-600 hover:bg-amber-700">
-                      <DollarSign className="mr-2 h-4 w-4" /> Pay Now
-                    </Button>
-                  )}
-
-                  {!isSeller && order.escrow_status === "held" && (
-                    <>
-                      <Button size="sm" onClick={() => handleReleasePayment(order.id)} className="bg-emerald-600 hover:bg-emerald-700">
-                        <CheckCircle className="mr-2 h-4 w-4" /> Confirm Receipt & Pay
+                    <div className="flex flex-wrap gap-2 pt-2">
+                      <Button variant="outline" size="sm" onClick={() => handleMessage(order)}>
+                        <MessageSquare className="mr-2 h-4 w-4" />
+                        Message {isSeller ? "Buyer" : "Seller"}
                       </Button>
-                      <Button size="sm" variant="outline" className="text-red-600 border-red-200 hover:bg-red-50" onClick={() => { setTargetDisputeOrder(order); setIsDisputeModalOpen(true); }}>
-                        <AlertCircle className="mr-2 h-4 w-4" /> Report Issue
-                      </Button>
-                    </>
-                  )}
 
-                  {!isSeller && order.escrow_status === "released" && (
-                    <Button size="sm" variant="secondary" onClick={() => { setReviewOrder(order); setIsReviewModalOpen(true); }}>
-                      <Star className="mr-2 h-4 w-4 fill-current" /> Review Product
-                    </Button>
-                  )}
-                </div>
+                      {/* Buyer Actions */}
+                      {!isSeller && order.escrow_status === "awaiting_payment" && (
+                        <Button size="sm" onClick={() => { setPaymentOrder(order); setIsPaymentModalOpen(true); setPaymentStep("input"); }} className="bg-amber-600 hover:bg-amber-700 font-bold">
+                          <DollarSign className="mr-2 h-4 w-4" /> Pay Now
+                        </Button>
+                      )}
 
-                {/* Seller Actions */}
-                {isSeller && order.status === "pending" && (
-                  <div className="flex gap-2">
-                    <Button
-                      size="sm"
-                      onClick={() => handleUpdateStatus(order.id, "accepted")}
-                      className="flex-1"
-                    >
-                      <CheckCircle className="mr-2 h-4 w-4" />
-                      Accept Order
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="destructive"
-                      onClick={() => handleUpdateStatus(order.id, "cancelled")}
-                      className="flex-1"
-                    >
-                      <XCircle className="mr-2 h-4 w-4" />
-                      Decline
-                    </Button>
-                  </div>
+                      {!isSeller && order.escrow_status === "held" && (
+                        <>
+                          <Button size="sm" onClick={() => handleReleasePayment(order.id)} className="bg-emerald-600 hover:bg-emerald-700 font-bold">
+                            <CheckCircle className="mr-2 h-4 w-4" /> Confirm Receipt & Pay
+                          </Button>
+                          <Button size="sm" variant="outline" className="text-red-600 border-red-200 hover:bg-red-50" onClick={() => { setTargetDisputeOrder(order); setIsDisputeModalOpen(true); }}>
+                            <AlertCircle className="mr-2 h-4 w-4" /> Report Issue
+                          </Button>
+                        </>
+                      )}
+
+                      {!isSeller && order.payment_type === "cash_on_delivery" && order.status === "dispatched" && (
+                        <Button size="sm" onClick={() => handleReleasePayment(order.id)} className="bg-emerald-600 hover:bg-emerald-700 font-bold">
+                          <CheckCircle className="mr-2 h-4 w-4" /> Confirm Delivery Received
+                        </Button>
+                      )}
+
+                      {!isSeller && order.escrow_status === "released" && (
+                        <Button size="sm" variant="secondary" onClick={() => { setReviewOrder(order); setIsReviewModalOpen(true); }}>
+                          <Star className="mr-2 h-4 w-4 fill-current" /> Review Product
+                        </Button>
+                      )}
+                    </div>
+
+                    {/* Seller Actions */}
+                    {isSeller && order.status === "pending" && (
+                      <div className="flex gap-2 pt-2 border-t border-border/20">
+                        <Button
+                          size="sm"
+                          onClick={() => handleUpdateStatus(order.id, "accepted")}
+                          className="flex-1 bg-emerald-600 hover:bg-emerald-700 font-bold"
+                        >
+                          <CheckCircle className="mr-2 h-4 w-4" />
+                          Accept Order
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => handleUpdateStatus(order.id, "cancelled")}
+                          className="flex-1"
+                        >
+                          <XCircle className="mr-2 h-4 w-4" />
+                          Decline
+                        </Button>
+                      </div>
+                    )}
+
+                    {isSeller && order.status === "accepted" && (
+                      <div className="w-full pt-2 border-t border-border/20">
+                        {order.payment_type !== "cash_on_delivery" && order.escrow_status === "awaiting_payment" ? (
+                          <div className="bg-amber-50 border border-amber-200 text-amber-800 p-3 rounded-lg text-xs text-center font-medium">
+                            ⚠️ Order accepted. Waiting for the buyer to place funds in Escrow before shipping.
+                          </div>
+                        ) : (
+                          <Button
+                            size="sm"
+                            onClick={() => handleUpdateStatus(order.id, "dispatched")}
+                            className="w-full bg-blue-600 hover:bg-blue-700 font-bold"
+                          >
+                            <Package className="mr-2 h-4 w-4" />
+                            Dispatch Order / Mark as Shipped
+                          </Button>
+                        )}
+                      </div>
+                    )}
+
+                    {isSeller && order.status === "dispatched" && (
+                      <div className="w-full pt-2 border-t border-border/20">
+                        {order.payment_type === "cash_on_delivery" ? (
+                          <Button
+                            size="sm"
+                            onClick={() => handleReleasePayment(order.id)}
+                            className="w-full bg-emerald-600 hover:bg-emerald-700 font-bold"
+                          >
+                            <CheckCircle className="mr-2 h-4 w-4" />
+                            Confirm Cash Received & Completed
+                          </Button>
+                        ) : (
+                          <div className="bg-blue-50 border border-blue-200 text-blue-800 p-3 rounded-lg text-xs text-center font-medium">
+                            🚚 Order in transit. Waiting for the buyer to confirm receipt and release escrow.
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </CardContent>
                 )}
-
-                {isSeller && order.status === "accepted" && (
-                  <Button
-                    size="sm"
-                    onClick={() => handleUpdateStatus(order.id, "completed")}
-                    className="w-full"
-                  >
-                    <CheckCircle className="mr-2 h-4 w-4" />
-                    Mark as Completed
-                  </Button>
-                )}
-              </CardContent>
-            </Card>
-          );
-        })}
+              </Card>
+            );
+          })
+        )}
       </div>
 
       {/* Review Dialog */}
@@ -464,7 +603,10 @@ const MyOrders = ({ userRole: propRole }: MyOrdersProps) => {
       <Dialog open={isPaymentModalOpen} onOpenChange={setIsPaymentModalOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="flex items-center"><DollarSign className="mr-2 h-5 w-5 text-emerald-600" /> Secure Checkout</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              <ShieldCheck className="h-5 w-5 text-emerald-600" />
+              Secure Escrow Checkout
+            </DialogTitle>
             <DialogDescription>
               Your payment will be held securely in escrow until you explicitly confirm delivery.
             </DialogDescription>
@@ -472,38 +614,156 @@ const MyOrders = ({ userRole: propRole }: MyOrdersProps) => {
           <div className="space-y-6 py-4">
             <div className="bg-muted p-4 rounded-lg flex justify-between items-center text-lg font-bold">
               <span>Total Amount:</span>
-              <span className="text-emerald-600">${paymentOrder?.total_price?.toLocaleString()}</span>
+              <span className="text-emerald-600">
+                {paymentOrder?.currency === "KES" ? "KSh " : "$"}{paymentOrder?.total_price?.toLocaleString()}
+              </span>
             </div>
-            
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label>Cardholder Name</Label>
-                <Input defaultValue={user?.full_name || ""} placeholder="John Doe" />
+
+            {paymentOrder?.payment_type === "mobile_money" && (
+              <div className="space-y-4">
+                {paymentStep === "input" ? (
+                  <>
+                    <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-lg text-xs flex items-center gap-2 font-medium">
+                      📱 Pay securely via M-Pesa. You will receive an STK Push prompt on your Safaricom mobile phone to enter your PIN.
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="font-semibold text-xs text-muted-foreground uppercase">Safaricom Mobile Number</Label>
+                      <div className="flex gap-2">
+                        <span className="h-10 border border-input rounded-md px-3 py-2 text-sm bg-muted text-muted-foreground font-semibold flex items-center">
+                          +254
+                        </span>
+                        <Input
+                          placeholder="712345678"
+                          value={mpesaPhone}
+                          onChange={(e) => setMpesaPhone(e.target.value.replace(/\D/g, ''))}
+                          className="flex-1"
+                        />
+                      </div>
+                      <p className="text-[10px] text-muted-foreground">Format: Enter 9 digits (e.g. 712345678 or 112345678)</p>
+                    </div>
+                    <Button 
+                      className="w-full bg-emerald-600 hover:bg-emerald-700 h-11 text-white font-bold" 
+                      onClick={handlePayOrder}
+                      disabled={isProcessingPayment}
+                    >
+                      Send M-Pesa STK Push
+                    </Button>
+                  </>
+                ) : (
+                  <div className="text-center py-6 space-y-4">
+                    <Loader2 className="h-12 w-12 text-emerald-600 animate-spin mx-auto" />
+                    <div className="space-y-1">
+                      <h4 className="font-bold text-base">M-Pesa STK Prompt Sent</h4>
+                      <p className="text-xs text-muted-foreground max-w-xs mx-auto">
+                        Please check your phone for the M-Pesa prompt requesting PIN entry for KSh {paymentOrder?.total_price?.toLocaleString()}.
+                      </p>
+                    </div>
+                    <div className="flex justify-center gap-2">
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={() => { setPaymentStep("input"); setIsProcessingPayment(false); }}
+                      >
+                        Change Number
+                      </Button>
+                      <Button 
+                        size="sm" 
+                        onClick={handlePayOrder}
+                        className="bg-emerald-600 hover:bg-emerald-700"
+                      >
+                        Confirm PIN Entered
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </div>
-              <div className="space-y-2">
-                <Label>Card Number</Label>
-                <div className="relative">
-                  <Input placeholder="•••• •••• •••• ••••" className="pl-10" />
-                  <CreditCard className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+            )}
+
+            {paymentOrder?.payment_type === "bank_transfer" && (
+              <div className="space-y-4">
+                <div className="p-4 bg-blue-50 border border-blue-200 text-blue-900 rounded-xl space-y-2 text-xs">
+                  <p className="font-bold text-sm text-blue-950">🏦 Wakulima Escrow Bank Details</p>
+                  <p><strong>Bank:</strong> Equity Bank Kenya</p>
+                  <p><strong>Account Name:</strong> Wakulima Online Escrow</p>
+                  <p><strong>Account Number:</strong> 1210 1827 3645</p>
+                  <p><strong>Paybill:</strong> 247247 | <strong>Account:</strong> ESC-{paymentOrder?.id?.slice(0, 8).toUpperCase()}</p>
                 </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Expiry Date</Label>
-                  <Input placeholder="MM/YY" />
+                  <Label className="font-semibold text-xs text-muted-foreground uppercase">Bank Transaction Reference / Code</Label>
+                  <Input 
+                    placeholder="E.g. OB75XHJ89Z" 
+                    value={bankRef}
+                    onChange={(e) => setBankRef(e.target.value.toUpperCase())}
+                  />
+                  <p className="text-[10px] text-muted-foreground">Input the transaction ref from your mobile banking app or bank slip.</p>
+                </div>
+                <Button 
+                  className="w-full bg-blue-600 hover:bg-blue-700 h-11 font-bold" 
+                  onClick={handlePayOrder}
+                  disabled={isProcessingPayment}
+                >
+                  Confirm Bank Deposit
+                </Button>
+              </div>
+            )}
+
+            {paymentOrder?.payment_type === "wallet" && (
+              <div className="space-y-4">
+                <div className="p-3 bg-muted rounded-lg text-xs space-y-1.5">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Your Balance:</span>
+                    <span className="font-bold text-primary">KSh 45,500</span>
+                  </div>
+                  <div className="flex justify-between border-t border-border pt-1.5">
+                    <span className="text-muted-foreground">Payment Amount:</span>
+                    <span className="font-bold text-emerald-600">KSh {paymentOrder?.total_price?.toLocaleString()}</span>
+                  </div>
+                </div>
+                <Button 
+                  className="w-full bg-primary hover:bg-primary/90 h-11 font-bold" 
+                  onClick={handlePayOrder}
+                  disabled={isProcessingPayment}
+                >
+                  Pay from Wallet Balance
+                </Button>
+              </div>
+            )}
+
+            {(paymentOrder?.payment_type === "cash_on_delivery" || !paymentOrder?.payment_type) && (
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Cardholder Name</Label>
+                  <Input defaultValue={user?.full_name || ""} placeholder="John Doe" />
                 </div>
                 <div className="space-y-2">
-                  <Label>CVC</Label>
-                  <Input placeholder="•••" type="password" />
+                  <Label>Card Number</Label>
+                  <div className="relative">
+                    <Input placeholder="•••• •••• •••• ••••" className="pl-10" />
+                    <CreditCard className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                  </div>
                 </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Expiry Date</Label>
+                    <Input placeholder="MM/YY" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>CVC</Label>
+                    <Input placeholder="•••" type="password" />
+                  </div>
+                </div>
+                <Button 
+                  className="w-full bg-emerald-600 hover:bg-emerald-700 h-11 font-bold" 
+                  onClick={handlePayOrder}
+                  disabled={isProcessingPayment}
+                >
+                  Pay Securely via Card
+                </Button>
               </div>
-            </div>
-            
-            <Button className="w-full bg-emerald-600 hover:bg-emerald-700" size="lg" onClick={handlePayOrder}>
-              <ShieldCheck className="mr-2 h-5 w-5" /> Pay Securely
-            </Button>
-            <p className="text-xs text-center text-muted-foreground">
-              Payments are processed securely via Stripe. Wakilima does not store your card details.
+            )}
+
+            <p className="text-[10px] text-center text-muted-foreground">
+              All transactions are secured with military-grade SSL encryption. Funds are locked in smart escrow until delivery is finalized.
             </p>
           </div>
         </DialogContent>

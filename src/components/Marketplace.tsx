@@ -27,6 +27,8 @@ const Marketplace = () => {
   const [selectedProduct, setSelectedProduct] = useState<any>(null);
   const [orderQuantity, setOrderQuantity] = useState("");
   const [deliveryAddress, setDeliveryAddress] = useState("");
+  const [paymentType, setPaymentType] = useState("cash_on_delivery");
+  const [deliveryMethod, setDeliveryMethod] = useState("boda");
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
 
@@ -137,17 +139,35 @@ const Marketplace = () => {
         return;
       }
 
+      const deliveryMethodLabels: Record<string, string> = {
+        boda: "Boda Boda Courier (Express)",
+        matatu: "Matatu Station Pickup",
+        farmer: "Farmer Direct Delivery",
+        hub: "Wakulima Hub Pickup (Self-collect)"
+      };
+
+      const deliveryFees: Record<string, number> = {
+        boda: selectedProduct.currency === "KES" ? 150 : 1.50,
+        matatu: selectedProduct.currency === "KES" ? 300 : 3.00,
+        farmer: selectedProduct.currency === "KES" ? 100 : 1.00,
+        hub: 0
+      };
+
+      const formattedDeliveryAddress = `Method: ${deliveryMethodLabels[deliveryMethod]} | Fee: ${selectedProduct.currency === "KES" ? "KSh " : "$"}${deliveryFees[deliveryMethod]} | Destination: ${deliveryAddress}`;
+
       await createOrder({
         product_id: selectedProduct.id,
         quantity: quantity,
-        delivery_address: deliveryAddress,
-        payment_type: "cash_on_delivery", // Default
+        delivery_address: formattedDeliveryAddress,
+        payment_type: paymentType,
       });
 
       toast.success("Order placed successfully!");
       setSelectedProduct(null);
       setOrderQuantity("");
       setDeliveryAddress("");
+      setPaymentType("cash_on_delivery");
+      setDeliveryMethod("boda");
 
     } catch (error: any) {
       console.error("Order creation failed:", error);
@@ -439,45 +459,105 @@ const Marketplace = () => {
                           </Button>
                         </div>
                       </DialogTrigger>
-                      <DialogContent>
+                      <DialogContent className="sm:max-w-[480px]">
                         <DialogHeader>
-                          <DialogTitle>Place Order</DialogTitle>
+                          <DialogTitle className="flex items-center gap-2 text-primary font-bold">
+                            <ShoppingCart className="h-5 w-5" /> Place Your Order
+                          </DialogTitle>
                           <DialogDescription>
-                            Order {product.name} from {product.farmer_id?.full_name || "Unknown"}
+                            Purchase directly from {product.profiles?.full_name || "Verified Farmer"}. Escrow protection is active.
                           </DialogDescription>
                         </DialogHeader>
-                        <div className="space-y-4">
-                          <div>
-                            <Label>Quantity ({product.unit})</Label>
-                            <Input
-                              type="number"
-                              step="0.01"
-                              max={product.quantity}
-                              value={orderQuantity}
-                              onChange={(e) => setOrderQuantity(e.target.value)}
-                              placeholder="Enter quantity"
-                            />
+                        <div className="space-y-4 my-2">
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <Label className="font-semibold text-xs text-muted-foreground uppercase">Quantity ({product.unit})</Label>
+                              <Input
+                                type="number"
+                                step="0.01"
+                                max={product.quantity}
+                                value={orderQuantity}
+                                onChange={(e) => setOrderQuantity(e.target.value)}
+                                placeholder="Enter quantity"
+                                className="mt-1"
+                              />
+                            </div>
+                            <div>
+                              <Label className="font-semibold text-xs text-muted-foreground uppercase">Available Stock</Label>
+                              <div className="h-10 border border-input rounded-md px-3 py-2 text-sm bg-muted/30 font-medium mt-1">
+                                {product.quantity} {product.unit}
+                              </div>
+                            </div>
                           </div>
+
                           <div>
-                            <Label>Delivery Address</Label>
+                            <Label className="font-semibold text-xs text-muted-foreground uppercase">Delivery Option</Label>
+                            <Select value={deliveryMethod} onValueChange={setDeliveryMethod}>
+                              <SelectTrigger className="mt-1">
+                                <SelectValue placeholder="Select delivery method" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="boda">🏍️ Boda Boda Courier (Same Day) — {product.currency === "KES" ? "KSh 150" : "$1.50"}</SelectItem>
+                                <SelectItem value="matatu">🚌 Matatu Station Pickup (Next Day) — {product.currency === "KES" ? "KSh 300" : "$3.00"}</SelectItem>
+                                <SelectItem value="farmer">🚜 Farmer Direct Delivery (1-2 Days) — {product.currency === "KES" ? "KSh 100" : "$1.00"}</SelectItem>
+                                <SelectItem value="hub">🏪 Wakulima Hub Pickup (Self-collect) — Free</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+
+                          <div>
+                            <Label className="font-semibold text-xs text-muted-foreground uppercase">Payment Method</Label>
+                            <Select value={paymentType} onValueChange={setPaymentType}>
+                              <SelectTrigger className="mt-1">
+                                <SelectValue placeholder="Select payment method" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="cash_on_delivery">💵 Cash on Delivery (CoD)</SelectItem>
+                                <SelectItem value="mobile_money">📱 M-Pesa / Mobile Money (Escrow Secured)</SelectItem>
+                                <SelectItem value="bank_transfer">🏦 Bank Transfer (Escrow Secured)</SelectItem>
+                                <SelectItem value="wallet">💼 Wakulima Wallet</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+
+                          <div>
+                            <Label className="font-semibold text-xs text-muted-foreground uppercase">Delivery Destination Address</Label>
                             <Textarea
                               value={deliveryAddress}
                               onChange={(e) => setDeliveryAddress(e.target.value)}
-                              placeholder="Enter your delivery address"
+                              placeholder="Describe your location or drop point in detail (e.g. Nairobi, Kilimani, Rose Avenue, Plaza Apt 4B)"
+                              className="mt-1 min-h-[70px]"
                             />
                           </div>
+
                           {orderQuantity && (
-                            <div className="p-4 bg-secondary rounded-lg">
-                              <div className="flex justify-between items-center">
-                                <span className="font-semibold">Total Price:</span>
-                                <span className="text-2xl font-bold text-primary">
-                                  ${(parseFloat(orderQuantity) * (product.discountedPrice || product.price)).toFixed(2)}
+                            <div className="p-4 bg-primary/5 border border-primary/20 rounded-xl space-y-2">
+                              <div className="flex justify-between items-center text-sm text-muted-foreground">
+                                <span>Produce Subtotal:</span>
+                                <span className="font-medium">
+                                  {product.currency === "KES" ? "KSh" : "$"}{(parseFloat(orderQuantity) * (product.discountedPrice || product.price)).toFixed(2)}
+                                </span>
+                              </div>
+                              <div className="flex justify-between items-center text-sm text-muted-foreground">
+                                <span>Delivery Fee:</span>
+                                <span className="font-medium">
+                                  {deliveryMethod === "hub" ? "Free" : `${product.currency === "KES" ? "KSh" : "$"}${deliveryMethod === "boda" ? (product.currency === "KES" ? 150 : 1.50) : deliveryMethod === "matatu" ? (product.currency === "KES" ? 300 : 3.00) : (product.currency === "KES" ? 100 : 1.00)}`}
+                                </span>
+                              </div>
+                              <div className="border-t border-primary/10 pt-2 flex justify-between items-center text-lg font-bold text-primary">
+                                <span>Total Price:</span>
+                                <span>
+                                  {product.currency === "KES" ? "KSh" : "$"}{(
+                                    parseFloat(orderQuantity) * (product.discountedPrice || product.price) +
+                                    (deliveryMethod === "hub" ? 0 : deliveryMethod === "boda" ? (product.currency === "KES" ? 150 : 1.50) : deliveryMethod === "matatu" ? (product.currency === "KES" ? 300 : 3.00) : (product.currency === "KES" ? 100 : 1.00))
+                                  ).toFixed(2)}
                                 </span>
                               </div>
                             </div>
                           )}
+
                           <Button
-                            className="w-full"
+                            className="w-full h-11 font-bold shadow-lg mt-2"
                             onClick={handlePlaceOrder}
                             disabled={!orderQuantity || !deliveryAddress}
                           >

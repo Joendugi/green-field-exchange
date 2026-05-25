@@ -33,6 +33,7 @@ export async function createOrder(input: OrderInput) {
             total_price: totalPrice,
             currency: product.currency === "USD" ? "USD" : (product.currency || "USD"),
             status: "pending",
+            escrow_status: input.payment_type && input.payment_type !== "cash_on_delivery" ? "awaiting_payment" : "pending",
             delivery_address: input.delivery_address,
             payment_type: input.payment_type || "cash_on_delivery",
         })
@@ -84,7 +85,7 @@ export async function updateOrderStatus(orderId: string, status: string) {
 export async function payOrder(orderId: string) {
     const { data, error } = await supabase
         .from("orders")
-        .update({ status: "paid" }) 
+        .update({ escrow_status: "held" }) 
         .eq("id", orderId)
         .select()
         .single();
@@ -96,7 +97,10 @@ export async function payOrder(orderId: string) {
 export async function releasePayment(orderId: string) {
     const { data, error } = await supabase
         .from("orders")
-        .update({ status: "completed" })
+        .update({ 
+            status: "completed",
+            escrow_status: "released"
+        })
         .eq("id", orderId)
         .select()
         .single();
@@ -110,7 +114,7 @@ export async function disputeOrder(orderId: string, reason: string) {
         .from("orders")
         .update({ 
             status: "disputed",
-            escrow_status: "held" 
+            escrow_status: "disputed" 
         })
         .eq("id", orderId)
         .select()

@@ -80,7 +80,7 @@ const AdminDashboard = () => {
   // ─── Queries ────────────────────────────────────────────────────────────
   // ─── Queries ────────────────────────────────────────────────────────────
   const { data: statsData, isLoading: statsLoading } = useSupabaseQuery<any>(["admin", "stats"], getStats);
-  const { data: usersData, isLoading: usersLoading } = useSupabaseQuery<any[]>(["admin", "users"], listUsers);
+  const { data: usersData, isLoading: usersLoading } = useSupabaseQuery<any>(["admin", "users"], listUsers);
   const { data: verificationRequestsData } = useSupabaseQuery<any[]>(["admin", "verificationRequests"], () => getAllVerificationRequests());
   const { data: postsData, isLoading: postsLoading } = useSupabaseQuery<any[]>(["admin", "posts"], listPosts);
   
@@ -102,7 +102,7 @@ const AdminDashboard = () => {
   const { data: ticketsData } = useSupabaseQuery<any[]>(["admin", "tickets"], listTickets);
 
   const stats: any = statsData || { users: 0, products: 0, orders: 0, revenue: 0 };
-  const users: any[] = usersData || [];
+  const users: any[] = usersData?.users || [];
   const verificationRequests: any[] = verificationRequestsData || [];
   const posts: any[] = postsData || [];
   const products: any[] = productsData || [];

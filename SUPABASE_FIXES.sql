@@ -206,7 +206,7 @@ ALTER TABLE public.products ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "Public view products" ON public.products;
 CREATE POLICY "Public view products" ON public.products
-    FOR SELECT USING (NOT hidden OR public.check_is_admin() = true);
+    FOR SELECT USING (NOT is_hidden OR public.check_is_admin() = true);
 
 DROP POLICY IF EXISTS "Farmers manage own products" ON public.products;
 CREATE POLICY "Farmers manage own products" ON public.products

@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Users, Package, ShoppingCart, TrendingUp, Download, Activity, Badge as BadgeIcon, Zap, AlertCircle } from "lucide-react";
+import { Users, Package, ShoppingCart, TrendingUp, Download, Activity, Badge as BadgeIcon, Zap, AlertCircle, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { exportToCSV } from "@/lib/dataExport";
@@ -351,7 +351,6 @@ const AdminDashboard = () => {
           <TabsTrigger value="broadcast">Broadcast</TabsTrigger>
           <TabsTrigger value="settings">Settings</TabsTrigger>
           <TabsTrigger value="ads">Ads</TabsTrigger>
-          <TabsTrigger value="heatmap">Activity</TabsTrigger>
           <TabsTrigger value="heatmap">Activity</TabsTrigger>
           <TabsTrigger value="tickets" className="relative">
             Tickets

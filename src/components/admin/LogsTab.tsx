@@ -23,7 +23,7 @@ export const LogsTab = ({ auditLogs }: LogsTabProps) => (
                     ) : (
                         auditLogs.map((log: any) => (
                             <div
-                                key={log._id}
+                                key={log.id}
                                 className="flex gap-4 p-3 border-b border-muted last:border-0 hover:bg-muted/30 transition-colors rounded-md group"
                             >
                                 <div className="mt-1">
@@ -34,7 +34,7 @@ export const LogsTab = ({ auditLogs }: LogsTabProps) => (
                                 <div className="flex-1 min-w-0">
                                     <div className="flex items-center justify-between mb-1">
                                         <p className="text-sm font-semibold truncate text-foreground group-hover:text-primary transition-colors">
-                                            {log.adminName}
+                                            {log.admin_name || "System"}
                                         </p>
                                         <div className="flex items-center text-[10px] text-muted-foreground bg-muted/50 px-2 py-0.5 rounded-full">
                                             <Clock className="h-3 w-3 mr-1" />
@@ -43,14 +43,14 @@ export const LogsTab = ({ auditLogs }: LogsTabProps) => (
                                     </div>
                                     <p className="text-sm text-foreground">
                                         <span className="font-semibold uppercase text-[10px] tracking-wider bg-primary/20 text-primary px-1.5 py-0.5 rounded mr-2">
-                                            {log.action.replace("_", " ")}
+                                            {log.action.replace(/_/g, " ")}
                                         </span>
                                         {log.details && <span className="text-muted-foreground italic">"{log.details}"</span>}
                                     </p>
-                                    {log.targetId && (
+                                    {log.target_id && (
                                         <p className="text-[11px] text-muted-foreground mt-1 flex items-center">
-                                            Target {log.targetType}:{" "}
-                                            <code className="ml-1 bg-muted px-1 rounded text-[10px]">{log.targetId}</code>
+                                            Target {log.target_type}:{" "}
+                                            <code className="ml-1 bg-muted px-1 rounded text-[10px]">{log.target_id}</code>
                                         </p>
                                     )}
                                 </div>

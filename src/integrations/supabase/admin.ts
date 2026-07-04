@@ -172,7 +172,7 @@ export async function logAdminAction(
   if (error) console.error("audit log error", error);
 }
 
-export async function getAdminAuditLogs(limit = 100): Promise<AdminAuditLogRow[]> {
+export async function getAdminAuditLogs(limit = 100): Promise<(AdminAuditLogRow & { admin_name?: string })[]> {
   const { data, error } = await supabase
     .from("admin_audit_logs")
     .select("*")
@@ -180,7 +180,29 @@ export async function getAdminAuditLogs(limit = 100): Promise<AdminAuditLogRow[]
     .limit(limit);
 
   if (error) throw error;
-  return (data as AdminAuditLogRow[]) ?? [];
+  const logs = (data as AdminAuditLogRow[]) ?? [];
+  if (logs.length === 0) return [];
+
+  // Enrich with admin profile names
+  const adminIds = [...new Set(logs.map(l => l.admin_id).filter(Boolean))];
+  if (adminIds.length === 0) return logs.map(l => ({ ...l, admin_name: "System" }));
+
+  const { data: profiles } = await supabase
+    .from("profiles")
+    .select("id, full_name, username")
+    .in("id", adminIds);
+
+  const profileMap = (profiles || []).reduce((acc: Record<string, any>, p: any) => {
+    acc[p.id] = p;
+    return acc;
+  }, {});
+
+  return logs.map(l => ({
+    ...l,
+    admin_name: l.admin_id
+      ? (profileMap[l.admin_id]?.full_name || profileMap[l.admin_id]?.username || l.admin_id.slice(0, 8))
+      : "System",
+  }));
 }
 
 // Admin Settings
@@ -510,7 +532,7 @@ export async function broadcastNotification(opts: { title: string, message: stri
 export async function hidePost(args: { postId: string, hide: boolean }) {
   const isUserAdmin = await isAdmin();
   if (!isUserAdmin) throw new Error("Unauthorized");
-  const { error } = await supabase.from("posts").update({ hidden: args.hide }).eq("id", args.postId);
+  const { error } = await supabase.from("posts").update({ is_hidden: args.hide }).eq("id", args.postId);
   if (error) throw error;
   await logAdminAction(args.hide ? "hide_post" : "unhide_post", "post", args.postId);
 }
@@ -518,7 +540,7 @@ export async function hidePost(args: { postId: string, hide: boolean }) {
 export async function hideProduct(args: { productId: string, hide: boolean }) {
   const isUserAdmin = await isAdmin();
   if (!isUserAdmin) throw new Error("Unauthorized");
-  const { error } = await supabase.from("products").update({ hidden: args.hide }).eq("id", args.productId);
+  const { error } = await supabase.from("products").update({ is_hidden: args.hide }).eq("id", args.productId);
   if (error) throw error;
   await logAdminAction(args.hide ? "hide_product" : "unhide_product", "product", args.productId);
 }

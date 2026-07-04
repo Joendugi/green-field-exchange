@@ -1,4 +1,5 @@
 import { supabase } from "./client";
+import { logAdminAction } from "./admin";
 
 export type SupportTicket = {
   id: string;
@@ -63,5 +64,14 @@ export async function updateTicketStatus(id: string, status: string): Promise<Su
     console.error("Error updating ticket status:", error);
     throw error;
   }
+
+  // Log the ticket status change in admin audit trail
+  try {
+    await logAdminAction("update_ticket_status", "ticket", id, `Status changed to: ${status}`);
+  } catch (logError) {
+    // Don't fail the ticket update if audit logging fails
+    console.error("Failed to log ticket status change:", logError);
+  }
+
   return data as SupportTicket;
 }

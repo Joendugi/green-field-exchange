@@ -31,8 +31,8 @@ export type ProfileRow = {
 function enrichProfile(raw: Record<string, any>): ProfileRow {
   return {
     ...raw,
-    userId: raw.id,
-    _id: raw.id,
+    userId: raw.user_id,
+    _id: raw.user_id,
     name: raw.full_name ?? null,
     image: raw.avatar_url ?? null,
     onboarding_completed: Boolean(raw.onboarded),
@@ -52,7 +52,7 @@ export async function getMyProfile(): Promise<ProfileRow | null> {
   const { data, error } = await supabase
     .from("profiles")
     .select("*")
-    .eq("id", userId)
+    .eq("user_id", userId)
     .maybeSingle();
 
   if (error) throw error;
@@ -67,14 +67,14 @@ export async function upsertMyProfile(input: {
   if (!userId) throw new Error("Not authenticated");
 
   const payload = {
-    id: userId,
+    user_id: userId,
     username: input.username,
     full_name: input.full_name ?? null,
   };
 
   const { data, error } = await supabase
     .from("profiles")
-    .upsert(payload, { onConflict: "id" })
+    .upsert(payload, { onConflict: "user_id" })
     .select("*")
     .single();
 
@@ -103,7 +103,7 @@ export async function updateMyProfile(changes: Partial<Pick<
   const { data, error } = await supabase
     .from("profiles")
     .update({ ...changes })
-    .eq("id", userId)
+    .eq("user_id", userId)
     .select("*")
     .single();
 
@@ -138,7 +138,7 @@ export async function getUserProfile(userId: string): Promise<ProfileRow | null>
   const { data, error } = await supabase
     .from("profiles")
     .select("*")
-    .eq("id", userId)
+    .eq("user_id", userId)
     .maybeSingle();
 
   if (error) throw error;

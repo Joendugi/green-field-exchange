@@ -2,13 +2,13 @@ import { supabase } from "./client";
 
 // Helper function to fetch user profiles for posts
 async function fetchUserProfiles(posts: any[]) {
-    const userIds = [...new Set(posts.map(post => post.user_id).filter(Boolean))];
+    const userIds = [...new Set(posts.map(post => post.user_id).filter(id => id && typeof id === 'string'))];
     
     if (userIds.length === 0) return posts;
     
     const { data: profiles, error } = await supabase
         .from("profiles")
-        .select("*")
+        .select("id, username, full_name, avatar_url, bio, verified, location")
         .in("id", userIds);
     
     if (error) {
@@ -19,15 +19,18 @@ async function fetchUserProfiles(posts: any[]) {
     const profileMap = (profiles || []).reduce((acc, profile) => {
         acc[profile.id] = profile;
         return acc;
-    }, {});
+    }, {} as Record<string, any>);
     
-    return posts.map(post => ({
-        ...post,
-        user_id: {
-            ...post.user_id,
-            ...profileMap[post.user_id]
-        }
-    }));
+    return posts.map(post => {
+        const profile = profileMap[post.user_id];
+        return {
+            ...post,
+            // Keep original UUID for ID comparisons (e.g. post.user_id_raw !== currentUser.id)
+            user_id_raw: post.user_id,
+            // Replace user_id with profile object so UI can access .full_name, .avatar_url, etc.
+            user_id: profile || { id: post.user_id },
+        };
+    });
 }
 
 export type PostInput = {

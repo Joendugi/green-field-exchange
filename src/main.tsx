@@ -6,6 +6,7 @@ import "./index.css";
 
 import React from "react";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { WalletProvider } from "@/contexts/WalletContext";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -24,7 +25,9 @@ createRoot(document.getElementById("root")!).render(
       <QueryClientProvider client={queryClient}>
         <BrowserRouter>
           <AuthProvider>
-            <App />
+            <WalletProvider>
+              <App />
+            </WalletProvider>
           </AuthProvider>
         </BrowserRouter>
       </QueryClientProvider>

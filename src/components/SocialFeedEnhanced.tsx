@@ -386,14 +386,14 @@ const SocialFeedEnhanced = () => {
                         </CardDescription>
                       </div>
                     </div>
-                    {isAuthenticated && post.user_id !== currentUser?.id && (
+                    {isAuthenticated && post.user_id_raw !== currentUser?.id && (
                       <Button
                         variant="ghost"
                         size="sm"
                         className="h-10 text-primary hover:bg-primary/10 rounded-xl font-bold border border-primary/10 hover:border-primary/30 transition-all shadow-sm"
-                        onClick={() => handleFollowToggle(post.user_id, followingUsers.has(post.user_id))}
+                        onClick={() => handleFollowToggle(post.user_id_raw, followingUsers.has(post.user_id_raw))}
                       >
-                        {followingUsers.has(post.user_id) ? (
+                        {followingUsers.has(post.user_id_raw) ? (
                           <>
                             <UserMinus className="h-4 w-4 mr-2 text-red-500" /> Unfollow
                           </>
@@ -509,7 +509,7 @@ const SocialFeedEnhanced = () => {
                               <p className="text-[15px] text-foreground/80 leading-relaxed font-medium">{comment.content}</p>
                               
                               {/* Solution Action for Authors */}
-                              {isAuthenticated && currentUser?.id === post.user_id && post.type === "question" && (
+                              {isAuthenticated && currentUser?.id === post.user_id_raw && post.type === "question" && (
                                 <div className="mt-4 pt-3 border-t border-primary/5">
                                   <Button
                                     variant="ghost"

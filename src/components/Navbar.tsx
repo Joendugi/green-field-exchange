@@ -12,10 +12,11 @@ import {
   Settings,
   LogOut,
   Shield,
-  BarChart3,
   Plus,
   CircleHelp,
+  Wallet,
 } from "lucide-react";
+import { useWallet } from "@/contexts/WalletContext";
 import { Button } from "@/components/ui/button";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
@@ -49,6 +50,7 @@ const Navbar = () => {
   const location = useLocation();
   const { isAuthenticated, logout, user, role, loading } = useAuth();
   const queryClient = useQueryClient();
+  const { wallet } = useWallet();
 
   const { data: notificationsData } = useSupabaseQuery<any>(
     ["notifications"],
@@ -173,6 +175,16 @@ const Navbar = () => {
 
         {/* Right Actions */}
         <div className="flex items-center gap-2">
+          {/* Wallet Balance Chip – desktop only */}
+          {isAuthenticated && wallet && (
+            <button
+              onClick={() => navigate("/wallet")}
+              className="hidden md:flex items-center gap-1.5 bg-emerald-600/10 hover:bg-emerald-600/20 text-emerald-700 dark:text-emerald-400 border border-emerald-300/40 rounded-full px-3 py-1 text-xs font-bold transition-colors"
+            >
+              <Wallet className="h-3.5 w-3.5" />
+              KSh {(wallet.balance_kes ?? 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}
+            </button>
+          )}
           {/* Profile / Auth */}
           {loading ? (
             <div className="hidden md:flex items-center gap-2">
@@ -194,6 +206,15 @@ const Navbar = () => {
                 <DropdownMenuItem onClick={() => navigate("/profile")}>
                   <User className="mr-2 h-4 w-4" />
                   <span>Profile</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => navigate("/wallet")} className="text-emerald-700 dark:text-emerald-400 focus:text-emerald-700">
+                  <Wallet className="mr-2 h-4 w-4" />
+                  <span>My Wallet</span>
+                  {wallet && (
+                    <span className="ml-auto text-xs font-bold opacity-70">
+                      KSh {(wallet.balance_kes ?? 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                    </span>
+                  )}
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => navigate("/dashboard?tab=settings")}>
                   <Settings className="mr-2 h-4 w-4" />
@@ -316,6 +337,21 @@ const Navbar = () => {
                   </Button>
                 ))}
                 <div className="border-t my-2" />
+                {isAuthenticated && (
+                  <Button
+                    variant="ghost"
+                    onClick={() => handleNavigation("/wallet")}
+                    className="justify-start gap-3 h-12 text-emerald-700 dark:text-emerald-400 font-semibold"
+                  >
+                    <Wallet className="h-5 w-5" />
+                    My Wallet
+                    {wallet && (
+                      <span className="ml-auto text-xs bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400 rounded-full px-2 py-0.5">
+                        KSh {(wallet.balance_kes ?? 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                      </span>
+                    )}
+                  </Button>
+                )}
                 {isAuthenticated ? (
                   <Button variant="ghost" onClick={handleLogout} className="justify-start gap-3 h-12 text-destructive">
                     <LogOut className="h-5 w-5" />

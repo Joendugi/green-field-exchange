@@ -32,6 +32,7 @@ const FarmerStories = lazy(() => import("@/pages/FarmerStories"));
 const PrivacyPolicy = lazy(() => import("@/pages/PrivacyPolicy"));
 const TermsOfService = lazy(() => import("@/pages/TermsOfService"));
 const NotFound = lazy(() => import("@/pages/NotFound"));
+const WalletPage = lazy(() => import("@/pages/Wallet"));
 
 function AppContent() {
   const { isAuthenticated, loading } = useAuth();
@@ -73,6 +74,11 @@ function AppContent() {
           <Route path="/my-products" element={<Navigate to="/dashboard?tab=products" replace />} />
           <Route path="/orders" element={<Navigate to="/dashboard?tab=orders" replace />} />
           <Route path="/settings" element={<Navigate to="/dashboard?tab=settings" replace />} />
+          <Route path="/wallet" element={
+            <ProtectedRoute>
+              <WalletPage />
+            </ProtectedRoute>
+          } />
           
           {/* More Protected Routes */}
           <Route path="/messages" element={

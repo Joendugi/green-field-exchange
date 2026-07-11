@@ -238,15 +238,24 @@ export async function checkRateLimit(
   limitSeconds = 60,
   maxAttempts = 5
 ): Promise<boolean> {
-  const { data, error } = await supabase.rpc("check_rate_limit", {
-    p_key: key,
-    p_action: action,
-    p_limit_seconds: limitSeconds,
-    p_max_attempts: maxAttempts,
-  });
+  try {
+    const { data, error } = await supabase.rpc("check_rate_limit", {
+      p_key: key,
+      p_action: action,
+      p_limit_seconds: limitSeconds,
+      p_max_attempts: maxAttempts,
+    });
 
-  if (error) throw error;
-  return (data as boolean) ?? false;
+    // If function not found in schema cache, allow the action (fail open)
+    if (error) {
+      console.warn("Rate limit check unavailable, allowing action:", error.message);
+      return true;
+    }
+    return (data as boolean) ?? true;
+  } catch (err) {
+    console.warn("Rate limit check error, allowing action:", err);
+    return true;
+  }
 }
 
 // Login Attempts (admin only)

@@ -114,6 +114,14 @@ All colors MUST be HSL.
     @apply bg-background text-foreground;
     font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   }
+
+  /* Make content visible by default — JS will add .js-ready to body,
+     which activates the scroll-reveal animation. Without this guard,
+     content stays hidden if JS is slow or blocked on mobile. */
+  .reveal {
+    opacity: 1;
+    transform: none;
+  }
 }
 
 /* Performance: Prevent CLS (Cumulative Layout Shift) */
@@ -405,5 +413,37 @@ All colors MUST be HSL.
 
   .card-premium:hover::after {
     @apply opacity-100;
+  }
+}
+
+/* ─── Scroll reveal — only active when JS has confirmed it's running ─────── */
+body.js-ready .reveal {
+  opacity: 0;
+  transform: translateY(30px);
+  transition: all 0.8s cubic-bezier(0.22, 1, 0.36, 1);
+}
+body.js-ready .reveal.active {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* ─── Accessibility: honour reduced-motion OS preference ────────────────── */
+/* Low-end Android devices often enable this via battery saver mode.          */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  /* Ensure reveal elements are always visible (no animation needed) */
+  .reveal,
+  body.js-ready .reveal {
+    opacity: 1 !important;
+    transform: none !important;
+    transition: none !important;
   }
 }

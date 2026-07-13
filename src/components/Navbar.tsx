@@ -39,7 +39,6 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import ThemeToggle from "./ThemeToggle";
 import { formatDistanceToNow } from "date-fns";
-import AIFloatingBubble from "./AIFloatingBubble";
 import { useSupabaseQuery } from "@/hooks/useSupabaseQuery";
 import { getMyNotifications, markNotificationRead, markAllNotificationsRead } from "@/integrations/supabase/notifications";
 import { getUnreadMessagesCount } from "@/integrations/supabase/messages";
@@ -74,10 +73,24 @@ const Navbar = () => {
   const prevUnreadCountRef = useRef(unreadCount);
   const prevMessagesCountRef = useRef(unreadMessagesCount);
 
+  // Track whether the user has interacted with the page at least once.
+  // Mobile browsers block Audio.play() until a user gesture has occurred.
+  const userInteracted = useRef(false);
   useEffect(() => {
+    const markInteracted = () => { userInteracted.current = true; };
+    window.addEventListener("click", markInteracted, { once: true, passive: true });
+    window.addEventListener("touchstart", markInteracted, { once: true, passive: true });
+    return () => {
+      window.removeEventListener("click", markInteracted);
+      window.removeEventListener("touchstart", markInteracted);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!userInteracted.current) return; // never play before first interaction
     if (unreadCount > prevUnreadCountRef.current || unreadMessagesCount > prevMessagesCountRef.current) {
       const audio = new Audio("https://assets.mixkit.co/active_storage/sfx/2354/2354-preview.mp3");
-      audio.play().catch(e => console.error("Audio play failed (maybe user interaction required):", e));
+      audio.play().catch(e => console.error("Audio play failed:", e));
     }
     prevUnreadCountRef.current = unreadCount;
     prevMessagesCountRef.current = unreadMessagesCount;
@@ -374,7 +387,6 @@ const Navbar = () => {
           </Sheet>
         </div>
       </div>
-      <AIFloatingBubble />
     </nav>
   );
 };

@@ -1,4 +1,4 @@
-import { createContext, useContext, ReactNode, useEffect, useState } from "react";
+import { createContext, useContext, ReactNode, useEffect, useState, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { getMyProfile, getMyRole, ProfileRow } from "@/integrations/supabase/profiles";
 
@@ -21,16 +21,30 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const [role, setRole] = useState<string | null>(null);
     const [profileLoaded, setProfileLoaded] = useState(false);
 
+    // Guard flag: tracks whether the initial getSession() call has already
+    // resolved so that the onAuthStateChange INITIAL_SESSION event does not
+    // trigger a second profile load race condition on first mount.
+    const sessionBootstrapped = useRef(false);
+
     useEffect(() => {
         let active = true;
 
+        // ── Step 1: Read the cached session immediately (no network) ──────
+        // getSession() resolves from localStorage synchronously on most
+        // Supabase v2 setups, so this is effectively instant on mobile.
         void supabase.auth.getSession().then(({ data }) => {
             if (!active) return;
+            sessionBootstrapped.current = true;
             setIsAuthenticated(Boolean(data.session));
             setAuthLoading(false);
         });
 
+        // ── Step 2: Subscribe to future auth events (sign-in, sign-out…) ──
+        // We skip the first INITIAL_SESSION event if getSession() already ran
+        // to avoid double-loading the profile on cold start.
         const { data: subscription } = supabase.auth.onAuthStateChange((_event, session) => {
+            // If bootstrap hasn't finished yet let getSession() handle it
+            if (!sessionBootstrapped.current && _event === "INITIAL_SESSION") return;
             setIsAuthenticated(Boolean(session));
             setAuthLoading(false);
         });

@@ -40,15 +40,15 @@ export async function getMyWallet(): Promise<Wallet> {
     .from("wallets")
     .select("*")
     .eq("user_id", userData.user.id)
-    .single();
+    .maybeSingle();
 
-  if (error) {
+  if (error) throw error;
+  
+  if (!data) {
     // Auto-create wallet if it doesn't exist yet
-    if (error.code === "PGRST116") {
-      return createWallet(userData.user.id);
-    }
-    throw error;
+    return createWallet(userData.user.id);
   }
+
   return data;
 }
 

@@ -1,5 +1,3 @@
-import { useEffect } from "react";
-import { useNavigate } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import SocialFeedEnhanced from "@/components/SocialFeedEnhanced";
@@ -7,16 +5,14 @@ import ThemeToggle from "@/components/ThemeToggle";
 import { useAuth } from "@/contexts/AuthContext";
 
 const Social = () => {
-  const navigate = useNavigate();
-  const { isAuthenticated, loading } = useAuth();
+  const { loading } = useAuth();
 
-  // Removed automatic redirect to allow anonymous viewing of the social feed.
-  // Component-level protection in SocialFeedEnhanced handles restricted actions.
+  // No redirect: Social feed is viewable by anonymous users.
+  // Component-level checks inside SocialFeedEnhanced guard restricted actions.
 
-
-  if (loading && isAuthenticated) {
+  if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );

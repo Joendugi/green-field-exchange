@@ -5,22 +5,25 @@ import { useAuth } from "@/contexts/AuthContext";
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
     const navigate = useNavigate();
-    const { user, loading, isAuthenticated } = useAuth();
+    const { loading, isAuthenticated } = useAuth();
 
     useEffect(() => {
-        // Only redirect of we are definitely NOT authenticated and NOT loading
+        // Only redirect if we are definitely NOT authenticated and NOT loading
         if (!loading && !isAuthenticated) {
             navigate("/auth");
         }
     }, [isAuthenticated, loading, navigate]);
 
-    // Show loading if we are still fetching auth state OR 
-    // if we are authenticated but the profile (user object) isn't ready yet
+    // While auth state is still resolving, render children so they can
+    // show their own loading spinner without an extra wrapper flash.
     if (loading) {
         return <>{children}</>;
     }
 
-    return isAuthenticated && user ? <>{children}</> : null;
+    // Guard only on isAuthenticated — the profile (user) object may be null
+    // if the profile fetch failed, but we should still let the page render
+    // rather than showing a blank screen. Pages handle a null user gracefully.
+    return isAuthenticated ? <>{children}</> : null;
 };
 
 export default ProtectedRoute;

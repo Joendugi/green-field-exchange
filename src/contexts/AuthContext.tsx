@@ -99,6 +99,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         }
     };
 
+    // loading is true while:
+    //  a) the initial getSession() call hasn't resolved yet, OR
+    //  b) authenticated + profile fetch hasn't finished (success OR failure).
+    // profileLoaded is always set to true in the finally block, so loading
+    // will never be stuck even if the profile fetch throws.
     const loading = authLoading || (isAuthenticated && !profileLoaded);
 
     const logout = async () => {

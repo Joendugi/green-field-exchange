@@ -29,7 +29,9 @@
       } catch (e) {}
       // Signal that JS is running — enables scroll-reveal animations.
       // Without this flag, .reveal elements stay hidden if JS is slow to parse.
-      document.body.classList.add('js-ready');
+      window.addEventListener('DOMContentLoaded', function() {
+        document.body.classList.add('js-ready');
+      });
     })();
   </script>
 

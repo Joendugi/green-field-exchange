@@ -17,10 +17,14 @@ import {
   Settings
 } from "@/components/LazyComponents";
 
+import { WidgetErrorBoundary } from "@/components/WidgetErrorBoundary";
+
 const LazyLoader = ({ children }: { children: React.ReactNode }) => (
-  <Suspense fallback={<DashboardSkeleton />}>
-    {children}
-  </Suspense>
+  <WidgetErrorBoundary>
+    <Suspense fallback={<DashboardSkeleton />}>
+      {children}
+    </Suspense>
+  </WidgetErrorBoundary>
 );
 
 const TAB_STORAGE_KEY = "dashboard:last-tab";
